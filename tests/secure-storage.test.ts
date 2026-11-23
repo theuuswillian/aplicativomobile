@@ -25,6 +25,52 @@ describe("secure local financial storage", () => {
     await expect(readFinancialRecord<typeof record>("user-a", "transaction-1")).resolves.toEqual(record);
   });
 
+  it("persists a non-exportable AES-GCM key", async () => {
+    await saveFinancialRecord("user-a", "transaction-key", { value: 1 });
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("granaviva-secure-cache", 1);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const keyRecord = await new Promise<{ key: CryptoKey }>((resolve, reject) => {
+      const request = db.transaction("keys", "readonly").objectStore("keys").get("financial-records-aes-gcm-v1");
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    db.close();
+    expect(keyRecord.key.algorithm.name).toBe("AES-GCM");
+    expect(keyRecord.key.extractable).toBe(false);
+    expect(keyRecord.key.usages).toContain("encrypt");
+    expect(keyRecord.key.usages).toContain("decrypt");
+  });
+
+  it("fails closed when ciphertext is modified", async () => {
+    await saveFinancialRecord("user-a", "transaction-tamper", { amountCents: 1234 });
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("granaviva-secure-cache", 1);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction("records", "readwrite");
+      const store = tx.objectStore("records");
+      const request = store.get("user-a:transaction-tamper");
+      request.onsuccess = () => {
+        const record = request.result;
+        const bytes = new Uint8Array(record.ciphertext);
+        bytes[0] ^= 1;
+        record.ciphertext = bytes.buffer;
+        store.put(record);
+      };
+      request.onerror = () => reject(request.error);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+    db.close();
+    await expect(readFinancialRecord("user-a", "transaction-tamper")).rejects.toBeInstanceOf(SecureStorageError);
+  });
+
   it("does not expose a record to a different user namespace", async () => {
     await saveFinancialRecord("user-a", "transaction-1", { amountCents: 5000 });
     await expect(readFinancialRecord("user-b", "transaction-1")).resolves.toBeNull();
