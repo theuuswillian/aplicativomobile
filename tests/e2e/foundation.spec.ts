@@ -57,8 +57,24 @@ test("serves the cached app shell after going offline", async ({ page, context }
   expect(cachedAssets.some((path) => path.endsWith(".css"))).toBeTruthy();
   expect(cachedAssets.some((path) => path.endsWith(".woff2"))).toBeTruthy();
 
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") pageErrors.push(message.text());
+  });
+
   await context.setOffline(true);
-  await page.goto("/", { waitUntil: "domcontentloaded" });
+  const navigation = await page.goto("/", { waitUntil: "domcontentloaded" })
+    .then((response) => response?.status() ?? "sem resposta")
+    .catch((error: Error) => `erro de navegação: ${error.message}`);
+  const offlineSnapshot = {
+    navigation,
+    url: page.url(),
+    title: await page.title().catch(() => "indisponível"),
+    body: await page.locator("body").innerText().catch(() => "indisponível"),
+    pageErrors,
+  };
+  console.log("Diagnóstico offline:", JSON.stringify(offlineSnapshot));
   await expect(page.getByRole("heading", { level: 1, name: /sua vida financeira/i })).toBeVisible();
   await context.setOffline(false);
 });
