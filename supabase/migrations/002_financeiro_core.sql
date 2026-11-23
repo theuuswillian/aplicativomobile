@@ -294,7 +294,7 @@ create index import_batches_user_created_idx on public.import_batches(user_id, c
 create index import_items_batch_idx on public.import_items(user_id, batch_id);
 create index receipt_files_transaction_idx on public.receipt_files(user_id, transaction_id);
 
-do $$
+do $body$
 declare t text;
 begin
   foreach t in array array[
@@ -317,6 +317,6 @@ begin
   ] loop
     execute format('create trigger %I before update on public.%I for each row execute function public.set_updated_at()', t || '_set_updated_at', t);
   end loop;
-end $;
+end $body$;
 
 commit;
