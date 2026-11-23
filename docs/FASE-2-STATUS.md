@@ -117,3 +117,40 @@ A tela é somente a base visual e não inicia jornadas funcionais da Fase 3. A f
 - Implementado `src/lib/secure-storage.ts`: AES-GCM 256 via Web Crypto, chave não exportável persistida em IndexedDB, IV aleatório por registro, AAD vinculada ao namespace usuário/registro e comportamento fail-closed sem fallback em texto puro.
 - Implementados leitura, gravação, exclusão individual e limpeza por usuário.
 - Testes adicionados para criptografia/descriptografia, isolamento por namespace, ausência de plaintext e limpeza por usuário. A execução Vitest permanece pendente até instalar dependências.
+
+
+## Atualização de consolidação da fundação — 22/11/2026
+
+### Implementado e publicado na branch
+
+- [x] Fontes Inter 400/600/700 adicionadas por dependência local e importadas no entrypoint; o Vite empacota as fontes, sem CDN.
+- [x] Armazenamento local seguro com AES-GCM 256, chave não exportável no IndexedDB, IV aleatório, AAD por usuário/registro, leitura/gravação/exclusão e falha segura sem fallback em texto puro.
+- [x] Manifest PWA com ícone vetorial local, favicon e service worker de shell offline. O service worker não armazena respostas de Auth, REST, Storage, Functions ou Realtime.
+- [x] Funções puras iniciais para saldos, transferências, compras no cartão, faturas, pagamentos parciais, parcelas, orçamentos e metas.
+- [x] Funções puras para recorrências diárias, semanais, quinzenais, mensais, anuais e intervalos, com âncora de fim de mês.
+- [x] Livro de investimentos com posição inicial, compras, vendas parciais, preço médio, resultado realizado e proventos separados.
+- [x] Deduplicação de importação por FITID/sourceId ou chave normalizada e plano compensatório de desfazer lote.
+- [x] Sanitização/heurísticas de prompt injection e avaliação/idempotência de alertas do Radar.
+- [x] Testes unitários adicionados para domínio financeiro, recorrências, investimentos, importação, validação de IA/Radar, IndexedDB e contraste do design system.
+- [x] Assertions SQL ampliadas para grants, RLS, SECURITY DEFINER/search_path, cotas atômicas, rate limit, inbox/outbox, fencing e reserva idempotente do resumo semanal.
+- [x] CI com permissões mínimas, actions fixadas por SHA e serviço PostgreSQL 17.
+
+### Validações que ainda bloqueiam a aprovação
+
+- [ ] Instalar dependências e executar lint, typecheck, Vitest e build. Não há node_modules nem lockfile no branch; a instalação local desta sessão não está disponível por falta de acesso de rede.
+- [ ] Gerar e versionar `package-lock.json` para instalação reprodutível.
+- [ ] Confirmar execução verde do GitHub Actions. O conector não retornou runs nem status checks para os commits consultados; isso não comprova sucesso nem falha do workflow.
+- [ ] Executar migrations e assertions em PostgreSQL 17. O ambiente desta sessão não possui `psql` nem Docker.
+- [ ] Fazer revisão visual em navegador (Safari iOS e Chromium) e validar PWA instalável/atualização/offline.
+- [ ] Fazer auditoria manual WCAG AA completa com teclado e leitor de tela. O teste automatizado atual cobre contraste dos tokens, foco visível e preferência por movimento reduzido; não substitui auditoria integral.
+- [ ] Validar concorrência real em sessões PostgreSQL paralelas e completar testes de integração de importação/Storage quando os serviços da fase seguinte estiverem disponíveis.
+
+### Estado de segurança e publicação
+
+- A branch de trabalho permanece `fase-2-fundacao`; a `main` não foi modificada.
+- Foi aberto o PR de rascunho [#1 — Fase 2](https://github.com/theuuswillian/aplicativomobile/pull/1) exclusivamente para revisão/CI. Está aberto, não mesclado e não aprovado.
+- Nenhuma migration foi aplicada ao Supabase remoto.
+- Nenhuma chave ou segredo foi adicionada ao frontend.
+- A Fase 3 permanece bloqueada até as validações pendentes serem executadas e o usuário enviar literalmente `APROVADO`.
+
+**Conclusão:** a fundação de código foi ampliada, mas a Fase 2 ainda não pode ser declarada concluída enquanto as validações automatizadas e PostgreSQL não forem executadas e confirmadas.
