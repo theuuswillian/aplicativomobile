@@ -43,6 +43,7 @@ describe("financial domain regression rules", () => {
     expect(calculateAccountBalance(100000, "a", entries, "2026-11-30")).toBe(129000);
     expect(calculateAccountBalance(100000, "a", entries, "2026-11-30", true)).toBe(132000);
     expect(calculateAccountBalance(0, "b", entries, "2026-11-30")).toBe(5000);
+    expect(calculateAccountBalance(-10000, "a", [], "2026-11-30")).toBe(-10000);
   });
 
   it("anchors card purchases to the first closing date on or after purchase", () => {
