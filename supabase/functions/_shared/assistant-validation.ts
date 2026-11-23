@@ -1,5 +1,23 @@
 export type SafeJson = null | boolean | number | string | SafeJson[] | { [key: string]: SafeJson };
 
+function stripControlCharacters(value: string): string {
+  return Array.from(value)
+    .filter((character) => {
+      const code = character.charCodeAt(0);
+      return code > 0x1f && code !== 0x7f;
+    })
+    .join("");
+}
+
+function replaceControlCharactersWithSpaces(value: string): string {
+  return Array.from(value)
+    .map((character) => {
+      const code = character.charCodeAt(0);
+      return code <= 0x1f || code === 0x7f ? " " : character;
+    })
+    .join("");
+}
+
 function sanitizeValue(value: unknown, depth: number): SafeJson | null {
   if (depth > 4) return null;
   if (value === null || typeof value === "boolean") return value;
