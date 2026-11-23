@@ -1,7 +1,10 @@
 export type JsonRecord = Record<string, unknown>;
 
 const corsHeaders = (origin: string | null): HeadersInit => {
-  const configuredOrigin = Deno.env.get("APP_ORIGIN");
+  const deno = (globalThis as typeof globalThis & {
+    Deno?: { env: { get(name: string): string | undefined } };
+  }).Deno;
+  const configuredOrigin = deno?.env.get("APP_ORIGIN");
   const headers: Record<string, string> = {
     "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
     "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
@@ -42,11 +45,13 @@ export function methodNotAllowed(
   allowed: string[],
   origin: string | null,
 ): Response {
-  return jsonResponse(
+  const response = jsonResponse(
     { error: { code: "METHOD_NOT_ALLOWED", message: "Método não permitido." } },
     405,
     origin,
   );
+  response.headers.set("Allow", allowed.join(", "));
+  return response;
 }
 
 export function invalidRequest(
