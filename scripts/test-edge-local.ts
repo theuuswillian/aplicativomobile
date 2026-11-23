@@ -105,7 +105,10 @@ try {
   // preflight headers. The function's exact allowlist is tested at runtime below.
 
   const unauthenticated = await invoke("minha-conta", null, { action: "consultar" });
-  assert(unauthenticated.response.status === 401, "Requisição sem JWT deve ser rejeitada.");
+  assert(
+    unauthenticated.response.status === 401,
+    `Requisição sem JWT deve ser rejeitada (status=${unauthenticated.response.status}; body=${JSON.stringify(unauthenticated.body)}).`,
+  );
 
   const wrongMethod = await invoke("minha-conta", tokenA, undefined, "GET");
   assert(wrongMethod.response.status === 405, "Método GET deve ser rejeitado.");
