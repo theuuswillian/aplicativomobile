@@ -12,6 +12,8 @@ export function sanitizeAiInput(value: string, maxLength = 4000): string {
   if (!Number.isInteger(maxLength) || maxLength < 1 || maxLength > 20000) throw new TypeError("Limite de texto inválido.");
   return value
     .normalize("NFC")
+    // Remover caracteres de controle é intencional nesta fronteira de entrada não confiável.
+    // eslint-disable-next-line no-control-regex
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "")
     .replace(/<\s*script\b[^>]*>[\s\S]*?<\s*\/\s*script\s*>/gi, "[conteúdo removido]")
     .trim()
