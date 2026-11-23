@@ -157,6 +157,14 @@ begin
     raise exception 'RLS de accounts vazou dados entre usuários: esperado 1, recebido %', v_count;
   end if;
 
+  begin
+    insert into public.accounts(user_id,name,account_type,opening_balance,opening_balance_date)
+    values ('10000000-0000-4000-8000-000000000002','INSERT cruzado','checking',0,'2026-01-01');
+    raise exception 'RLS permitiu INSERT de conta para outro usuário';
+  exception when insufficient_privilege then
+    null;
+  end;
+
   update public.accounts
      set name='Tentativa de alteração cruzada'
    where user_id='10000000-0000-4000-8000-000000000002';
