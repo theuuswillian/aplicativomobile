@@ -10,3 +10,4 @@ for migration in supabase/migrations/00[1-5]_*.sql; do
 done
 
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/rls_schema_assertions.sql
+bash scripts/test-sql-concurrency.sh
