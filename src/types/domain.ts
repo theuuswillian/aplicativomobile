@@ -1,7 +1,7 @@
 export type CurrencyCode = "BRL";
 export type TransactionKind = "income" | "expense" | "transfer";
 export type TransactionStatus = "paid" | "planned" | "cancelled";
-export type AccountType = "checking" | "savings" | "cash" | "investment" | "other";
+export type AccountType = string;
 export type MoneyCents = number & { readonly __brand: "MoneyCents" };
 
 export interface Account {
