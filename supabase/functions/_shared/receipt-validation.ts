@@ -43,7 +43,13 @@ export function validateReceiptBase64(
   encoded: unknown,
   mimeInput: unknown,
 ): ReceiptValidation {
-  if (typeof encoded !== "string" || typeof mimeInput !== "string" ||
+  if (typeof encoded !== "string") {
+    return { ok: false, reason: "invalid_base64" };
+  }
+  if (encoded.length > Math.ceil(MAX_RECEIPT_BYTES / 3) * 4) {
+    return { ok: false, reason: "too_large" };
+  }
+  if (typeof mimeInput !== "string" ||
       !supportedMimes.has(mimeInput as ReceiptMime) ||
       encoded.length === 0 || encoded.length % 4 !== 0 ||
       !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(encoded)) {
