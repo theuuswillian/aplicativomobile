@@ -1,6 +1,6 @@
 # GranaViva — Fase 2: fundação técnica
 
-> **Status vigente em 23/11/2026:** implementação da fundação publicada na branch `fase-2-fundacao`. CI consolidado **verde**, inclusive instalação limpa com `npm ci`, lint, verificações de política/segredos, TypeScript, Vitest, build e PostgreSQL 17 (cinco migrations, RLS, grants, isolamento e concorrência). A Fase 2 **ainda não está aprovada**: faltam revisão visual real em navegador/Safari iOS, teste real de instalação e uso offline do PWA e auditoria manual completa WCAG AA. Nenhuma migration foi aplicada ao Supabase remoto; `main` não foi alterada.
+> **Status vigente em 23/11/2026:** validação automatizada consolidada **verde** na branch `fase-2-fundacao`. O run GitHub Actions `45144224987` concluiu com sucesso os jobs `validate`, `sql` e `lockfile`. A Fase 2 **ainda não está concluída**: faltam os testes presenciais em Safari/iOS, instalação e atualização real do PWA e auditoria manual com VoiceOver/leitor de tela. Nenhuma migration foi aplicada ao Supabase remoto; a branch `main` não foi alterada.
 
 ## Estado vigente e evidências
 
@@ -8,23 +8,26 @@
 - [x] Análise do ZIP legado e decisões de reconstrução em `docs/LEGADO-ANALISE-2026-11-22.md`.
 - [x] React 19 + TypeScript + Vite, ESLint, Vitest e CI.
 - [x] Design system dark/light, Inter local 400/600/700, layout responsivo, foco visível e movimento reduzido.
-- [x] Shell PWA com manifesto, ícone SVG, service worker e política de cache que exclui Auth/REST/Storage/Functions/Realtime.
+- [x] Shell PWA com manifesto, ícone SVG, ícone PNG Apple Touch, metadados iOS e Service Worker.
+- [x] Service Worker pré-armazena HTML, JavaScript, CSS e fontes locais para o primeiro uso offline; cache exclui Auth/REST/Storage/Functions/Realtime.
 - [x] Cofre local AES-GCM 256 com chave não exportável no IndexedDB, IV aleatório, AAD por namespace e falha segura.
 - [x] Domínio puro para dinheiro, contas/transferências, cartões/faturas/parcelas/limites, recorrências, investimentos/proventos, orçamento/metas, importação idempotente, validação de IA e Radar.
 - [x] Cinco migrations SQL transacionais e assertions de segurança.
-- [x] Testes unitários, segurança, PWA, contraste e concorrência SQL.
-- [x] Lockfile npm v3 versionado; a execução CI mais recente usou `npm ci`.
-- [x] GitHub Actions run `45101543390`: jobs `validate`, `sql` e `lockfile` concluídos com sucesso.
-- [ ] Revisão visual em navegador real, incluindo Safari iOS.
-- [ ] Instalação, atualização e operação offline do PWA em dispositivo/navegador real.
-- [ ] Auditoria manual WCAG AA com teclado e leitor de tela.
+- [x] 45 testes unitários em 11 arquivos.
+- [x] 12 testes E2E em Chromium desktop e WebKit com perfil iPhone: temas, responsividade, WCAG 2.2 AA automatizado, primeiro acesso offline, teclado/foco e metadados PWA/iOS.
+- [x] Lockfile npm versionado e sincronizado; instalação limpa com `npm ci`.
+- [x] PostgreSQL 17: migrations 001–005, RLS, grants, isolamento entre usuários e testes de concorrência.
+- [x] Prévia Vercel vinculada à branch `fase-2-fundacao`, em ambiente Preview (não produção), com proteção SSO.
+- [ ] Revisão visual em Safari iOS e navegador real.
+- [ ] Instalação, abertura pelo ícone, atualização e operação offline do PWA em dispositivo real.
+- [ ] Auditoria manual WCAG AA com teclado e leitor de tela/VoiceOver.
 
 ### Resultado da execução consolidada
 
-Run `45101543390`:
-- `validate`: sucesso — npm 11.21.2, `npm ci`, ESLint, política arquitetural, busca de segredos, sintaxe dos scripts shell, TypeScript, Vitest e build Vite.
+Run `45144224987` — [abrir execução no GitHub](https://github.com/theuuswillian/aplicativomobile/actions/runs/45144224987):
+- `validate`: sucesso — npm 11.21.2, `npm ci`, ESLint, política arquitetural, busca de segredos, sintaxe dos scripts shell, TypeScript, 45 testes Vitest, build Vite e 12 testes Playwright em Chromium/WebKit.
 - `sql`: sucesso — PostgreSQL 17, migrations 001–005, assertions de schema/RLS/grants/isolamento e duas sessões concorrentes para quota de IA e rate limit.
-- `lockfile`: sucesso — lockfile gerado/versionado na branch.
+- `lockfile`: sucesso — lockfile reproduzível gerado e confirmado na branch, sem novo commit necessário.
 
 ### Limites e proteção
 
@@ -33,7 +36,7 @@ Run `45101543390`:
 - Nenhuma migration foi aplicada ao Supabase remoto.
 - Nenhuma chave administrativa ou segredo foi publicado no frontend.
 - O shell atual é uma fundação visual, não uma aplicação financeira conectada: não há autenticação nem dados reais ligados nesta fase.
-- A Fase 3 permanece bloqueada até fechar as três validações manuais acima e receber literalmente `APROVADO`.
+- A Fase 3 permanece bloqueada até fechar as validações manuais acima e receber literalmente `APROVADO`.
 
 ---
 
