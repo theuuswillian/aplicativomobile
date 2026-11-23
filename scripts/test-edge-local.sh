@@ -26,16 +26,25 @@ trap cleanup EXIT
 
 ready=0
 for attempt in $(seq 1 60); do
+  # The Kong gateway can answer OPTIONS before the Edge Runtime is ready.
+  # Probe a real POST so an unavailable upstream (502/503) cannot be mistaken for readiness.
   status="$(curl --silent --show-error --max-time 5 --output /dev/null --write-out '%{http_code}' \
-    --request OPTIONS \
+    --request POST \
     --header 'apikey: '"$SUPABASE_ANON_KEY" \
     --header 'Origin: http://localhost:5173' \
-    --header 'Access-Control-Request-Method: POST' \
-    --header 'Access-Control-Request-Headers: authorization, apikey, content-type' \
+    --header 'Content-Type: application/json' \
+    --data '{"action":"consultar"}' \
     "$SUPABASE_URL/functions/v1/minha-conta" 2>>"$log_file" || true)"
-  if [ "$status" = "200" ] || [ "$status" = "204" ]; then
-    ready=1
-    break
+  case "$status" in
+    400|401|403|405|415)
+      ready=1
+      break
+      ;;
+  esac
+  if ! kill -0 "$functions_pid" 2>/dev/null; then
+    echo "O processo local de Edge Functions encerrou antes de ficar pronto. Logs:"
+    cat "$log_file"
+    exit 1
   fi
   sleep 2
 done
