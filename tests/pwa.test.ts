@@ -18,7 +18,8 @@ describe("PWA shell", () => {
 
   it("registers the service worker only in production", () => {
     expect(entrypoint).toContain('import.meta.env.PROD');
-    expect(entrypoint).toContain('navigator.serviceWorker.register("/sw.js")');
+    expect(entrypoint).toContain('navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" })');
+    expect(entrypoint).toContain("registration.update()");
   });
 
   it("does not cache authentication or financial API responses", () => {
