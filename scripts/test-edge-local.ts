@@ -103,7 +103,7 @@ try {
   );
   assert(
     preflight.headers.get("Access-Control-Allow-Origin") === allowedOrigin,
-    "CORS deve liberar somente a origem configurada.",
+    `CORS deve liberar somente a origem configurada (status=${preflight.status}; Access-Control-Allow-Origin=${preflight.headers.get("Access-Control-Allow-Origin") ?? "ausente"}).`,
   );
 
   const hostilePreflight = await fetch(`${apiUrl}/functions/v1/minha-conta`, {
