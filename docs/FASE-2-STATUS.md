@@ -82,3 +82,18 @@ Também foram publicados:
 - [ ] Design system e ativos locais completos.
 
 **Limite importante:** as migrations foram publicadas no GitHub, mas ainda não foram executadas em PostgreSQL nesta sessão e não foram aplicadas ao Supabase remoto. A checagem estática não substitui execução SQL. A Fase 2 permanece em andamento; a Fase 3 continua bloqueada.
+
+
+## Atualização de domínio e auditoria da referência legada — 22/11/2026
+
+O arquivo ZIP de referência foi aberto e inventariado (222 entradas). Foram lidos o README, o roadmap, a auditoria read-only do Supabase, a documentação de arquitetura/segurança da reconstrução e a estrutura do frontend React legado. A orientação foi preservar semântica e jornadas úteis, mas não importar o monólito nem reaplicar migrations históricas não registradas.
+
+Também foi endurecida a conversão monetária em `src/lib/money.ts`:
+- arredondamento de meio centavo simétrico para valores positivos e negativos;
+- conversão decimal via `BigInt`, evitando assimetria causada por `Math.round` em negativos;
+- rejeição explícita de valores que ultrapassam o limite seguro de centavos.
+- testes adicionais em `tests/money.test.ts` para os casos de arredondamento e overflow.
+
+Validação local isolada do algoritmo em Node 22: exemplos `12,34 → 1234`, `1,005 → 101`, `-1,005 → -101` e `0,1 + 0,2 → 30`. Isso não substitui a execução do Vitest/TypeScript no projeto.
+
+**Ambiente disponível nesta sessão:** Node 22 está disponível; `psql` e Docker não estão instalados. A execução SQL real permanece delegada ao workflow do GitHub Actions. O conector disponível não retornou runs associados ao commit consultado, portanto não há resultado de CI confirmado neste registro.
