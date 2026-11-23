@@ -54,7 +54,8 @@ Implementar o backend do GranaViva conforme `docs/ARQUITETURA_TRAVADA.md`, sem c
 
 ### IA, Radar, push e WhatsApp
 - [ ] Assistente contextual e validação de IA.
-- [ ] Leitura de comprovantes com revisão humana.
+- [x] Validação isolada de base64, MIME declarado versus assinatura real e limite de 5 MB para arquivos aceitos.
+- [ ] Endpoint de IA para leitura de comprovantes, validação da resposta e revisão humana.
 - [ ] Cotações e Radar.
 - [ ] Push.
 - [ ] WhatsApp completo.
