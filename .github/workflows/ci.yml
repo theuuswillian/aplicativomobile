@@ -48,6 +48,22 @@ jobs:
           if-no-files-found: ignore
           retention-days: 3
 
+  edge-runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Install Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: 2.9.8
+      - name: Type-check Supabase Edge Functions
+        run: >-
+          deno check --no-config
+          supabase/functions/minha-conta/index.ts
+          supabase/functions/minhas-preferencias/index.ts
+      - name: Run Edge runtime unit tests
+        run: deno test --no-config supabase/functions/_shared/edge_test.ts
+
   sql:
     runs-on: ubuntu-latest
     services:
