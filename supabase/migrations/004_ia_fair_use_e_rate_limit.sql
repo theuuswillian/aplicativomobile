@@ -59,8 +59,9 @@ declare
   v_daily_used bigint;
   v_reservation uuid;
 begin
-  if p_user_id is null
+  if p_user_id is null or p_usage_kind is null
      or p_usage_kind not in ('phrase','receipt','statement','whatsapp')
+     or p_daily_limit is null or p_monthly_limit is null
      or p_daily_limit < 1 or p_monthly_limit < p_daily_limit
      or p_daily_limit > 10000 or p_monthly_limit > 100000 then
     raise exception 'Parâmetros inválidos para reserva de uso de IA';
