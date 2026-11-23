@@ -4,6 +4,8 @@ import { requestStructuredAi } from "../_shared/ai-provider.ts";
 import { validateAssistantInput, validateAssistantOutput } from "../_shared/assistant-validation.ts";
 import {
   handleOptions,
+  isAllowedOrigin,
+  originNotAllowedResponse,
   isJsonRequest,
   jsonResponse,
   methodNotAllowed,
@@ -28,6 +30,7 @@ Retorne somente o objeto JSON no formato solicitado.`;
 
 Deno.serve(async (request: Request) => {
   const origin = request.headers.get("origin");
+  if (!isAllowedOrigin(origin)) return originNotAllowedResponse(origin);
   if (request.method === "OPTIONS") return handleOptions(request);
   if (request.method !== "POST") return methodNotAllowed(["POST", "OPTIONS"], origin);
 
