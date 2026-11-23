@@ -42,3 +42,12 @@ A Fase 3 permanece bloqueada até conclusão e aprovação explícita da Fase 2.
 - Nenhuma migration foi inventada ou aplicada nesta atualização; o pacote local anterior não está disponível no ambiente desta sessão e precisa ser reconstruído ou reapresentado antes de publicar SQL.
 - O repositório continua sem as cinco migrations, sem testes reais de PostgreSQL/RLS e sem validação integral de build/lint/testes.
 - A Fase 2 continua em andamento e a Fase 3 continua bloqueada.
+
+
+## Atualização de análise do legado — 22/11/2026
+
+- O ZIP original enviado nesta conversa foi aberto e inventariado: 222 entradas.
+- Foi publicada a análise de evidências e decisões em `docs/LEGADO-ANALISE-2026-11-22.md` (commit `b3b1b58`).
+- A análise confirma que o protótipo React do legado é visual e usa dados locais ilustrativos; não é uma implementação persistida a reaproveitar.
+- Foram documentados os riscos de replay das migrations antigas, os limites da auditoria remota de 20/11 e os padrões de WhatsApp que podem ser reavaliados sem trazer pagamentos/Pluggy.
+- Nenhuma migration foi aplicada nem publicada nesta atualização. A baseline SQL nova e suas assertions continuam pendentes de reconstrução e validação em PostgreSQL isolado.
