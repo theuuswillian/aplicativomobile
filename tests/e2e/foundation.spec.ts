@@ -56,3 +56,28 @@ test("serves the cached app shell after going offline", async ({ page, context }
   await expect(page.getByRole("heading", { level: 1, name: /sua vida financeira/i })).toBeVisible();
   await context.setOffline(false);
 });
+
+test("supports keyboard navigation with a visible focus indicator", async ({ page }) => {
+  await page.goto("/");
+  await page.keyboard.press("Tab");
+  await expect(page.locator(".brand")).toBeFocused();
+  await page.keyboard.press("Tab");
+  const toggle = page.getByRole("button", { name: "Tema claro" });
+  await expect(toggle).toBeFocused();
+  await expect(toggle).toHaveCSS("outline-style", "solid");
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".app-shell")).toHaveAttribute("data-theme", "light");
+});
+
+test("publishes PWA metadata and an iOS home-screen icon", async ({ page }) => {
+  const manifestResponse = await page.request.get("/manifest.webmanifest");
+  expect(manifestResponse.ok()).toBeTruthy();
+  const manifest = await manifestResponse.json();
+  expect(manifest.lang).toBe("pt-BR");
+  expect(manifest.display).toBe("standalone");
+  expect(manifest.icons.some((icon: { src: string }) => icon.src === "/icon.svg")).toBeTruthy();
+
+  const appleIcon = await page.request.get("/apple-touch-icon.png");
+  expect(appleIcon.status()).toBe(200);
+  expect(appleIcon.headers()["content-type"]).toContain("image/png");
+});
