@@ -56,7 +56,12 @@ test("serves the cached app shell after going offline", async ({ page, context }
   });
   await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
   const cachedAssets = await page.evaluate(async () => {
-    const cache = await caches.open("granaviva-shell-v5");
+    // Lê o nome da versão ativa do próprio Service Worker; o teste não deve
+    // ficar preso a um número de cache antigo quando o shell é atualizado.
+    const workerSource = await fetch("/sw.js", { cache: "no-store" }).then((response) => response.text());
+    const cacheName = workerSource.match(/const CACHE_NAME = "([^"]+)"/)?.[1];
+    if (!cacheName) throw new Error("Versão do cache do Service Worker não encontrada");
+    const cache = await caches.open(cacheName);
     return (await cache.keys()).map((request) => new URL(request.url).pathname);
   });
   expect(cachedAssets).toContain("/");
