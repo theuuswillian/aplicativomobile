@@ -103,6 +103,7 @@ begin
           when public.whatsapp_link_attempts.window_started_at <= now() - interval '15 minutes' then now()
           else public.whatsapp_link_attempts.window_started_at end,
         attempts = case
+          when public.whatsapp_link_attempts.blocked_until > now() then public.whatsapp_link_attempts.attempts
           when public.whatsapp_link_attempts.window_started_at <= now() - interval '15 minutes' then 1
           else public.whatsapp_link_attempts.attempts + 1 end,
         blocked_until = case
@@ -315,7 +316,7 @@ set search_path = pg_catalog, public
 as $$
 begin
   if p_idempotency_key is null or p_fencing_token is null
-     or p_status not in ('sent','failed_safe','failed','uncertain') then
+     or p_status is null or p_status not in ('sent','failed_safe','failed','uncertain') then
     raise exception 'Parâmetros inválidos para finalizar outbox';
   end if;
 
