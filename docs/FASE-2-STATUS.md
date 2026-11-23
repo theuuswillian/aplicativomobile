@@ -109,3 +109,11 @@ Publicado o primeiro shell visual da nova aplicação, ainda sem dados financeir
 - conteúdo explicitamente identificado como fundação em desenvolvimento, sem simular conexão ou saldos reais.
 
 A tela é somente a base visual e não inicia jornadas funcionais da Fase 3. A fonte Inter permanece declarada na pilha tipográfica, mas os arquivos locais de fonte ainda não foram incorporados ao novo app; esse item continua pendente.
+
+
+## Atualização de segurança local e tipografia — 22/11/2026
+
+- Inter 400/600/700 foi adicionada como dependência de fonte e importada pelo entrypoint; o Vite empacota os arquivos de fonte localmente, sem CDN.
+- Implementado `src/lib/secure-storage.ts`: AES-GCM 256 via Web Crypto, chave não exportável persistida em IndexedDB, IV aleatório por registro, AAD vinculada ao namespace usuário/registro e comportamento fail-closed sem fallback em texto puro.
+- Implementados leitura, gravação, exclusão individual e limpeza por usuário.
+- Testes adicionados para criptografia/descriptografia, isolamento por namespace, ausência de plaintext e limpeza por usuário. A execução Vitest permanece pendente até instalar dependências.
