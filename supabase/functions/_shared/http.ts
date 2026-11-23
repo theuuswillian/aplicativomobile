@@ -18,6 +18,23 @@ const corsHeaders = (origin: string | null): HeadersInit => {
   return headers;
 };
 
+export function isAllowedOrigin(origin: string | null): boolean {
+  if (origin === null) return true;
+  const deno = (globalThis as typeof globalThis & {
+    Deno?: { env: { get(name: string): string | undefined } };
+  }).Deno;
+  const configuredOrigin = deno?.env.get("APP_ORIGIN");
+  return configuredOrigin !== undefined && origin === configuredOrigin;
+}
+
+export function originNotAllowedResponse(origin: string | null): Response {
+  return jsonResponse(
+    { error: { code: "ORIGIN_NOT_ALLOWED", message: "Origem não permitida." } },
+    403,
+    origin,
+  );
+}
+
 export function jsonResponse(
   body: JsonRecord,
   status = 200,
