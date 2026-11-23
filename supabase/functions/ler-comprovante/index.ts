@@ -7,6 +7,8 @@ import {
 } from "../_shared/receipt-validation.ts";
 import {
   handleOptions,
+  isAllowedOrigin,
+  originNotAllowedResponse,
   isJsonRequest,
   jsonResponse,
   methodNotAllowed,
@@ -45,6 +47,7 @@ Nunca grave dados, nunca crie lançamentos. Retorne somente o JSON no schema sol
 
 Deno.serve(async (request: Request) => {
   const origin = request.headers.get("origin");
+  if (!isAllowedOrigin(origin)) return originNotAllowedResponse(origin);
   if (request.method === "OPTIONS") return handleOptions(request);
   if (request.method !== "POST") return methodNotAllowed(["POST", "OPTIONS"], origin);
 
