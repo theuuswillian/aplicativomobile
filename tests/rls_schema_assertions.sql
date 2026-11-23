@@ -106,6 +106,34 @@ begin
   end loop;
 end $$;
 
+do $
+declare
+  v_table text;
+begin
+  foreach v_table in array array[
+    'profiles','settings','categories','accounts','cards','recurrence_rules','import_batches',
+    'transactions','budgets','goals','goal_contributions','tangible_assets','liabilities',
+    'net_worth_snapshots','receivables','import_items','receipt_files',
+    'investment_assets','investment_operations','income_events','radar_alerts','radar_fires',
+    'push_subscriptions','push_deliveries','whatsapp_links'
+  ] loop
+    if has_table_privilege('anon', 'public.' || v_table, 'select')
+       or not has_table_privilege('authenticated', 'public.' || v_table, 'select')
+       or not has_table_privilege('service_role', 'public.' || v_table, 'select') then
+      raise exception 'Grants de leitura incorretos para public.%', v_table;
+    end if;
+  end loop;
+
+  if exists (
+    select 1 from pg_proc p
+    join pg_namespace n on n.oid=p.pronamespace
+    where n.nspname='public' and p.prosecdef
+      and not (coalesce(p.proconfig, array[]::text[]) @> array['search_path=pg_catalog, public'])
+  ) then
+    raise exception 'Existe SECURITY DEFINER sem search_path fixo em public';
+  end if;
+end $;
+
 -- Cria duas identidades de fixture; o trigger da migration 001 cria profiles/settings.
 insert into auth.users (id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 values
