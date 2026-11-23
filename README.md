@@ -20,7 +20,7 @@ Aplicativo gratuito de gestão financeira pessoal, investimentos e automações.
 
 ## Estado
 
-Fase 2 — fundação técnica em andamento. Consulte [docs/FASE-2-STATUS.md](docs/FASE-2-STATUS.md) para acompanhar os itens concluídos e pendentes. O contrato integral e os ativos de referência ainda estão sendo publicados no repositório.
+Fase 2 — fundação técnica em andamento. Consulte [docs/FASE-2-STATUS.md](docs/FASE-2-STATUS.md) para acompanhar os itens concluídos, validações executadas e bloqueios restantes. O contrato integral, as fontes locais, o ícone e o shell PWA estão publicados na branch de trabalho.
 
 ## Desenvolvimento
 
