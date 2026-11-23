@@ -7,7 +7,7 @@ body { min-height: 100vh; }
 .app-shell {
   display: flex;
   min-height: 100vh;
-  padding: max(22px, calc(env(safe-area-inset-top, 0px) + 6px)) max(18px, env(safe-area-inset-right, 0px)) max(20px, env(safe-area-inset-bottom, 0px)) max(18px, env(safe-area-inset-left, 0px));
+  padding: max(20px, calc(env(safe-area-inset-top, 0px) - 24px)) max(18px, env(safe-area-inset-right, 0px)) max(20px, env(safe-area-inset-bottom, 0px)) max(18px, env(safe-area-inset-left, 0px));
   background:
     radial-gradient(ellipse at 18% 8%, rgb(34 197 94 / 9%), transparent 35%),
     var(--color-bg);
