@@ -18,6 +18,15 @@ describe("recurrence rules", () => {
     ]);
   });
 
+  it("supports an explicit day of month and month of year", () => {
+    expect(generateOccurrences({
+      id: "rent-31", frequency: "monthly", startsOn: "2026-01-01", monthDay: 31
+    }, "2026-01-01", "2026-03-31")).toEqual(["2026-01-31", "2026-02-28", "2026-03-31"]);
+    expect(generateOccurrences({
+      id: "annual-tax", frequency: "yearly", startsOn: "2026-01-01", monthOfYear: 12, monthDay: 31
+    }, "2026-01-01", "2027-12-31")).toEqual(["2026-12-31", "2027-12-31"]);
+  });
+
   it("supports weekly and interval recurrence", () => {
     expect(generateOccurrences({
       id: "weekly", frequency: "weekly", startsOn: "2026-11-01", weekday: 1
