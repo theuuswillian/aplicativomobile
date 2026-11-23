@@ -1,0 +1,4 @@
+project_id = "granaviva"
+
+[functions.minha-conta]
+verify_jwt = true
