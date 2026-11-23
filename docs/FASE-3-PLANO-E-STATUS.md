@@ -48,6 +48,7 @@ Implementar o backend do GranaViva conforme `docs/ARQUITETURA_TRAVADA.md`, sem c
 - [x] Helpers HTTP, CORS, autenticação e cliente Supabase por usuário.
 - [x] Endpoint autenticado de perfil e preferências via POST JSON, conforme o contrato das Edge Functions.
 - [x] Validação estrita de campos e leitura JSON limitada em streaming.
+- [x] Content-Type exige media type `application/json` exato; base64 acima do limite é rejeitado antes da validação da assinatura.
 - [x] Testes unitários dos validadores e parser HTTP.
 - [x] Testes nativos Deno para validadores, parser HTTP e cabeçalhos de segurança.
 - [x] Job dedicado no CI para `deno check` das Edge Functions e `deno test` dos helpers.
