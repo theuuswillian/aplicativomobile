@@ -20,7 +20,7 @@ function currentBrazilDate(): string {
     day: "2-digit",
   }).formatToParts(new Date());
   const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  return \`\${values.year}-\${values.month}-\${values.day}\`;
+  return values.year + "-" + values.month + "-" + values.day;
 }
 
 function validCalendarDate(value: string): boolean {
@@ -34,8 +34,8 @@ function validCalendarDate(value: string): boolean {
 function validDateWindow(value: string): boolean {
   if (!validCalendarDate(value)) return false;
   const today = currentBrazilDate();
-  const todayMs = Date.parse(\`\${today}T00:00:00Z\`);
-  const valueMs = Date.parse(\`\${value}T00:00:00Z\`);
+  const todayMs = Date.parse(today + "T00:00:00Z");
+  const valueMs = Date.parse(value + "T00:00:00Z");
   const differenceDays = (valueMs - todayMs) / 86_400_000;
   return differenceDays >= -1_826 && differenceDays <= 366;
 }
