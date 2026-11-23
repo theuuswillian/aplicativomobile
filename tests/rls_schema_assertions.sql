@@ -66,7 +66,9 @@ begin
      or has_table_privilege('anon','public.whatsapp_link_codes','select')
      or has_table_privilege('authenticated','public.whatsapp_link_codes','select')
      or has_table_privilege('anon','public.whatsapp_pending_transactions','select')
-     or has_table_privilege('authenticated','public.whatsapp_pending_transactions','select') then
+     or has_table_privilege('authenticated','public.whatsapp_pending_transactions','select')
+     or has_sequence_privilege('anon','public.function_errors_id_seq','usage')
+     or has_sequence_privilege('authenticated','public.function_errors_id_seq','usage') then
     raise exception 'Tabela interna concedeu acesso de leitura a anon/authenticated';
   end if;
 
