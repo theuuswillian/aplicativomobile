@@ -23,13 +23,10 @@ jobs:
           node-version: 22
       - name: Upgrade npm to avoid Node 22 Arborist peer-resolution crash
         run: npm install --global npm@11.21.2
-      - name: Install locked dependencies when available
+      - name: Synchronize lockfile and install exact dependencies
         run: |
-          if [ -f package-lock.json ]; then
-            npm ci --no-audit --no-fund
-          else
-            npm install --no-audit --no-fund
-          fi
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          npm ci --no-audit --no-fund
       - run: npm run lint
       - run: npm run check:policy
       - run: npm run check:secrets
@@ -38,6 +35,10 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - name: Install Chromium and WebKit browsers
+        run: npx playwright install --with-deps chromium webkit
+      - name: Run browser, responsive, offline and accessibility tests
+        run: npm run test:e2e
 
   sql:
     runs-on: ubuntu-latest
