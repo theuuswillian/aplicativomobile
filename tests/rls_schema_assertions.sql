@@ -106,7 +106,7 @@ begin
   end loop;
 end $$;
 
-do $
+do $assert_grants$
 declare
   v_table text;
 begin
@@ -132,7 +132,7 @@ begin
   ) then
     raise exception 'Existe SECURITY DEFINER sem search_path fixo em public';
   end if;
-end $;
+end $assert_grants$;
 
 -- Cria duas identidades de fixture; o trigger da migration 001 cria profiles/settings.
 insert into auth.users (id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
@@ -176,7 +176,7 @@ end $$;
 reset role;
 set local role service_role;
 
-do $
+do $assert_usage$
 declare
   v_reservation uuid;
   v_user uuid := '10000000-0000-4000-8000-000000000001';
@@ -288,7 +288,7 @@ begin
      or public.whatsapp_summary_reserve(v_user, date '2026-11-23') then
     raise exception 'Resumo semanal não preservou reserva idempotente';
   end if;
-end $;
+end $assert_usage$;
 
 reset role;
 rollback;
