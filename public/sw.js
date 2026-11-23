@@ -54,18 +54,19 @@ self.addEventListener("fetch", (event) => {
   if (/^\/(auth|rest|storage|functions|realtime)(\/|$)/.test(url.pathname)) return;
 
   if (request.mode === "navigate") {
+    const update = fetch(request)
+      .then(async (response) => {
+        if (!response.ok) return undefined;
+        const cache = await caches.open(CACHE_NAME);
+        await cache.put("/", response.clone());
+        return response;
+      })
+      .catch(() => undefined);
+
+    event.waitUntil(update);
     event.respondWith((async () => {
-      try {
-        const response = await fetch(request);
-        if (response.ok) {
-          const cache = await caches.open(CACHE_NAME);
-          await cache.put("/", response.clone());
-          return response;
-        }
-      } catch {
-        // A navegação offline usa o shell salvo na instalação.
-      }
-      return (await caches.match(request)) || (await caches.match("/")) || Response.error();
+      const cached = await caches.match("/");
+      return cached || (await update) || Response.error();
     })());
     return;
   }
