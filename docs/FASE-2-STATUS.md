@@ -1,5 +1,47 @@
 # GranaViva — Fase 2: fundação técnica
 
+> **Status vigente em 23/11/2026:** implementação da fundação publicada na branch `fase-2-fundacao`. CI consolidado **verde**, inclusive instalação limpa com `npm ci`, lint, verificações de política/segredos, TypeScript, Vitest, build e PostgreSQL 17 (cinco migrations, RLS, grants, isolamento e concorrência). A Fase 2 **ainda não está aprovada**: faltam revisão visual real em navegador/Safari iOS, teste real de instalação e uso offline do PWA e auditoria manual completa WCAG AA. Nenhuma migration foi aplicada ao Supabase remoto; `main` não foi alterada.
+
+## Estado vigente e evidências
+
+- [x] Contrato arquitetural integral em `docs/ARQUITETURA_TRAVADA.md`.
+- [x] Análise do ZIP legado e decisões de reconstrução em `docs/LEGADO-ANALISE-2026-11-22.md`.
+- [x] React 19 + TypeScript + Vite, ESLint, Vitest e CI.
+- [x] Design system dark/light, Inter local 400/600/700, layout responsivo, foco visível e movimento reduzido.
+- [x] Shell PWA com manifesto, ícone SVG, service worker e política de cache que exclui Auth/REST/Storage/Functions/Realtime.
+- [x] Cofre local AES-GCM 256 com chave não exportável no IndexedDB, IV aleatório, AAD por namespace e falha segura.
+- [x] Domínio puro para dinheiro, contas/transferências, cartões/faturas/parcelas/limites, recorrências, investimentos/proventos, orçamento/metas, importação idempotente, validação de IA e Radar.
+- [x] Cinco migrations SQL transacionais e assertions de segurança.
+- [x] Testes unitários, segurança, PWA, contraste e concorrência SQL.
+- [x] Lockfile npm v3 versionado; a execução CI mais recente usou `npm ci`.
+- [x] GitHub Actions run `45101543390`: jobs `validate`, `sql` e `lockfile` concluídos com sucesso.
+- [ ] Revisão visual em navegador real, incluindo Safari iOS.
+- [ ] Instalação, atualização e operação offline do PWA em dispositivo/navegador real.
+- [ ] Auditoria manual WCAG AA com teclado e leitor de tela.
+
+### Resultado da execução consolidada
+
+Run `45101543390`:
+- `validate`: sucesso — npm 11.21.2, `npm ci`, ESLint, política arquitetural, busca de segredos, sintaxe dos scripts shell, TypeScript, Vitest e build Vite.
+- `sql`: sucesso — PostgreSQL 17, migrations 001–005, assertions de schema/RLS/grants/isolamento e duas sessões concorrentes para quota de IA e rate limit.
+- `lockfile`: sucesso — lockfile gerado/versionado na branch.
+
+### Limites e proteção
+
+- Branch de trabalho: `fase-2-fundacao`; `main` permanece sem alterações desta fase.
+- PR #1 continua como rascunho, aberto e não mesclado.
+- Nenhuma migration foi aplicada ao Supabase remoto.
+- Nenhuma chave administrativa ou segredo foi publicado no frontend.
+- O shell atual é uma fundação visual, não uma aplicação financeira conectada: não há autenticação nem dados reais ligados nesta fase.
+- A Fase 3 permanece bloqueada até fechar as três validações manuais acima e receber literalmente `APROVADO`.
+
+---
+
+## Histórico de implementação e validações
+
+Os registros abaixo preservam a sequência de trabalho. Checkboxes e observações de status contidos em registros históricos descrevem o estado **na data daquele registro**, não substituem o estado vigente acima.
+
+
 ## Estado atual
 
 A Fase 2 está em andamento na branch `fase-2-fundacao`. O repositório contém o scaffold React/Vite, configuração TypeScript/Vitest/ESLint, CI inicial e um primeiro helper monetário com teste.
