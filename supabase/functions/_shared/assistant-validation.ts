@@ -22,7 +22,7 @@ function sanitizeValue(value: unknown, depth: number): SafeJson | null {
     if (entries.length > 40) return null;
     const result: Record<string, SafeJson> = {};
     for (const [key, item] of entries) {
-      if (!/^[\p{L}\p{N}_ -]{1,60}$/u.test(key)) return null;
+      if (!/^[\p{L}\p{N}_ -]{1,60}$/u.test(key) || /(?:^|[ _-])(id|cpf|cnpj|email|phone|telefone|senha|token|password|address|endereco|name|nome)(?:$|[ _-])/i.test(key)) return null;
       const safe = sanitizeValue(item, depth + 1);
       if (safe === null && item !== null) return null;
       result[key] = safe;
@@ -59,7 +59,7 @@ export function validateAssistantInput(body: Record<string, unknown>) {
   }
 
   return {
-    question: body.question.trim(),
+    question: body.question.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim(),
     facts,
     history,
   };
