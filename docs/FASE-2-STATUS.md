@@ -154,3 +154,15 @@ A tela é somente a base visual e não inicia jornadas funcionais da Fase 3. A f
 - A Fase 3 permanece bloqueada até as validações pendentes serem executadas e o usuário enviar literalmente `APROVADO`.
 
 **Conclusão:** a fundação de código foi ampliada, mas a Fase 2 ainda não pode ser declarada concluída enquanto as validações automatizadas e PostgreSQL não forem executadas e confirmadas.
+
+
+## Complemento de validação automatizada — 22/11/2026
+
+- [x] Adicionado `scripts/check-secrets.mjs` e comando `npm run check:secrets` ao CI.
+- [x] Adicionado teste PWA para manifesto, registro em produção e exclusão de rotas sensíveis do cache.
+- [x] Adicionados testes de chave AES-GCM não exportável e detecção de alteração no ciphertext.
+- [x] Adicionado teste automatizado de contraste de texto, texto secundário, destaque e foco nos temas escuro/claro, além de foco visível e movimento reduzido.
+- [x] Configurado ESLint com globais de Service Worker.
+- [x] O CI exporta o `package-lock.json` gerado durante a instalação como artefato temporário para que seja versionado depois; o lockfile ainda não está no branch.
+
+A execução mais recente do workflow foi cancelada durante a inicialização dos containers após atualizações sucessivas da branch. Uma nova execução com a revisão consolidada ainda precisa terminar em sucesso; não há aprovação de CI registrada neste momento.
