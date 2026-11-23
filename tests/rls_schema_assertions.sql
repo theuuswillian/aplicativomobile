@@ -146,6 +146,123 @@ begin
 end $$;
 
 reset role;
+set local role service_role;
+
+do $
+declare
+  v_reservation uuid;
+  v_user uuid := '10000000-0000-4000-8000-000000000001';
+  v_other uuid := '10000000-0000-4000-8000-000000000002';
+  v_status text;
+  v_token uuid;
+  v_old_token uuid;
+  v_attempt integer;
+  v_ok boolean;
+begin
+  -- Reservas atômicas: uma reserva pendente já consome a cota.
+  v_reservation := public.ai_usage_reserve(v_user, 'phrase', 1, 1);
+  if v_reservation is null then raise exception 'Primeira reserva de IA deveria ser aceita'; end if;
+  if public.ai_usage_reserve(v_user, 'phrase', 1, 1) is not null then
+    raise exception 'Cota de IA permitiu duas reservas simultâneas para limite 1';
+  end if;
+  if not public.ai_usage_finalize(v_reservation, true) then
+    raise exception 'Finalização de reserva de IA deveria confirmar';
+  end if;
+  if public.ai_usage_reserve(v_user, 'phrase', 1, 1) is not null then
+    raise exception 'Cota de IA ignorou uso já confirmado';
+  end if;
+
+  v_reservation := public.ai_usage_reserve(v_other, 'receipt', 1, 1);
+  if v_reservation is null or not public.ai_usage_finalize(v_reservation, false) then
+    raise exception 'Reserva liberada de IA não foi finalizada';
+  end if;
+  if public.ai_usage_reserve(v_other, 'receipt', 1, 1) is null then
+    raise exception 'Reserva liberada não devolveu a cota de IA';
+  end if;
+
+  if not public.rate_limit_allow(v_user, 'sql-assertion', 20261122, 1)
+     or public.rate_limit_allow(v_user, 'sql-assertion', 20261122, 1) then
+    raise exception 'Rate limit não respeitou o limite atômico';
+  end if;
+
+  -- Inbox: repetição, lease ativo, conclusão e fencing token expirado.
+  select reservation_status, fencing_token, attempt_number
+    into v_status, v_token, v_attempt
+    from public.whatsapp_inbox_reserve('gv-inbox-duplicate', '{"event":"created"}', 60);
+  if v_status <> 'reserved' or v_token is null or v_attempt <> 1 then
+    raise exception 'Primeira reserva da inbox deveria ser aceita';
+  end if;
+  select reservation_status into v_status
+    from public.whatsapp_inbox_reserve('gv-inbox-duplicate', '{"event":"created"}', 60);
+  if v_status <> 'busy' then raise exception 'Inbox repetida deveria retornar busy'; end if;
+  if not public.whatsapp_inbox_finalize('gv-inbox-duplicate', v_token, true, null) then
+    raise exception 'Inbox não confirmou com fencing token válido';
+  end if;
+  select reservation_status into v_status
+    from public.whatsapp_inbox_reserve('gv-inbox-duplicate', '{"event":"created"}', 60);
+  if v_status <> 'completed' then raise exception 'Inbox concluída foi reservada novamente'; end if;
+
+  select reservation_status, fencing_token into v_status, v_old_token
+    from public.whatsapp_inbox_reserve('gv-inbox-expired', '{"event":"retry"}', 60);
+  update public.whatsapp_inbox set lease_until = now() - interval '1 second'
+   where message_id = 'gv-inbox-expired';
+  select reservation_status, fencing_token, attempt_number
+    into v_status, v_token, v_attempt
+    from public.whatsapp_inbox_reserve('gv-inbox-expired', '{"event":"retry"}', 60);
+  if v_status <> 'reserved' or v_token is null or v_attempt <> 2 then
+    raise exception 'Inbox com lease expirado deveria gerar nova reserva';
+  end if;
+  if public.whatsapp_inbox_finalize('gv-inbox-expired', v_old_token, true, null) then
+    raise exception 'Inbox aceitou fencing token antigo';
+  end if;
+  if not public.whatsapp_inbox_finalize('gv-inbox-expired', v_token, true, null) then
+    raise exception 'Inbox rejeitou fencing token atual';
+  end if;
+
+  -- Outbox: retry somente em falha segura; timeout ambíguo não pode reenviar.
+  select reservation_status, fencing_token into v_status, v_token
+    from public.whatsapp_outbox_reserve('gv-outbox-safe', '+5511999999999', '{"text":"hello"}', 60);
+  if v_status <> 'reserved' or v_token is null then raise exception 'Outbox inicial não reservada'; end if;
+  select reservation_status into v_status
+    from public.whatsapp_outbox_reserve('gv-outbox-safe', '+5511999999999', '{"text":"hello"}', 60);
+  if v_status <> 'busy' then raise exception 'Outbox ativa deveria retornar busy'; end if;
+  if not public.whatsapp_outbox_finalize('gv-outbox-safe', v_token, 'failed_safe', null, 'HTTP 429') then
+    raise exception 'Outbox falha segura não finalizada';
+  end if;
+  select reservation_status, fencing_token, attempt_number
+    into v_status, v_token, v_attempt
+    from public.whatsapp_outbox_reserve('gv-outbox-safe', '+5511999999999', '{"text":"hello"}', 60);
+  if v_status <> 'reserved' or v_attempt <> 2 then
+    raise exception 'Outbox failed_safe não permitiu retry controlado';
+  end if;
+  if not public.whatsapp_outbox_finalize('gv-outbox-safe', v_token, 'sent', 'provider-123', null) then
+    raise exception 'Outbox não confirmou envio';
+  end if;
+  select reservation_status into v_status
+    from public.whatsapp_outbox_reserve('gv-outbox-safe', '+5511999999999', '{"text":"hello"}', 60);
+  if v_status <> 'sent' then raise exception 'Outbox enviada foi reaberta'; end if;
+
+  select reservation_status, fencing_token into v_status, v_old_token
+    from public.whatsapp_outbox_reserve('gv-outbox-uncertain', '+5511888888888', '{"text":"maybe"}', 60);
+  update public.whatsapp_outbox set lease_until = now() - interval '1 second'
+   where idempotency_key = 'gv-outbox-uncertain';
+  select reservation_status into v_status
+    from public.whatsapp_outbox_reserve('gv-outbox-uncertain', '+5511888888888', '{"text":"maybe"}', 60);
+  if v_status <> 'uncertain' then raise exception 'Outbox expirada deveria ficar uncertain'; end if;
+  if public.whatsapp_outbox_finalize('gv-outbox-uncertain', v_old_token, 'sent', 'late-provider-id', null) then
+    raise exception 'Outbox aceitou confirmação com fencing token expirado';
+  end if;
+
+  insert into public.whatsapp_links(user_id, phone)
+  values (v_user, '+5511777777777')
+  on conflict (user_id) do nothing;
+  if not public.whatsapp_summary_reserve(v_user, date '2026-11-23')
+     or public.whatsapp_summary_reserve(v_user, date '2026-11-23') then
+    raise exception 'Resumo semanal não preservou reserva idempotente';
+  end if;
+end $;
+
+reset role;
 rollback;
 
 select 'GranaViva RLS/security assertions passed.' as result;
