@@ -55,7 +55,8 @@ Deno.serve(async (request: Request) => {
     }
 
     if (body.action === "atualizar") {
-      const { action: _action, ...patchInput } = body;
+      const patchInput = { ...body };
+      delete patchInput.action;
       const validated = validateSettingsPatch(patchInput);
       if (!validated.ok) {
         return jsonResponse(
