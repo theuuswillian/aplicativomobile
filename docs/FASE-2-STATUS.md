@@ -12,7 +12,8 @@ A interface atual é somente uma prévia visual: os valores exibidos são ilustr
 - [x] Scaffold React 19 + TypeScript + Vite.
 - [x] Configuração inicial de build, lint, testes e CI.
 - [x] Helper monetário inicial e teste unitário.
-- [ ] Design system alinhado ao contrato, com fontes e ativos locais.
+- [ ] Publicar no repositório a cópia integral de `ARQUITETURA_TRAVADA.md` (a fonte local foi inspecionada; upload pendente).
+- [ ] Design system alinhado ao contrato, com fontes e ativos locais (fontes, logos, ícones e imagens ainda não publicados).
 - [ ] Estrutura completa de domínio e tipos TypeScript.
 - [ ] Cinco migrations consolidadas, reproduzíveis e com RLS.
 - [ ] Assertions SQL para isolamento, grants e funções privilegiadas.
