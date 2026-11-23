@@ -15,8 +15,8 @@ A interface atual é somente uma prévia visual: os valores exibidos são ilustr
 - [x] Publicar a cópia integral do contrato em `docs/ARQUITETURA_TRAVADA.md` (commit `0a9e6f0`).
 - [ ] Design system alinhado ao contrato, com fontes e ativos locais (fontes, logos, ícones e imagens ainda não publicados).
 - [x] Primeiros tipos e semântica do domínio financeiro (a cobertura completa ainda está pendente).
-- [ ] Cinco migrations consolidadas, reproduzíveis e com RLS.
-- [ ] Assertions SQL para isolamento, grants e funções privilegiadas.
+- [x] Cinco migrations consolidadas publicadas na branch; execução PostgreSQL e revisão SQL final pendentes.
+- [x] Assertions SQL publicadas para isolamento, grants, RLS e funções privilegiadas; execução pendente.
 - [x] Primeiros testes unitários de datas e semântica dos lançamentos (execução pendente).
 - [x] Script inicial de verificação de lista negra e arquivos monolíticos (execução local do script concluída).
 - [ ] Build, lint, typecheck e testes executados com sucesso em ambiente com dependências.
@@ -51,3 +51,34 @@ A Fase 3 permanece bloqueada até conclusão e aprovação explícita da Fase 2.
 - A análise confirma que o protótipo React do legado é visual e usa dados locais ilustrativos; não é uma implementação persistida a reaproveitar.
 - Foram documentados os riscos de replay das migrations antigas, os limites da auditoria remota de 20/11 e os padrões de WhatsApp que podem ser reavaliados sem trazer pagamentos/Pluggy.
 - Nenhuma migration foi aplicada nem publicada nesta atualização. A baseline SQL nova e suas assertions continuam pendentes de reconstrução e validação em PostgreSQL isolado.
+
+
+## Atualização de implementação SQL — 22/11/2026
+
+Foram publicadas na branch `fase-2-fundacao` as cinco migrations previstas no contrato:
+
+1. `001_perfis_e_seguranca_base.sql` — profiles, settings, categories, trigger de criação de usuário, RLS e grants.
+2. `002_financeiro_core.sql` — contas, cartões, recorrências, lançamentos, orçamentos, metas, patrimônio, importação e comprovantes.
+3. `003_investimentos_e_radar.sql` — ativos, livro de operações, proventos, cache privado, Radar e push.
+4. `004_ia_fair_use_e_rate_limit.sql` — cotas operacionais com reservas atômicas, rate limit e log interno de erros.
+5. `005_whatsapp_fila_e_outbox.sql` — vínculo, tentativas, pendentes, inbox com fencing, outbox idempotente e reserva de resumo semanal.
+
+Também foram publicados:
+- `tests/rls_schema_assertions.sql` — assertions de catálogo, RLS, privilégios, funções privilegiadas e isolamento entre dois usuários.
+- `tests/sql/bootstrap.sql` — fixture mínima de Auth/roles para PostgreSQL isolado.
+- `scripts/test-sql.sh` e comando `npm run test:sql`.
+- CI atualizado para executar as migrations e assertions em PostgreSQL 17.
+
+## Validação desta atualização
+
+- [x] Arquivos das cinco migrations conferidos na branch e delimitados por transação.
+- [x] Verificação estática confirmou ausência de referências a Pluggy, Mercado Pago, Stripe e billing nas migrations.
+- [x] Verificação estática confirmou RLS nas migrations e `search_path` fixo em todas as funções `SECURITY DEFINER`.
+- [x] Sintaxe Bash do runner verificada com `bash -n`.
+- [ ] Execução efetiva das cinco migrations em PostgreSQL 17.
+- [ ] Execução efetiva das assertions SQL e dos testes de isolamento.
+- [ ] CI do GitHub concluído com sucesso.
+- [ ] Revisão SQL por execução real e validação completa de build, lint, typecheck e testes frontend.
+- [ ] Design system e ativos locais completos.
+
+**Limite importante:** as migrations foram publicadas no GitHub, mas ainda não foram executadas em PostgreSQL nesta sessão e não foram aplicadas ao Supabase remoto. A checagem estática não substitui execução SQL. A Fase 2 permanece em andamento; a Fase 3 continua bloqueada.
