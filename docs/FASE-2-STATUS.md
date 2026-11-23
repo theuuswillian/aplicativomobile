@@ -12,7 +12,7 @@ A interface atual é somente uma prévia visual: os valores exibidos são ilustr
 - [x] Scaffold React 19 + TypeScript + Vite.
 - [x] Configuração inicial de build, lint, testes e CI.
 - [x] Helper monetário inicial e teste unitário.
-- [ ] Publicar no repositório a cópia integral de `ARQUITETURA_TRAVADA.md` (a fonte local foi inspecionada; upload pendente).
+- [x] Publicar a cópia integral do contrato em `docs/ARQUITETURA_TRAVADA.md` (commit `0a9e6f0`).
 - [ ] Design system alinhado ao contrato, com fontes e ativos locais (fontes, logos, ícones e imagens ainda não publicados).
 - [x] Primeiros tipos e semântica do domínio financeiro (a cobertura completa ainda está pendente).
 - [ ] Cinco migrations consolidadas, reproduzíveis e com RLS.
@@ -33,3 +33,12 @@ A interface atual é somente uma prévia visual: os valores exibidos são ilustr
 O build e os testes ainda precisam ser executados com dependências instaladas. A validação SQL exige PostgreSQL/Supabase local. Até essas verificações ocorrerem, nada será declarado como validado.
 
 A Fase 3 permanece bloqueada até conclusão e aprovação explícita da Fase 2.
+
+
+## Atualização de continuidade — 22/11/2026
+
+- O estado da branch foi conferido antes da alteração: as cinco migrations e as assertions SQL ainda não estavam no GitHub.
+- O contrato arquitetural integral foi publicado em `docs/ARQUITETURA_TRAVADA.md` na branch `fase-2-fundacao`.
+- Nenhuma migration foi inventada ou aplicada nesta atualização; o pacote local anterior não está disponível no ambiente desta sessão e precisa ser reconstruído ou reapresentado antes de publicar SQL.
+- O repositório continua sem as cinco migrations, sem testes reais de PostgreSQL/RLS e sem validação integral de build/lint/testes.
+- A Fase 2 continua em andamento e a Fase 3 continua bloqueada.
