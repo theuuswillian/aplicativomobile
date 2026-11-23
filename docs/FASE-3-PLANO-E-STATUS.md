@@ -46,8 +46,7 @@ Implementar o backend do GranaViva conforme `docs/ARQUITETURA_TRAVADA.md`, sem c
 ### Fundação compartilhada
 - [x] Criada branch isolada `fase-3-backend` a partir de `fase-2-fundacao`.
 - [x] Helpers HTTP, CORS, autenticação e cliente Supabase por usuário.
-- [x] Endpoint autenticado de leitura/atualização de perfil.
-- [x] Endpoint autenticado de leitura/atualização parcial de preferências.
+- [x] Endpoint autenticado de perfil e preferências via POST JSON, conforme o contrato das Edge Functions.
 - [x] Validação estrita de campos e leitura JSON limitada em streaming.
 - [x] Testes unitários dos validadores e parser HTTP.
 - [ ] Testes de integração com Supabase local e validação Deno.
