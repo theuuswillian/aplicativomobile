@@ -60,7 +60,7 @@ export function validateReceiptDraft(
   const raw = value as Record<string, unknown>;
   const required = [
     "sufficient", "kind", "amount", "date", "description", "category",
-    "payment_method", "installment_count", "confidence", "warnings",
+    "payment_method", "installment_count", "card_last_four", "confidence", "warnings",
   ];
   if (Object.keys(raw).length !== required.length ||
       required.some((key) => !Object.hasOwn(raw, key))) return null;
@@ -76,7 +76,7 @@ export function validateReceiptDraft(
   if (!raw.sufficient) {
     if (raw.kind !== null || raw.amount !== null || raw.date !== null ||
         raw.description !== null || raw.category !== null ||
-        raw.payment_method !== null || raw.installment_count !== null) return null;
+        raw.payment_method !== null || raw.installment_count !== null || raw.card_last_four !== null) return null;
     return {
       sufficient: false,
       kind: null,
@@ -121,6 +121,17 @@ export function validateReceiptDraft(
         !Number.isInteger(raw.installment_count) ||
         raw.installment_count < 1 || raw.installment_count > 48) return null;
     installmentCount = raw.installment_count > 1 ? raw.installment_count : null;
+  }
+
+  let cardLastFour: string | null = null;
+  if (raw.card_last_four !== null) {
+    const lastFour = cleanText(raw.card_last_four, 4);
+    if (!lastFour || !/^\\d{4}$/.test(lastFour)) return null;
+    const matches = cards.filter((item) => item.last_four === lastFour);
+    if (matches.length === 1) cardLastFour = lastFour;
+    else warnings.push(matches.length === 0
+      ? "O cartão identificado não corresponde a um cartão cadastrado."
+      : "Há mais de um cartão com esse final; escolha o cartão manualmente.");
   }
 
   return {
