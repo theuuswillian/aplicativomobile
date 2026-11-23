@@ -73,7 +73,7 @@ self.addEventListener("fetch", (event) => {
 
   if (/^\/assets\//.test(url.pathname) || /\.(?:svg|woff2|css|js|png)$/.test(url.pathname)) {
     event.respondWith(
-      caches.match(request).then(async (cached) => {
+      caches.match(request, { ignoreVary: true }).then(async (cached) => {
         if (cached) return cached;
         const response = await fetch(request);
         if (!response.ok) return response;
