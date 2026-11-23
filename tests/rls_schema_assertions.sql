@@ -6,7 +6,7 @@ do $$
 declare
   v_missing text;
 begin
-  select string_agg(t.table_name, ', ' order by t.table_name)
+  select string_agg(expected.table_name, ', ' order by expected.table_name)
     into v_missing
   from (values
     ('profiles'),('settings'),('categories'),
