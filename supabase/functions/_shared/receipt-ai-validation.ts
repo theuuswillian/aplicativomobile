@@ -132,7 +132,7 @@ export function validateReceiptDraft(
   if (raw.card_last_four !== null) {
     const lastFour = cleanText(raw.card_last_four, 4);
     if (!lastFour || !/^\d{4}$/.test(lastFour)) return null;
-    const matches = cards.filter((item) => item.last_four === lastFour);
+    const matches = cards.filter((item) => item.last_four.trim() === lastFour);
     if (matches.length === 1) cardLastFour = lastFour;
     else warnings.push(matches.length === 0
       ? "O cartão identificado não corresponde a um cartão cadastrado."
