@@ -64,10 +64,10 @@ describe("financial domain regression rules", () => {
       { id: "c", kind: "card_expense" as const, cardId: "c", amountCents: 5000, date: "2026-10-11" },
       { id: "d", kind: "card_expense" as const, cardId: "c", status: "cancelled" as const, amountCents: 9000, date: "2026-10-09" }
     ];
-    expect(calculateInvoice("c", 10, 20, "2026-10-10", entries, [{ amountCents: 5000, date: "2026-10-15" }], "2026-10-21"))
+    expect(calculateInvoice("c", 10, 20, entries, "2026-10-10", [{ amountCents: 5000, date: "2026-10-15" }], "2026-10-21"))
       .toEqual({ totalCents: 20000, paidCents: 5000, remainingCents: 15000, status: "partial" });
-    expect(calculateInvoice("c", 10, 5, "2026-10-10", entries, [], "2026-11-06").status).toBe("overdue");
-    expect(calculateInvoice("c", 10, 20, "2026-10-10", entries, [{ amountCents: 20000, date: "2026-10-20" }], "2026-11-01").status).toBe("paid");
+    expect(calculateInvoice("c", 10, 5, entries, "2026-10-10", [], "2026-11-06").status).toBe("overdue");
+    expect(calculateInvoice("c", 10, 20, entries, "2026-10-10", [{ amountCents: 20000, date: "2026-10-20" }], "2026-11-01").status).toBe("paid");
   });
 
   it("splits installments exactly in integer cents and preserves month-end anchors", () => {
