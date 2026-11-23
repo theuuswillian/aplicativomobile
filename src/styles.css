@@ -50,6 +50,13 @@ body { min-height: 100vh; }
   }
 }
 
+/* PWA instalada: reposiciona o cabeçalho conforme a referência aprovada. */
+@media (display-mode: standalone) {
+  .app-shell {
+    padding-top: max(20px, calc(env(safe-area-inset-top, 0px) + 11px));
+  }
+}
+
 @media (max-width: 760px) {
   .welcome { grid-template-columns: 1fr; gap: 30px; padding: 64px 0 48px; }
   .welcome h1 { max-width: 520px; font-size: clamp(42px, 12vw, 62px); }
