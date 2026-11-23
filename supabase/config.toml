@@ -5,3 +5,9 @@ verify_jwt = true
 
 [functions.minhas-preferencias]
 verify_jwt = true
+
+[functions.assistente]
+verify_jwt = true
+
+[functions.ler-comprovante]
+verify_jwt = true
