@@ -36,7 +36,9 @@ for (const file of forbiddenRootFiles) {
   try {
     await stat(join(root, file));
     violations.push(`arquivo legado proibido na raiz: ${file}`);
-  } catch {}
+  } catch {
+    // A ausência do arquivo legado é o estado esperado.
+  }
 }
 
 if (violations.length) {
