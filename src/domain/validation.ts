@@ -2,7 +2,10 @@ const INJECTION_PATTERNS = [
   /ignore\s+(all\s+)?previous\s+instructions?/i,
   /reveal\s+(the\s+)?(system|developer)\s+prompt/i,
   /show\s+me\s+your\s+hidden\s+instructions?/i,
-  /act\s+as\s+(the\s+)?system/i
+  /act\s+as\s+(the\s+)?system/i,
+  /ignore\s+(as\s+)?instru[cç][oõ]es\s+anteriores/i,
+  /mostre\s+(o\s+)?prompt\s+(do\s+)?sistema/i,
+  /revele\s+(as\s+)?instru[cç][oõ]es\s+ocultas/i
 ];
 
 export function sanitizeAiInput(value: string, maxLength = 4000): string {
