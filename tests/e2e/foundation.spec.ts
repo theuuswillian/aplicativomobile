@@ -10,6 +10,13 @@ test("renders the foundation and switches between dark and light themes", async 
   await page.getByRole("button", { name: "Tema claro" }).click();
   await expect(shell).toHaveAttribute("data-theme", "light");
   await expect(page.getByRole("button", { name: "Tema escuro" })).toBeVisible();
+
+  // A marca não deve recarregar a aplicação nem descartar a preferência.
+  await page.locator(".brand").click();
+  await expect(shell).toHaveAttribute("data-theme", "light");
+  await page.reload();
+  await expect(shell).toHaveAttribute("data-theme", "light");
+  await expect(page.getByRole("button", { name: "Tema escuro" })).toBeVisible();
 });
 
 test("has no horizontal overflow at the target viewport", async ({ page }) => {
