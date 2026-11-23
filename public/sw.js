@@ -54,11 +54,15 @@ self.addEventListener("fetch", (event) => {
   if (/^\/(auth|rest|storage|functions|realtime)(\/|$)/.test(url.pathname)) return;
 
   if (request.mode === "navigate") {
-    const network = fetch(request).then((response) => {
-      if (!response.ok) return response;
-      return caches.open(CACHE_NAME).then((cache) => cache.put("/", response.clone())).then(() => response);
+    const network = fetch(request).then(async (response) => {
+      if (!response.ok) throw new Error("Resposta de navegação inválida");
+      const cache = await caches.open(CACHE_NAME);
+      await cache.put("/", response.clone());
+      return response;
     });
-    event.respondWith(network.catch(() => caches.match("/")));
+    event.respondWith(
+      network.catch(async () => (await caches.match("/")) || Response.error()),
+    );
     return;
   }
 
