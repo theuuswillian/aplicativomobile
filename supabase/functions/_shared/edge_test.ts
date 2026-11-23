@@ -1,5 +1,5 @@
 import { deepStrictEqual, strictEqual } from "node:assert/strict";
-import { isJsonRequest, readJsonObject, jsonResponse, methodNotAllowed } from "./http.ts";
+import { isAllowedOrigin, isJsonRequest, readJsonObject, jsonResponse, methodNotAllowed, handleOptions } from "./http.ts";
 import { validateDisplayName } from "./validation.ts";
 import { validateSettingsPatch } from "./settings-validation.ts";
 import { MAX_RECEIPT_BYTES, validateReceiptBase64 } from "./receipt-validation.ts";
@@ -130,4 +130,27 @@ Deno.test("receipt preview validates exact user category and requires manual con
     confidence: 0.9,
     warnings: [],
   }, [], []), null);
+});
+
+Deno.test("CORS allowlist is exact and rejects unconfigured browser origins", () => {
+  const previous = Deno.env.get("APP_ORIGIN");
+  Deno.env.set("APP_ORIGIN", "http://localhost:5173");
+  try {
+    strictEqual(isAllowedOrigin("http://localhost:5173"), true);
+    strictEqual(isAllowedOrigin("https://attacker.example"), false);
+    strictEqual(isAllowedOrigin(null), true);
+    const allowed = handleOptions(new Request("https://edge.example", {
+      method: "OPTIONS",
+      headers: { Origin: "http://localhost:5173" },
+    }));
+    strictEqual(allowed.headers.get("Access-Control-Allow-Origin"), "http://localhost:5173");
+    const denied = handleOptions(new Request("https://edge.example", {
+      method: "OPTIONS",
+      headers: { Origin: "https://attacker.example" },
+    }));
+    strictEqual(denied.headers.get("Access-Control-Allow-Origin"), null);
+  } finally {
+    if (previous === undefined) Deno.env.delete("APP_ORIGIN");
+    else Deno.env.set("APP_ORIGIN", previous);
+  }
 });
