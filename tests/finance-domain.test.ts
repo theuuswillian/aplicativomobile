@@ -3,6 +3,7 @@ import {
   calculateAccountBalance,
   calculateBudgetRemaining,
   calculateCardCycle,
+  cardInstallmentDates,
   calculateGoalProgress,
   calculateInvoice,
   calculateMonthlyTotals,
@@ -56,6 +57,15 @@ describe("financial domain regression rules", () => {
     expect(calculateCardCycle("2026-11-11", 10, 5)).toEqual({
       closingDate: "2026-12-10", dueDate: "2027-01-05"
     });
+  });
+
+  it("anchors card installments to consecutive billing cycles", () => {
+    expect(cardInstallmentDates("2026-11-10", 10, 20, 3)).toEqual([
+      "2026-11-10", "2026-12-10", "2027-01-10"
+    ]);
+    expect(cardInstallmentDates("2026-11-11", 10, 20, 3)).toEqual([
+      "2026-11-11", "2026-12-11", "2027-01-11"
+    ]);
   });
 
   it("keeps invoice payments separate and distinguishes partial, overdue and paid", () => {
