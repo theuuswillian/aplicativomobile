@@ -1,5 +1,5 @@
 import { deepStrictEqual, strictEqual } from "node:assert/strict";
-import { readJsonObject, jsonResponse, methodNotAllowed } from "./http.ts";
+import { isJsonRequest, readJsonObject, jsonResponse, methodNotAllowed } from "./http.ts";
 import { validateDisplayName } from "./validation.ts";
 import { validateSettingsPatch } from "./settings-validation.ts";
 import { MAX_RECEIPT_BYTES, validateReceiptBase64 } from "./receipt-validation.ts";
@@ -58,4 +58,13 @@ Deno.test("HTTP responses include safe cache and method headers", async () => {
   const rejected = methodNotAllowed(["POST", "OPTIONS"], null);
   strictEqual(rejected.status, 405);
   strictEqual(rejected.headers.get("Allow"), "POST, OPTIONS");
+});
+
+Deno.test("JSON content type must match the exact media type", () => {
+  strictEqual(isJsonRequest(new Request("https://example.test", {
+    headers: { "Content-Type": "application/json; charset=utf-8" },
+  })), true);
+  strictEqual(isJsonRequest(new Request("https://example.test", {
+    headers: { "Content-Type": "application/jsonp" },
+  })), false);
 });
