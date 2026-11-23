@@ -31,6 +31,20 @@ describe("validateAssistantInput", () => {
     })).toBeNull();
   });
 
+  it("rejects identifier-like fields and explicit null history", () => {
+    expect(validateAssistantInput({
+      consent: true,
+      question: "Resumo?",
+      facts: { user_id: "abc" },
+    })).toBeNull();
+    expect(validateAssistantInput({
+      consent: true,
+      question: "Resumo?",
+      facts: {},
+      history: null,
+    })).toBeNull();
+  });
+
   it("rejects deeply nested and oversized financial context", () => {
     expect(validateAssistantInput({
       question: "Resumo?", consent: true,
