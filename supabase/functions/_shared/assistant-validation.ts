@@ -115,7 +115,7 @@ export function validateAssistantOutput(value: unknown, sourceText: string) {
 
   const answer = record.answer.trim();
   if (answer.length < 2 || answer.length > 600) return null;
-  const sentences = answer.split(/[.!?]+/).filter((part) => part.trim().length > 0);
+  const sentences = answer.match(/[.!?]+(?=\s|$)/g) ?? [];
   if (sentences.length > 3) return null;
 
   const allowed = new Set(extractNumericTokens(sourceText));
