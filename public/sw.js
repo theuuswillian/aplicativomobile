@@ -1,8 +1,41 @@
-const CACHE_NAME = "granaviva-shell-v1";
-const SHELL = ["/", "/manifest.webmanifest", "/icon.svg"];
+const CACHE_NAME = "granaviva-shell-v2";
+const SHELL = ["/manifest.webmanifest", "/icon.svg", "/apple-touch-icon.png"];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting()));
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    const shellResponse = await fetch("/");
+    if (!shellResponse.ok) throw new Error("Não foi possível armazenar o shell do GranaViva");
+    await cache.put("/", shellResponse.clone());
+    await cache.addAll(SHELL);
+
+    const html = await shellResponse.text();
+    const assets = new Set(
+      [...html.matchAll(/(?:src|href)=["'](\/assets\/[^"']+)["']/g)].map((match) => match[1]),
+    );
+
+    for (const path of [...assets]) {
+      const response = await fetch(path);
+      if (!response.ok) throw new Error(`Não foi possível armazenar o ativo ${path}`);
+      await cache.put(path, response.clone());
+
+      if (path.endsWith(".css")) {
+        const css = await response.text();
+        for (const match of css.matchAll(/url\(["']?(\/assets\/[^)"']+)["']?\)/g)) {
+          assets.add(match[1]);
+        }
+      }
+    }
+
+    for (const path of assets) {
+      if (await cache.match(path)) continue;
+      const response = await fetch(path);
+      if (!response.ok) throw new Error(`Não foi possível armazenar o recurso ${path}`);
+      await cache.put(path, response);
+    }
+
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener("activate", (event) => {
@@ -29,15 +62,15 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (/^\/assets\//.test(url.pathname) || /\.(?:svg|woff2|css|js)$/.test(url.pathname)) {
+  if (/^\/assets\//.test(url.pathname) || /\.(?:svg|woff2|css|js|png)$/.test(url.pathname)) {
     event.respondWith(
       caches.match(request).then((cached) => {
         if (cached) return cached;
         return fetch(request).then((response) => {
           if (!response.ok) return response;
           return caches.open(CACHE_NAME).then((cache) => cache.put(request, response.clone())).then(() => response);
-        });
-      })
+        })
+      )
     );
   }
 });
