@@ -43,6 +43,7 @@ export function validateAssistantInput(body: Record<string, unknown>) {
   if (!facts || Array.isArray(facts) || typeof facts !== "object") return null;
   if (new TextEncoder().encode(JSON.stringify(facts)).length > 12_000) return null;
 
+  if (Object.hasOwn(body, "history") && !Array.isArray(body.history)) return null;
   const historyInput = body.history ?? [];
   if (!Array.isArray(historyInput) || historyInput.length > 3) return null;
   const history: Array<{ role: "user" | "assistant"; content: string }> = [];
