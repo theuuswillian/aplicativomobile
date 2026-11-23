@@ -164,8 +164,10 @@ export async function readFinancialRecord<T>(
     }
     const key = await readKey(db);
     if (!key || key.extractable) throw new SecureStorageError("Chave criptográfica ausente ou inválida; leitura bloqueada.");
+    const iv = new ArrayBuffer(record.iv.byteLength);
+    new Uint8Array(iv).set(record.iv);
     const plaintext = await subtle.decrypt(
-      { name: "AES-GCM", iv: record.iv, additionalData: new TextEncoder().encode(id) },
+      { name: "AES-GCM", iv, additionalData: new TextEncoder().encode(id) },
       key,
       record.ciphertext
     );
