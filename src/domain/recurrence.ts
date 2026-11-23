@@ -20,8 +20,8 @@ function dateOf(value: string): Date {
 }
 function iso(d: Date): string { return d.toISOString().slice(0, 10); }
 function addDays(d: Date, n: number): Date { const x = new Date(d); x.setUTCDate(x.getUTCDate() + n); return x; }
-function addMonthsFrom(anchor: Date, n: number): Date {
-  const y = anchor.getUTCFullYear(), m = anchor.getUTCMonth() + n, day = anchor.getUTCDate();
+function addMonthsFrom(anchor: Date, n: number, day = anchor.getUTCDate()): Date {
+  const y = anchor.getUTCFullYear(), m = anchor.getUTCMonth() + n;
   const target = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
   return new Date(Date.UTC(y, m, Math.min(day, target), 12));
 }
@@ -51,9 +51,20 @@ export function generateOccurrences(rule: RecurrenceRule, from: string, through:
     for (; d <= until; d = addDays(d, step)) push(d);
     return out;
   }
-  const step = rule.frequency === "yearly" ? 12 : rule.frequency === "interval" ? interval : 1;
+  const yearly = rule.frequency === "yearly";
+  const anchor = yearly && rule.monthOfYear !== undefined
+    ? new Date(Date.UTC(start.getUTCFullYear(), rule.monthOfYear - 1, 1, 12))
+    : start;
+  const day = rule.monthDay ?? start.getUTCDate();
+  if (rule.monthDay !== undefined && (!Number.isInteger(rule.monthDay) || rule.monthDay < 1 || rule.monthDay > 31)) {
+    throw new TypeError("Dia do mês inválido.");
+  }
+  if (yearly && rule.monthOfYear !== undefined && (!Number.isInteger(rule.monthOfYear) || rule.monthOfYear < 1 || rule.monthOfYear > 12)) {
+    throw new TypeError("Mês do ano inválido.");
+  }
+  const step = yearly ? 12 : rule.frequency === "interval" ? interval : 1;
   let offset = 0;
-  while (addMonthsFrom(start, offset) < lower) offset += step;
-  for (let d = addMonthsFrom(start, offset); d <= until; offset += step, d = addMonthsFrom(start, offset)) push(d);
+  while (addMonthsFrom(anchor, offset, day) < lower) offset += step;
+  for (let d = addMonthsFrom(anchor, offset, day); d <= until; offset += step, d = addMonthsFrom(anchor, offset, day)) push(d);
   return out;
 }
