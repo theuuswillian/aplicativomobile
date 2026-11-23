@@ -71,7 +71,7 @@ Deno.test("JSON content type must match the exact media type", () => {
   })), false);
 });
 
-Deno.test("assistant requires consent, bounds facts and rejects invented numbers", () => {
+Deno.test("assistant requires consent and rejects invented numbers", () => {
   strictEqual(validateAssistantInput({
     question: "Como foi o mês?",
     facts: { expenses: "R$ 1.200,00" },
@@ -83,10 +83,16 @@ Deno.test("assistant requires consent, bounds facts and rejects invented numbers
     history: [],
   });
   if (!input) throw new Error("Entrada válida deveria ser aceita.");
-  strictEqual(validateAssistantOutput({
+  if (!validateAssistantOutput({
     answer: "As despesas foram R$ 1.200,00.",
     sufficient: true,
-  }, JSON.stringify(input)), null === null ? null : null);
+  }, JSON.stringify({ question: input.question, facts: input.facts }))) {
+    throw new Error("Número presente nos fatos deveria ser aceito.");
+  }
+  strictEqual(validateAssistantOutput({
+    answer: "As despesas foram R$ 1.200,00 e a economia foi R$ 900,00.",
+    sufficient: true,
+  }, JSON.stringify({ question: input.question, facts: input.facts })), null);
 });
 
 Deno.test("receipt preview validates exact user category and requires manual confirmation", () => {
@@ -107,7 +113,7 @@ Deno.test("receipt preview validates exact user category and requires manual con
     installment_count: 1,
     confidence: 0.9,
     warnings: [],
-  }, [{ name: "Alimentação", kind: "expense" }]);
+  }, [{ name: "Alimentação", kind: "expense" }], []);
   strictEqual(result?.sufficient, true);
   strictEqual(result?.category, "Alimentação");
   strictEqual(validateReceiptDraft({
@@ -121,5 +127,5 @@ Deno.test("receipt preview validates exact user category and requires manual con
     installment_count: null,
     confidence: 0.9,
     warnings: [],
-  }, []), null);
+  }, [], []), null);
 });
