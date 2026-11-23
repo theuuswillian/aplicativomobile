@@ -7,6 +7,7 @@ export type ReceiptDraft = {
   category: string | null;
   payment_method: string | null;
   installment_count: number | null;
+  card_last_four: string | null;
   confidence: number;
   warnings: string[];
 };
@@ -19,7 +20,7 @@ function currentBrazilDate(): string {
     day: "2-digit",
   }).formatToParts(new Date());
   const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  return `${values.year}-${values.month}-${values.day}`;
+  return \`\${values.year}-\${values.month}-\${values.day}\`;
 }
 
 function validCalendarDate(value: string): boolean {
@@ -33,8 +34,8 @@ function validCalendarDate(value: string): boolean {
 function validDateWindow(value: string): boolean {
   if (!validCalendarDate(value)) return false;
   const today = currentBrazilDate();
-  const todayMs = Date.parse(`${today}T00:00:00Z`);
-  const valueMs = Date.parse(`${value}T00:00:00Z`);
+  const todayMs = Date.parse(\`\${today}T00:00:00Z\`);
+  const valueMs = Date.parse(\`\${value}T00:00:00Z\`);
   const differenceDays = (valueMs - todayMs) / 86_400_000;
   return differenceDays >= -1_826 && differenceDays <= 366;
 }
@@ -55,6 +56,7 @@ function cleanText(value: unknown, maximum: number): string | null {
 export function validateReceiptDraft(
   value: unknown,
   categories: Array<{ name: string; kind: string }>,
+  cards: Array<{ name: string; last_four: string }>,
 ): ReceiptDraft | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const raw = value as Record<string, unknown>;
@@ -76,7 +78,8 @@ export function validateReceiptDraft(
   if (!raw.sufficient) {
     if (raw.kind !== null || raw.amount !== null || raw.date !== null ||
         raw.description !== null || raw.category !== null ||
-        raw.payment_method !== null || raw.installment_count !== null || raw.card_last_four !== null) return null;
+        raw.payment_method !== null || raw.installment_count !== null ||
+        raw.card_last_four !== null) return null;
     return {
       sufficient: false,
       kind: null,
@@ -86,6 +89,7 @@ export function validateReceiptDraft(
       category: null,
       payment_method: null,
       installment_count: null,
+      card_last_four: null,
       confidence: raw.confidence,
       warnings: warnings as string[],
     };
@@ -103,7 +107,8 @@ export function validateReceiptDraft(
     const suggested = cleanText(raw.category, 80);
     if (!suggested) return null;
     const matched = categories.find((item) =>
-      item.kind === raw.kind && item.name.toLocaleLowerCase("pt-BR") === suggested.toLocaleLowerCase("pt-BR")
+      item.kind === raw.kind &&
+      item.name.toLocaleLowerCase("pt-BR") === suggested.toLocaleLowerCase("pt-BR")
     );
     if (matched) category = matched.name;
     else warnings.push("A categoria sugerida não existe na sua lista e precisa ser escolhida na revisão.");
@@ -126,7 +131,7 @@ export function validateReceiptDraft(
   let cardLastFour: string | null = null;
   if (raw.card_last_four !== null) {
     const lastFour = cleanText(raw.card_last_four, 4);
-    if (!lastFour || !/^\\d{4}$/.test(lastFour)) return null;
+    if (!lastFour || !/^\d{4}$/.test(lastFour)) return null;
     const matches = cards.filter((item) => item.last_four === lastFour);
     if (matches.length === 1) cardLastFour = lastFour;
     else warnings.push(matches.length === 0
@@ -143,6 +148,7 @@ export function validateReceiptDraft(
     category,
     payment_method: paymentMethod,
     installment_count: installmentCount,
+    card_last_four: cardLastFour,
     confidence: raw.confidence,
     warnings: warnings as string[],
   };
