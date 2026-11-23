@@ -31,7 +31,7 @@ jobs:
       - run: npm run check:policy
       - run: npm run check:secrets
       - name: Validate shell scripts
-        run: bash -n scripts/test-sql.sh && bash -n scripts/test-sql-concurrency.sh
+        run: bash -n scripts/test-sql.sh && bash -n scripts/test-sql-concurrency.sh && bash -n scripts/test-edge-local.sh
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
@@ -63,6 +63,22 @@ jobs:
           supabase/functions/minhas-preferencias/index.ts
       - name: Run Edge runtime unit tests
         run: deno test --no-config supabase/functions/_shared/edge_test.ts
+
+  edge-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Install Supabase CLI v2 for local integration tests
+        uses: supabase/setup-cli@v3
+        with:
+          version: v2.stable
+      - name: Install Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: 2.9.8
+      - name: Run local Auth, Edge Functions, CORS and RLS integration tests
+        run: bash scripts/test-edge-local.sh
 
   sql:
     runs-on: ubuntu-latest
