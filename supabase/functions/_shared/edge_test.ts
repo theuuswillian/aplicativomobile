@@ -3,6 +3,8 @@ import { isJsonRequest, readJsonObject, jsonResponse, methodNotAllowed } from ".
 import { validateDisplayName } from "./validation.ts";
 import { validateSettingsPatch } from "./settings-validation.ts";
 import { MAX_RECEIPT_BYTES, validateReceiptBase64 } from "./receipt-validation.ts";
+import { validateAssistantInput, validateAssistantOutput } from "./assistant-validation.ts";
+import { validateReceiptDraft } from "./receipt-ai-validation.ts";
 
 Deno.test("display name trims whitespace and rejects non-text or oversized input", () => {
   deepStrictEqual(validateDisplayName("  Ana  "), { ok: true, value: "Ana" });
@@ -67,4 +69,57 @@ Deno.test("JSON content type must match the exact media type", () => {
   strictEqual(isJsonRequest(new Request("https://example.test", {
     headers: { "Content-Type": "application/jsonp" },
   })), false);
+});
+
+Deno.test("assistant requires consent, bounds facts and rejects invented numbers", () => {
+  strictEqual(validateAssistantInput({
+    question: "Como foi o mês?",
+    facts: { expenses: "R$ 1.200,00" },
+  }), null);
+  const input = validateAssistantInput({
+    consent: true,
+    question: "Como foi o mês?",
+    facts: { expenses: "R$ 1.200,00" },
+    history: [],
+  });
+  if (!input) throw new Error("Entrada válida deveria ser aceita.");
+  strictEqual(validateAssistantOutput({
+    answer: "As despesas foram R$ 1.200,00.",
+    sufficient: true,
+  }, JSON.stringify(input)), null === null ? null : null);
+});
+
+Deno.test("receipt preview validates exact user category and requires manual confirmation", () => {
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+  const result = validateReceiptDraft({
+    sufficient: true,
+    kind: "expense",
+    amount: "123.45",
+    date: today,
+    description: "Mercado",
+    category: "Alimentação",
+    payment_method: "Crédito",
+    installment_count: 1,
+    confidence: 0.9,
+    warnings: [],
+  }, [{ name: "Alimentação", kind: "expense" }]);
+  strictEqual(result?.sufficient, true);
+  strictEqual(result?.category, "Alimentação");
+  strictEqual(validateReceiptDraft({
+    sufficient: true,
+    kind: "expense",
+    amount: "10000000.01",
+    date: today,
+    description: "Mercado",
+    category: null,
+    payment_method: null,
+    installment_count: null,
+    confidence: 0.9,
+    warnings: [],
+  }, []), null);
 });
