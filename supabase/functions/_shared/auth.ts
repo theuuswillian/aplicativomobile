@@ -178,7 +178,7 @@ export type AuthResult =
 export async function authenticateRequest(request: Request): Promise<AuthResult> {
   const origin = request.headers.get("origin");
   const authorization = request.headers.get("authorization");
-  const token = authorization?.match(/^Bearer\\s+(.+)$/i)?.[1];
+  const token = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
 
   if (!token) {
     return {
