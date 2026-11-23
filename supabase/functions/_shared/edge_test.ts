@@ -111,6 +111,7 @@ Deno.test("receipt preview validates exact user category and requires manual con
     category: "Alimentação",
     payment_method: "Crédito",
     installment_count: 1,
+    card_last_four: null,
     confidence: 0.9,
     warnings: [],
   }, [{ name: "Alimentação", kind: "expense" }], []);
@@ -125,6 +126,7 @@ Deno.test("receipt preview validates exact user category and requires manual con
     category: null,
     payment_method: null,
     installment_count: null,
+    card_last_four: null,
     confidence: 0.9,
     warnings: [],
   }, [], []), null);
