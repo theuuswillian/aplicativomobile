@@ -166,3 +166,11 @@ A tela é somente a base visual e não inicia jornadas funcionais da Fase 3. A f
 - [x] O CI exporta o `package-lock.json` gerado durante a instalação como artefato temporário para que seja versionado depois; o lockfile ainda não está no branch.
 
 A execução mais recente do workflow foi cancelada durante a inicialização dos containers após atualizações sucessivas da branch. Uma nova execução com a revisão consolidada ainda precisa terminar em sucesso; não há aprovação de CI registrada neste momento.
+
+
+## Regras adicionais e concorrência — 22/11/2026
+
+- [x] Testes de domínio incluem parcelas alinhadas ao ciclo do cartão e liberação do limite após pagamento, incluindo faturas parciais e vencidas.
+- [x] Assertions de RLS incluem tentativa de INSERT cruzado, além de SELECT/UPDATE/DELETE.
+- [x] Adicionado teste PostgreSQL com duas sessões concorrentes para demonstrar que cota de IA e rate limit aceitam no máximo uma operação para limite 1.
+- [ ] O teste concorrente está implementado no CI, mas ainda aguarda execução real no PostgreSQL 17.
