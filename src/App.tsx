@@ -9,7 +9,7 @@ export default function App() {
     <main className="app-shell" data-theme={theme}>
       <div className="app-frame">
         <header className="topbar">
-          <a className="brand" href="/" aria-label="GranaViva, início">
+          <a className="brand" href="/" aria-label="GranaViva">
             <span className="brand-mark" aria-hidden="true">G</span>
             <span>Grana<span className="brand-accent">Viva</span></span>
           </a>
