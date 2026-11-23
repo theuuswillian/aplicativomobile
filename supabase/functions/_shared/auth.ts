@@ -1,9 +1,9 @@
-import { createClient, type User } from "npm:@supabase/supabase-js@2";
+import { createClient, type SupabaseClient, type User } from "npm:@supabase/supabase-js@2";
 import { jsonResponse } from "./http.ts";
 
 export type AuthenticatedContext = {
   user: User;
-  supabase: ReturnType<typeof createClient>;
+  supabase: SupabaseClient<any, "public", "public", any, any>;
 };
 
 export type AuthResult =
@@ -40,7 +40,7 @@ export async function authenticateRequest(request: Request): Promise<AuthResult>
     };
   }
 
-  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  const supabase = createClient<any>(supabaseUrl, supabaseAnonKey, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     global: { headers: { Authorization: `Bearer ${token}` } },
   });
