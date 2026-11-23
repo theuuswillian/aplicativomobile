@@ -178,6 +178,36 @@ export function calculateInvoice(
   return { totalCents, paidCents, remainingCents, status };
 }
 
+export function calculateCardCommittedLimitCents(
+  cardId: string,
+  closingDay: number,
+  dueDay: number,
+  entries: readonly LedgerEntry[],
+  paymentsByClosingDate: ReadonlyMap<string, number>,
+  today: string
+): number {
+  parseDate(today);
+  const invoices = new Map<string, { total: number; dueDate: string }>();
+  for (const entry of entries) {
+    if (entry.cardId !== cardId || entry.kind !== "card_expense" || !isEffectiveStatus(entry.status)) continue;
+    assertCents(entry.amountCents);
+    const cycle = calculateCardCycle(entry.date, closingDay, dueDay);
+    if (cycle.dueDate < today) continue;
+    const current = invoices.get(cycle.closingDate) ?? { total: 0, dueDate: cycle.dueDate };
+    current.total += entry.amountCents;
+    if (!Number.isSafeInteger(current.total)) throw new RangeError("Limite comprometido excede o limite seguro de centavos.");
+    invoices.set(cycle.closingDate, current);
+  }
+  let committed = 0;
+  for (const [closingDate, invoice] of invoices) {
+    const paid = paymentsByClosingDate.get(closingDate) ?? 0;
+    assertCents(paid);
+    committed += Math.max(0, invoice.total - paid);
+  }
+  if (!Number.isSafeInteger(committed)) throw new RangeError("Limite comprometido excede o limite seguro de centavos.");
+  return committed;
+}
+
 export function splitInstallments(totalCents: number, count: number): number[] {
   assertCents(totalCents);
   if (!Number.isInteger(count) || count < 1 || count > 48 || totalCents < count) {
