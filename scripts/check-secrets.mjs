@@ -37,7 +37,9 @@ for (const name of [".env", ".env.local", ".env.production", ".env.development"]
   try {
     await stat(name);
     violations.push(`arquivo local de ambiente não deve ser versionado: ${name}`);
-  } catch {}
+  } catch {
+    // Arquivos locais de ambiente ausentes não são uma violação.
+  }
 }
 
 if (violations.length) {
