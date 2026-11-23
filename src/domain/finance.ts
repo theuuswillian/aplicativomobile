@@ -31,6 +31,10 @@ function assertCents(value: number): void {
   if (!Number.isSafeInteger(value) || value < 0) throw new TypeError("Valor em centavos inválido.");
 }
 
+function assertSignedCents(value: number): void {
+  if (!Number.isSafeInteger(value)) throw new TypeError("Valor em centavos inválido.");
+}
+
 function parseDate(value: string): Date {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new TypeError("Data inválida.");
   const date = new Date(`${value}T12:00:00.000Z`);
@@ -60,7 +64,7 @@ export function calculateAccountBalance(
   asOf: string,
   includePlanned = false
 ): number {
-  assertCents(openingBalanceCents);
+  assertSignedCents(openingBalanceCents);
   parseDate(asOf);
   let balance = openingBalanceCents;
   for (const entry of entries) {
@@ -125,6 +129,9 @@ export function calculateInvoice(
 ): { totalCents: number; paidCents: number; remainingCents: number; status: "paid" | "partial" | "open" | "overdue" } {
   parseDate(today);
   parseDate(invoiceClosingDate);
+  if (!Number.isInteger(closingDay) || closingDay < 1 || closingDay > 31 || !Number.isInteger(dueDay) || dueDay < 1 || dueDay > 31) {
+    throw new TypeError("Dia de fechamento ou vencimento inválido.");
+  }
   let totalCents = 0;
   for (const entry of entries) {
     if (entry.cardId !== cardId || entry.kind !== "card_expense" || !isEffectiveStatus(entry.status)) continue;
@@ -172,6 +179,7 @@ export function calculateGoalProgress(targetCents: number, contributions: readon
   contributedCents: number; remainingCents: number; percentage: number;
 } {
   assertCents(targetCents);
+  if (targetCents === 0) throw new TypeError("A meta precisa ter valor-alvo positivo.");
   const contributedCents = contributions.reduce((sum, contribution) => {
     assertCents(contribution.amountCents);
     return sum + (isEffectiveStatus(contribution.status) ? contribution.amountCents : 0);
@@ -179,7 +187,7 @@ export function calculateGoalProgress(targetCents: number, contributions: readon
   return {
     contributedCents,
     remainingCents: Math.max(0, targetCents - contributedCents),
-    percentage: targetCents === 0 ? 100 : Math.min(100, Math.round(contributedCents / targetCents * 10000) / 100)
+    percentage: Math.min(100, Math.round(contributedCents / targetCents * 10000) / 100)
   };
 }
 
