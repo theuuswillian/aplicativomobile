@@ -15,7 +15,8 @@
     "test:watch": "vitest",
     "lint": "eslint .",
     "check:policy": "node scripts/check-policy.mjs",
-    "test:sql": "bash scripts/test-sql.sh"
+    "test:sql": "bash scripts/test-sql.sh",
+    "check:secrets": "node scripts/check-secrets.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.86.0",
