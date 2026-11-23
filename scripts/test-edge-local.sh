@@ -26,11 +26,13 @@ trap cleanup EXIT
 
 ready=0
 for attempt in $(seq 1 60); do
-  status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+  status="$(curl --silent --show-error --max-time 5 --output /dev/null --write-out '%{http_code}' \
     --request OPTIONS \
+    --header 'apikey: '"$SUPABASE_ANON_KEY" \
     --header 'Origin: http://localhost:5173' \
     --header 'Access-Control-Request-Method: POST' \
-    "$SUPABASE_URL/functions/v1/minha-conta" || true)"
+    --header 'Access-Control-Request-Headers: authorization, apikey, content-type' \
+    "$SUPABASE_URL/functions/v1/minha-conta" 2>>"$log_file" || true)"
   if [ "$status" = "204" ]; then
     ready=1
     break
@@ -39,7 +41,7 @@ for attempt in $(seq 1 60); do
 done
 
 if [ "$ready" -ne 1 ]; then
-  echo "Edge Functions locais não ficaram prontas. Logs:"
+  echo "Edge Functions locais não ficaram prontas (último HTTP status: ${status:-sem resposta}). Logs:"
   cat "$log_file"
   exit 1
 fi
