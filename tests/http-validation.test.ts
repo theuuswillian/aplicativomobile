@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readJsonObject } from "../supabase/functions/_shared/http";
+import { isJsonRequest, readJsonObject } from "../supabase/functions/_shared/http";
 
 describe("readJsonObject", () => {
   it("parses a bounded JSON object", async () => {
@@ -31,5 +31,17 @@ describe("readJsonObject", () => {
       body: new Uint8Array([0xc3, 0x28]),
     });
     await expect(readJsonObject(request)).resolves.toBeNull();
+  });
+});
+
+describe("isJsonRequest", () => {
+  it("accepts application/json with parameters and rejects lookalike media types", () => {
+    expect(isJsonRequest(new Request("https://example.test", {
+      headers: { "Content-Type": "application/json; charset=utf-8" },
+    }))).toBe(true);
+    expect(isJsonRequest(new Request("https://example.test", {
+      headers: { "Content-Type": "application/jsonp" },
+    }))).toBe(false);
+    expect(isJsonRequest(new Request("https://example.test"))).toBe(false);
   });
 });
