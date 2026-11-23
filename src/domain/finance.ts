@@ -96,7 +96,7 @@ export function calculateMonthlyTotals(
     const planned = entry.status === "planned";
     if (!planned && !isEffectiveStatus(entry.status)) continue;
     if (entry.kind === "income") totals[planned ? "plannedIncomeCents" : "incomeCents"] += entry.amountCents;
-    if (entry.kind === "expense") totals[planned ? "plannedExpenseCents" : "expenseCents"] += entry.amountCents;
+    if (entry.kind === "expense" || entry.kind === "card_expense") totals[planned ? "plannedExpenseCents" : "expenseCents"] += entry.amountCents;
   }
   return totals;
 }
@@ -128,6 +128,7 @@ export function calculateInvoice(
   let totalCents = 0;
   for (const entry of entries) {
     if (entry.cardId !== cardId || entry.kind !== "card_expense" || !isEffectiveStatus(entry.status)) continue;
+    assertCents(entry.amountCents);
     const cycle = calculateCardCycle(entry.date, closingDay, dueDay);
     if (cycle.closingDate === invoiceClosingDate) totalCents += entry.amountCents;
   }
