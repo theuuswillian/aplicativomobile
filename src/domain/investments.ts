@@ -21,15 +21,15 @@ export function calculateInvestmentSummary(operations: readonly InvestmentOperat
   for (const operation of ordered) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(operation.date)) throw new TypeError("Data de operação inválida.");
     if (operation.type === "opening") {
-      if (operation.quantity < 0 || !Number.isSafeInteger(operation.costCents) || operation.costCents < 0) throw new TypeError("Posição inicial inválida.");
+      if (!Number.isFinite(operation.quantity) || operation.quantity < 0 || !Number.isSafeInteger(operation.costCents) || operation.costCents < 0) throw new TypeError("Posição inicial inválida.");
       quantity = roundQuantity(quantity + operation.quantity);
       costBasisCents += operation.costCents;
     } else if (operation.type === "buy") {
-      if (operation.quantity <= 0 || operation.unitPriceCents < 0 || (operation.feesCents ?? 0) < 0) throw new TypeError("Compra inválida.");
+      if (!Number.isFinite(operation.quantity) || operation.quantity <= 0 || !Number.isSafeInteger(operation.unitPriceCents) || operation.unitPriceCents < 0 || !Number.isSafeInteger(operation.feesCents ?? 0) || (operation.feesCents ?? 0) < 0) throw new TypeError("Compra inválida.");
       quantity = roundQuantity(quantity + operation.quantity);
       costBasisCents += Math.round(operation.quantity * operation.unitPriceCents) + (operation.feesCents ?? 0);
     } else if (operation.type === "sell") {
-      if (operation.quantity <= 0 || operation.quantity > quantity + 1e-9) {
+      if (!Number.isFinite(operation.quantity) || operation.quantity <= 0 || !Number.isSafeInteger(operation.unitPriceCents) || operation.unitPriceCents < 0 || !Number.isSafeInteger(operation.feesCents ?? 0) || (operation.feesCents ?? 0) < 0 || operation.quantity > quantity + 1e-9) {
         error ??= "Venda superior à posição disponível na data da operação.";
         continue;
       }
