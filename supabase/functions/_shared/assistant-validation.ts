@@ -33,7 +33,8 @@ function sanitizeValue(value: unknown, depth: number): SafeJson | null {
 }
 
 export function validateAssistantInput(body: Record<string, unknown>) {
-  if (Object.keys(body).some((key) => !["question", "facts", "history"].includes(key))) return null;
+  if (Object.keys(body).some((key) => !["question", "facts", "history", "consent"].includes(key))) return null;
+  if (body.consent !== true) return null;
   if (typeof body.question !== "string" || body.question.trim().length < 2 ||
       body.question.length > 1_000 || !body.facts ||
       typeof body.facts !== "object" || Array.isArray(body.facts)) return null;
