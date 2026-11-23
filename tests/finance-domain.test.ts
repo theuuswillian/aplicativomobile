@@ -90,7 +90,7 @@ describe("financial domain regression rules", () => {
     ];
     expect(calculateCardCommittedLimitCents("c", 10, 20, entries, new Map([
       ["2026-10-10", 10000], ["2026-11-10", 2000]
-    ]), "2026-11-22")).toBe(3000);
+    ]), "2026-11-15")).toBe(3000);
   });
 
   it("splits installments exactly in integer cents and preserves month-end anchors", () => {
