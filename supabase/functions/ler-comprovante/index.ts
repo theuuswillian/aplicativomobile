@@ -21,7 +21,7 @@ const outputSchema = {
   additionalProperties: false,
   required: [
     "sufficient", "kind", "amount", "date", "description", "category",
-    "payment_method", "installment_count", "confidence", "warnings",
+    "payment_method", "installment_count", "card_last_four", "confidence", "warnings",
   ],
   properties: {
     sufficient: { type: "boolean" },
@@ -165,7 +165,7 @@ Deno.serve(async (request: Request) => {
       origin,
     );
   }
-  const draft = validateReceiptDraft(aiOutput, categories);
+  const draft = validateReceiptDraft(aiOutput, categories, cards);
   if (!draft) {
     await finalizeAiUsage(reservation.reservationId, false);
     return jsonResponse(
