@@ -1,15 +1,32 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Theme = "dark" | "light";
+const THEME_STORAGE_KEY = "granaviva:theme:v1";
+
+function getInitialTheme(): Theme {
+  try {
+    return window.localStorage.getItem(THEME_STORAGE_KEY) === "light" ? "light" : "dark";
+  } catch {
+    return "dark";
+  }
+}
 
 export default function App() {
-  const [theme, setTheme] = useState<Theme>("dark");
+  const [theme, setTheme] = useState<Theme>(getInitialTheme);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch {
+      // A preferência continua funcional durante a sessão mesmo sem acesso ao storage.
+    }
+  }, [theme]);
 
   return (
     <main className="app-shell" data-theme={theme}>
       <div className="app-frame">
         <header className="topbar">
-          <a className="brand" href="/">
+          <a className="brand" href="/" onClick={(event) => event.preventDefault()}>
             <span className="brand-mark" aria-hidden="true">G</span>
             <span>Grana<span className="brand-accent">Viva</span></span>
           </a>
