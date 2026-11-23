@@ -1,6 +1,6 @@
 # GranaViva — Fase 2: fundação técnica
 
-> **Status vigente em 23/11/2026:** validação automatizada consolidada **verde** na branch `fase-2-fundacao`. O run GitHub Actions `45144224987` concluiu com sucesso os jobs `validate`, `sql` e `lockfile`. A Fase 2 **ainda não está concluída**: faltam os testes presenciais em Safari/iOS, instalação e atualização real do PWA e auditoria manual com VoiceOver/leitor de tela. Nenhuma migration foi aplicada ao Supabase remoto; a branch `main` não foi alterada.
+> **Status vigente em 23/11/2026:** validação automatizada consolidada **verde** na branch `fase-2-fundacao`. O run GitHub Actions `45144509145` concluiu com sucesso os jobs `validate`, `sql` e `lockfile`. A Fase 2 **ainda não está concluída**: faltam os testes presenciais em Safari/iOS, instalação e atualização real do PWA e auditoria manual com VoiceOver/leitor de tela. Nenhuma migration foi aplicada ao Supabase remoto; a branch `main` não foi alterada.
 
 ## Estado vigente e evidências
 
@@ -24,7 +24,7 @@
 
 ### Resultado da execução consolidada
 
-Run `45144224987` — [abrir execução no GitHub](https://github.com/theuuswillian/aplicativomobile/actions/runs/45144224987):
+Run `45144509145` — [abrir execução no GitHub](https://github.com/theuuswillian/aplicativomobile/actions/runs/45144509145):
 - `validate`: sucesso — npm 11.21.2, `npm ci`, ESLint, política arquitetural, busca de segredos, sintaxe dos scripts shell, TypeScript, 45 testes Vitest, build Vite e 12 testes Playwright em Chromium/WebKit.
 - `sql`: sucesso — PostgreSQL 17, migrations 001–005, assertions de schema/RLS/grants/isolamento e duas sessões concorrentes para quota de IA e rate limit.
 - `lockfile`: sucesso — lockfile reproduzível gerado e confirmado na branch, sem novo commit necessário.
