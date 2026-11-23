@@ -3,6 +3,7 @@ import {
   calculateAccountBalance,
   calculateBudgetRemaining,
   calculateCardCycle,
+  calculateCardCommittedLimitCents,
   cardInstallmentDates,
   calculateGoalProgress,
   calculateInvoice,
@@ -79,6 +80,17 @@ describe("financial domain regression rules", () => {
       .toEqual({ totalCents: 20000, paidCents: 5000, remainingCents: 15000, status: "partial" });
     expect(calculateInvoice("c", 10, 5, entries, "2026-10-10", [], "2026-11-06").status).toBe("overdue");
     expect(calculateInvoice("c", 10, 20, entries, "2026-10-10", [{ amountCents: 20000, date: "2026-10-20" }], "2026-11-01").status).toBe("paid");
+  });
+
+  it("releases card limit after invoice payment and ignores overdue cycles", () => {
+    const entries = [
+      { id: "a", kind: "card_expense" as const, cardId: "c", amountCents: 10000, date: "2026-10-05" },
+      { id: "b", kind: "card_expense" as const, cardId: "c", amountCents: 5000, date: "2026-11-05" },
+      { id: "c", kind: "card_expense" as const, cardId: "c", amountCents: 7000, date: "2026-09-05" }
+    ];
+    expect(calculateCardCommittedLimitCents("c", 10, 20, entries, new Map([
+      ["2026-10-10", 10000], ["2026-11-10", 2000]
+    ]), "2026-11-22")).toBe(3000);
   });
 
   it("splits installments exactly in integer cents and preserves month-end anchors", () => {
