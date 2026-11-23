@@ -93,13 +93,22 @@ Deno.serve(async (request: Request) => {
     );
   }
 
-  const { data: categories, error: categoriesError } = await auth.context.supabase
-    .from("categories")
-    .select("name, kind")
-    .eq("user_id", auth.context.user.id);
-  if (categoriesError || !categories) {
+  const [categoriesResult, cardsResult] = await Promise.all([
+    auth.context.supabase
+      .from("categories")
+      .select("name, kind")
+      .eq("user_id", auth.context.user.id),
+    auth.context.supabase
+      .from("cards")
+      .select("name, last_four")
+      .eq("user_id", auth.context.user.id)
+      .eq("is_archived", false),
+  ]);
+  const categories = categoriesResult.data;
+  const cards = cardsResult.data;
+  if (categoriesResult.error || cardsResult.error || !categories || !cards) {
     return jsonResponse(
-      { error: { code: "RECEIPT_UNAVAILABLE", message: "Não foi possível validar suas categorias." } },
+      { error: { code: "RECEIPT_UNAVAILABLE", message: "Não foi possível validar suas categorias e cartões." } },
       503,
       origin,
     );
