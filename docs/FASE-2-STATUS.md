@@ -1,32 +1,34 @@
-# GranaViva — início do projeto
+# GranaViva — Fase 2: fundação técnica
 
 ## Estado atual
 
-O repositório foi reservado para a reconstrução do GranaViva. O README e o ponto de entrada HTML já estão versionados.
+A Fase 2 está em andamento na branch `fase-2-fundacao`. O repositório contém o scaffold React/Vite, configuração TypeScript/Vitest/ESLint, CI inicial e um primeiro helper monetário com teste.
 
-**Etapa em andamento:** Fase 2 — fundação técnica.
+A interface atual é somente uma prévia visual: os valores exibidos são ilustrativos e não representam dados persistidos nem funcionalidades financeiras implementadas.
 
-## Regras de implementação
+## Itens desta fase
 
-- React 19, TypeScript estrito e Vite no frontend.
-- Supabase para autenticação, PostgreSQL, Storage e Edge Functions.
-- RLS em todas as tabelas e isolamento por usuário.
-- Todos os recursos disponíveis igualmente a todas as contas.
-- Segredos exclusivamente no backend.
-- Operações financeiras com valores normalizados e projeções separadas de realizados.
-- Migrations revisadas e testadas localmente antes de qualquer alteração em banco remoto.
-- Não reaproveitar o monólito legado como implementação.
+- [x] Repositório e branch de trabalho definidos.
+- [x] Scaffold React 19 + TypeScript + Vite.
+- [x] Configuração inicial de build, lint, testes e CI.
+- [x] Helper monetário inicial e teste unitário.
+- [ ] Design system alinhado ao contrato, com fontes e ativos locais.
+- [ ] Estrutura completa de domínio e tipos TypeScript.
+- [ ] Cinco migrations consolidadas, reproduzíveis e com RLS.
+- [ ] Assertions SQL para isolamento, grants e funções privilegiadas.
+- [ ] Testes unitários de datas e regras financeiras-base.
+- [ ] Verificação de lista negra (cobrança, planos comerciais, Pluggy e monólito).
+- [ ] Build, lint, typecheck e testes executados com sucesso em ambiente com dependências.
 
-## Próximos itens da fundação
+## Limites de segurança
 
-1. Estrutura de pastas, dependências e configurações de build.
-2. Design system e ativos locais.
-3. Cliente Supabase e tipos de domínio.
-4. Cinco migrations consolidadas e políticas RLS.
-5. Testes unitários, assertions SQL e CI.
+- Nenhuma migration foi aplicada a projeto Supabase remoto.
+- Nenhuma chave secreta deve ser enviada ao frontend ou versionada.
+- Não copiar `app.js`, `app.min.js`, `index.html` legado, código de pagamentos, assinaturas, Pluggy ou funções antigas como implementação da reconstrução.
+- Não considerar números de demonstração como lançamentos realizados.
 
-## Validação
+## Validação pendente
 
-O repositório está apenas no início. Não declarar build, testes ou migrations como aprovados até executá-los em ambiente com dependências e PostgreSQL disponíveis.
+O build e os testes ainda precisam ser executados com dependências instaladas. A validação SQL exige PostgreSQL/Supabase local. Até essas verificações ocorrerem, nada será declarado como validado.
 
-A Fase 3 só começa após a conclusão e aprovação explícita da Fase 2.
+A Fase 3 permanece bloqueada até conclusão e aprovação explícita da Fase 2.
