@@ -1,4 +1,4 @@
-const CACHE_NAME = "granaviva-shell-v2";
+const CACHE_NAME = "granaviva-shell-v3";
 const SHELL = ["/manifest.webmanifest", "/icon.svg", "/apple-touch-icon.png"];
 
 self.addEventListener("install", (event) => {
@@ -54,15 +54,19 @@ self.addEventListener("fetch", (event) => {
   if (/^\/(auth|rest|storage|functions|realtime)(\/|$)/.test(url.pathname)) return;
 
   if (request.mode === "navigate") {
-    const network = fetch(request).then(async (response) => {
-      if (!response.ok) throw new Error("Resposta de navegação inválida");
-      const cache = await caches.open(CACHE_NAME);
-      await cache.put("/", response.clone());
-      return response;
-    });
-    event.respondWith(
-      network.catch(async () => (await caches.match("/")) || Response.error()),
-    );
+    event.respondWith((async () => {
+      try {
+        const response = await fetch(request);
+        if (response.ok) {
+          const cache = await caches.open(CACHE_NAME);
+          await cache.put("/", response.clone());
+          return response;
+        }
+      } catch {
+        // A navegação offline usa o shell salvo na instalação.
+      }
+      return (await caches.match(request)) || (await caches.match("/")) || Response.error();
+    })());
     return;
   }
 
