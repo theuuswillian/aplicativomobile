@@ -64,13 +64,14 @@ self.addEventListener("fetch", (event) => {
 
   if (/^\/assets\//.test(url.pathname) || /\.(?:svg|woff2|css|js|png)$/.test(url.pathname)) {
     event.respondWith(
-      caches.match(request).then((cached) => {
+      caches.match(request).then(async (cached) => {
         if (cached) return cached;
-        return fetch(request).then((response) => {
-          if (!response.ok) return response;
-          return caches.open(CACHE_NAME).then((cache) => cache.put(request, response.clone())).then(() => response);
-        })
-      )
+        const response = await fetch(request);
+        if (!response.ok) return response;
+        const cache = await caches.open(CACHE_NAME);
+        await cache.put(request, response.clone());
+        return response;
+      }),
     );
   }
 });
