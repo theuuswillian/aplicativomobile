@@ -61,6 +61,8 @@ jobs:
           deno check --no-config
           supabase/functions/minha-conta/index.ts
           supabase/functions/minhas-preferencias/index.ts
+          supabase/functions/assistente/index.ts
+          supabase/functions/ler-comprovante/index.ts
       - name: Run Edge runtime unit tests
         run: deno test --no-config supabase/functions/_shared/edge_test.ts
 
