@@ -57,12 +57,33 @@ Implementar o backend do GranaViva conforme `docs/ARQUITETURA_TRAVADA.md`, sem c
 - [ ] Execução verde dos jobs Deno e Supabase local no GitHub Actions.
 
 ### IA, Radar, push e WhatsApp
-- [ ] Assistente contextual e validação de IA.
+- [x] Endpoint `assistente`: recebe pergunta, fatos calculados no cliente e até três pares recentes; não consulta nem altera dados financeiros.
+- [x] Endpoint `ler-comprovante`: valida PDF/imagem até 5 MB, extrai uma prévia estrita e exige confirmação humana; não grava transação nem persiste o arquivo.
+- [x] Provedor OpenAI Responses API configurado exclusivamente por segredo de backend, com `store: false`, timeout e limite de resposta.
+- [x] Validação de schema, categorias existentes do próprio usuário, valor até R$ 10 milhões, datas, parcelas, anti-injection e números da resposta do assistente.
+- [x] Consentimento explícito obrigatório antes de enviar fatos ou comprovantes ao provedor.
+- [x] Reservas atômicas de uso justo e rate limit por usuário; falhas e respostas inválidas liberam a reserva.
+- [ ] Configurar segredos e limites técnicos no ambiente local/deploy, após aprovação do usuário.
+- [ ] Testes automatizados Deno/Vitest e integração Supabase local verdes no CI.
 - [x] Validação isolada de base64, MIME declarado versus assinatura real e limite de 5 MB para arquivos aceitos.
-- [ ] Endpoint de IA para leitura de comprovantes, validação da resposta e revisão humana.
+- [x] Endpoint de IA para leitura de comprovantes, validação da resposta e revisão humana.
 - [ ] Cotações e Radar.
 - [ ] Push.
 - [ ] WhatsApp completo.
+
+## Configuração necessária do backend (ainda não aplicada)
+
+O provedor usa a OpenAI Responses API. Antes de habilitar chamadas reais, o ambiente de Edge Functions precisa receber, somente como secrets:
+- `OPENAI_API_KEY`
+- `OPENAI_MODEL`
+- `AI_ASSISTANT_DAILY_LIMIT` e `AI_ASSISTANT_MONTHLY_LIMIT`
+- `AI_RECEIPT_DAILY_LIMIT` e `AI_RECEIPT_MONTHLY_LIMIT`
+- `AI_RATE_LIMIT_PER_HOUR`
+- `SUPABASE_SERVICE_ROLE_KEY` (somente para as RPCs internas de reserva/finalização; nunca usado para consultas de dados do usuário)
+
+Os limites são obrigatórios e uniformes, sem planos ou diferenciação comercial. Não foram inventados valores nem configurados segredos remotos. O endpoint exige `consent: true`; o frontend ainda precisará apresentar consentimento claro antes de enviar fatos financeiros ou comprovantes ao provedor. Os documentos e fatos enviados são processados externamente pelo provedor configurado; `store: false` evita solicitar armazenamento da resposta pela API, mas não é promessa de retenção zero pelo provedor.
+
+A leitura do comprovante é atualmente efêmera: o arquivo é enviado para extração e não fica armazenado no Storage nem gera registro `receipt_files`. A persistência/anexo ao lançamento será implementada em etapa própria após o fluxo de confirmação e Storage privado.
 
 ## Validação pendente
 
