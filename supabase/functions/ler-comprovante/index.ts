@@ -4,7 +4,6 @@ import { requestStructuredAi } from "../_shared/ai-provider.ts";
 import {
   MAX_RECEIPT_BYTES,
   validateReceiptBase64,
-  type ReceiptMime,
 } from "../_shared/receipt-validation.ts";
 import {
   handleOptions,
