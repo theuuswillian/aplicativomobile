@@ -185,3 +185,12 @@ A execução mais recente do workflow foi cancelada durante a inicialização do
 - [x] A primeira execução de lint encontrou três problemas de estilo (dois blocos catch vazios e regex de controle intencional); os três foram corrigidos.
 - [ ] Reexecutar lint, typecheck, Vitest e build com as correções.
 - [ ] Após validate e SQL verdes, o job controlado de CI versionará `package-lock.json` na branch; depois será feita nova execução usando `npm ci`.
+
+
+## CI consolidado e lockfile — 23/11/2026
+
+- [x] Execução GitHub Actions `45101368580`: job `validate` concluído com sucesso (npm 11.21.2, lint, check:policy, check:secrets, bash -n, TypeScript incluindo testes, Vitest e build).
+- [x] Na mesma execução, job `sql` concluído com sucesso em PostgreSQL 17: cinco migrations, assertions de RLS/grants/isolamento e teste de concorrência de quota/rate limit.
+- [x] Job `lockfile` concluído com sucesso; `package-lock.json` (lockfile v3) foi gerado e versionado no commit `42978c784246fbb94b93d2a8dc62e4a3fd95bfd5`.
+- [ ] Reexecutar o CI após o commit do lockfile para confirmar instalação limpa com `npm ci` (a execução verde anterior usou `npm install`, pois ainda não havia lockfile no checkout).
+- [ ] Concluir revisão visual em navegador/Safari iOS, teste de instalação/offline do PWA e auditoria manual WCAG AA.
