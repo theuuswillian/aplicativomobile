@@ -59,11 +59,11 @@ Deno.serve(async (request: Request) => {
   }
 
   const body = await readJsonObject(request, 7_100_000);
-  if (!body || Object.keys(body).length !== 2 ||
+  if (!body || Object.keys(body).length !== 3 || body.consent !== true ||
       typeof body.file_base64 !== "string" || typeof body.mime_type !== "string" ||
       !["application/pdf", "image/jpeg", "image/png", "image/webp"].includes(body.mime_type)) {
     return jsonResponse(
-      { error: { code: "INVALID_RECEIPT", message: "Envie um PDF ou uma imagem de comprovante válida." } },
+      { error: { code: "INVALID_RECEIPT", message: "Confirme o envio à IA e envie um PDF ou uma imagem de comprovante válida." } },
       400,
       origin,
     );
