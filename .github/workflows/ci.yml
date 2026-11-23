@@ -16,19 +16,6 @@ concurrency:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: granaviva_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d granaviva_test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
@@ -45,12 +32,32 @@ jobs:
       - run: npm run lint
       - run: npm run check:policy
       - run: npm run check:secrets
-      - name: Install PostgreSQL client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
-      - name: Validate migrations and RLS on PostgreSQL 17
-        run: npm run test:sql
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/granaviva_test
+      - name: Validate shell scripts
+        run: bash -n scripts/test-sql.sh && bash -n scripts/test-sql-concurrency.sh
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+
+  sql:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: granaviva_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d granaviva_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Validate migrations, RLS and concurrency on PostgreSQL 17
+        run: bash scripts/test-sql.sh
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/granaviva_test
