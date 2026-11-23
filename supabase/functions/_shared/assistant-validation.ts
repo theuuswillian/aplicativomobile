@@ -82,7 +82,7 @@ function normalizeNumberToken(token: string): string {
 }
 
 export function extractNumericTokens(value: string): string[] {
-  const matches = value.match(/(?:R\$\s*)?-?\d[\d.\s]*(?:,\d+)?\s*%?/g) ?? [];
+  const matches = value.match(/(?:R\\$\\s*)?-?(?:\\d{1,3}(?:\\.\\d{3})+|\\d+)(?:[,.]\\d+)?\\s*%?/g) ?? [];
   return matches.map(normalizeNumberToken);
 }
 
