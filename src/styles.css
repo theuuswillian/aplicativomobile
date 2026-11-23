@@ -1,9 +1,19 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
-
-:root { font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #f4f6f5; background: #080a0c; font-synthesis: none; text-rendering: optimizeLegibility; }
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  color: #f4f6f5;
+  background: #07090B;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; min-height: 100vh; }
-.shell { min-height: 100vh; display: grid; place-items: center; padding: 32px 22px; background: radial-gradient(ellipse at 50% 35%, #15221b 0%, #0b100d 35%, #080a0c 72%); }
+.shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px 22px;
+  background: radial-gradient(ellipse at 50% 35%, #15221b 0%, #0b100d 35%, #07090B 72%);
+}
 .hero { width: min(100%, 620px); text-align: center; }
 .eyebrow { color: #9aa79f; font-size: 11px; font-weight: 700; letter-spacing: .18em; }
 h1 { margin: 22px 0 12px; font-size: clamp(52px, 12vw, 88px); line-height: 1; letter-spacing: -.075em; font-weight: 800; }
