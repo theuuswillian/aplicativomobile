@@ -97,3 +97,15 @@ Também foi endurecida a conversão monetária em `src/lib/money.ts`:
 Validação local isolada do algoritmo em Node 22: exemplos `12,34 → 1234`, `1,005 → 101`, `-1,005 → -101` e `0,1 + 0,2 → 30`. Isso não substitui a execução do Vitest/TypeScript no projeto.
 
 **Ambiente disponível nesta sessão:** Node 22 está disponível; `psql` e Docker não estão instalados. A execução SQL real permanece delegada ao workflow do GitHub Actions. O conector disponível não retornou runs associados ao commit consultado, portanto não há resultado de CI confirmado neste registro.
+
+
+## Atualização do design system — 22/11/2026
+
+Publicado o primeiro shell visual da nova aplicação, ainda sem dados financeiros reais:
+- tokens semânticos de superfície, texto, borda, foco, acento, raio e sombra em `src/styles/tokens.css`;
+- tema escuro padrão e tema claro alternável no próprio shell;
+- layout responsivo mobile-first com respeito às safe areas;
+- foco visível, controles semânticos, rótulos acessíveis e suporte a `prefers-reduced-motion`;
+- conteúdo explicitamente identificado como fundação em desenvolvimento, sem simular conexão ou saldos reais.
+
+A tela é somente a base visual e não inicia jornadas funcionais da Fase 3. A fonte Inter permanece declarada na pilha tipográfica, mas os arquivos locais de fonte ainda não foram incorporados ao novo app; esse item continua pendente.
