@@ -20,7 +20,7 @@ Aplicativo gratuito de gestão financeira pessoal, investimentos e automações.
 
 ## Estado
 
-Fase 2 — fundação técnica em andamento. Consulte [docs/FASE-2-STATUS.md](docs/FASE-2-STATUS.md) e o contrato de arquitetura aprovado.
+Fase 2 — fundação técnica em andamento. Consulte [docs/FASE-2-STATUS.md](docs/FASE-2-STATUS.md) para acompanhar os itens concluídos e pendentes. O contrato integral e os ativos de referência ainda estão sendo publicados no repositório.
 
 ## Desenvolvimento
 
