@@ -53,7 +53,11 @@
 .app-shell textarea { font: inherit; }
 
 .app-shell button:focus-visible,
-.app-shell a:focus-visible {
+.app-shell a:focus-visible,
+.app-shell input:focus-visible,
+.app-shell select:focus-visible,
+.app-shell textarea:focus-visible,
+.app-shell [tabindex]:focus-visible {
   outline: 2px solid var(--color-focus);
   outline-offset: 3px;
 }
