@@ -92,7 +92,11 @@ describe("financial domain regression rules", () => {
       { id: "c", kind: "card_expense" as const, cardId: "c", amountCents: 7000, date: "2026-09-05" }
     ];
     expect(calculateCardCommittedLimitCents("c", 10, 20, entries, new Map([
-      ["2026-10-10", 10000], ["2026-11-10", 2000]
+      ["2026-10-10", [{ amountCents: 10000, date: "2026-10-15" }]],
+      ["2026-11-10", [
+        { amountCents: 2000, date: "2026-11-12" },
+        { amountCents: 1000, date: "2026-11-13", status: "planned" }
+      ]]
     ]), "2026-11-15")).toBe(3000);
   });
 
