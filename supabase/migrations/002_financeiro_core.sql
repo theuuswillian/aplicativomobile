@@ -145,7 +145,8 @@ create table public.transactions (
   check (
     (installment_group_id is null and installment_number is null and installment_count is null)
     or
-    (installment_group_id is not null and installment_number between 1 and installment_count
+    (installment_group_id is not null and installment_number is not null
+      and installment_count is not null and installment_number between 1 and installment_count
       and installment_count between 1 and 48)
   )
 );
