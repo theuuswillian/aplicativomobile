@@ -19,6 +19,29 @@ const supportedMimes = new Set<ReceiptMime>([
   "text/csv",
 ]);
 
+function isStrictBase64(value: string): boolean {
+  if (value.length === 0 || value.length % 4 !== 0) return false;
+  const padding = value.endsWith("==") ? 2 : value.endsWith("=") ? 1 : 0;
+  const contentLength = value.length - padding;
+
+  for (let index = 0; index < contentLength; index += 1) {
+    const code = value.charCodeAt(index);
+    const valid = (code >= 65 && code <= 90) ||
+      (code >= 97 && code <= 122) ||
+      (code >= 48 && code <= 57) ||
+      code === 43 || code === 47;
+    if (!valid) return false;
+  }
+  for (let index = contentLength; index < value.length; index += 1) {
+    if (value.charCodeAt(index) !== 61) return false;
+  }
+
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  if (padding === 2 && (alphabet.indexOf(value[contentLength - 1]) & 15) !== 0) return false;
+  if (padding === 1 && (alphabet.indexOf(value[contentLength - 1]) & 3) !== 0) return false;
+  return true;
+}
+
 function hasSignature(bytes: Uint8Array, mime: ReceiptMime): boolean {
   if (mime === "image/jpeg") {
     return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
@@ -51,8 +74,7 @@ export function validateReceiptBase64(
   }
   if (typeof mimeInput !== "string" ||
       !supportedMimes.has(mimeInput as ReceiptMime) ||
-      encoded.length === 0 || encoded.length % 4 !== 0 ||
-      !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(encoded)) {
+      !isStrictBase64(encoded)) {
     return { ok: false, reason: "invalid_base64" };
   }
 
