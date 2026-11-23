@@ -62,7 +62,7 @@ Implementar o backend do GranaViva conforme `docs/ARQUITETURA_TRAVADA.md`, sem c
 - [x] Provedor OpenAI Responses API configurado exclusivamente por segredo de backend, com `store: false`, timeout e limite de resposta.
 - [x] Validação de schema, categorias existentes do próprio usuário, valor até R$ 10 milhões, datas, parcelas, anti-injection e números da resposta do assistente.
 - [x] Consentimento explícito obrigatório antes de enviar fatos ou comprovantes ao provedor.
-- [x] Reservas atômicas de uso justo e rate limit por usuário; falhas e respostas inválidas liberam a reserva.
+- [x] Reservas atômicas de uso justo e rate limit por usuário; assistente usa o bucket técnico `phrase` existente, comprovantes usam `receipt`; falhas e respostas inválidas liberam a reserva.
 - [ ] Configurar segredos e limites técnicos no ambiente local/deploy, após aprovação do usuário.
 - [ ] Testes automatizados Deno/Vitest e integração Supabase local verdes no CI.
 - [x] Validação isolada de base64, MIME declarado versus assinatura real e limite de 5 MB para arquivos aceitos.
