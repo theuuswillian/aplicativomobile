@@ -54,19 +54,18 @@ self.addEventListener("fetch", (event) => {
   if (/^\/(auth|rest|storage|functions|realtime)(\/|$)/.test(url.pathname)) return;
 
   if (request.mode === "navigate") {
-    const update = fetch(request)
-      .then(async (response) => {
-        if (!response.ok) return undefined;
-        const cache = await caches.open(CACHE_NAME);
-        await cache.put("/", response.clone());
-        return response;
-      })
-      .catch(() => undefined);
-
-    event.waitUntil(update);
     event.respondWith((async () => {
-      const cached = await caches.match("/");
-      return cached || (await update) || Response.error();
+      try {
+        // HTML sempre tenta a versão publicada mais recente; o cache é fallback offline.
+        const response = await fetch(request, { cache: "no-store" });
+        if (response.ok) {
+          const cache = await caches.open(CACHE_NAME);
+          await cache.put("/", response.clone());
+        }
+        return response;
+      } catch {
+        return (await caches.match("/")) || Response.error();
+      }
     })());
     return;
   }
