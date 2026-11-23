@@ -307,6 +307,7 @@ begin
     execute format('create policy %I on public.%I for insert to authenticated with check (user_id = (select auth.uid()))', t || '_insert_own', t);
     execute format('create policy %I on public.%I for update to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()))', t || '_update_own', t);
     execute format('create policy %I on public.%I for delete to authenticated using (user_id = (select auth.uid()))', t || '_delete_own', t);
+    execute format('revoke all on public.%I from public, anon, authenticated', t);
     execute format('grant select, insert, update, delete on public.%I to authenticated', t);
     execute format('grant all on public.%I to service_role', t);
   end loop;
