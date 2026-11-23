@@ -23,14 +23,13 @@ jobs:
           node-version: 22
       - name: Upgrade npm to avoid Node 22 Arborist peer-resolution crash
         run: npm install --global npm@11.21.2
-      - run: npm install --no-audit --no-fund
-      - name: Export generated lockfile for pinning
-        if: hashFiles('package-lock.json') != ''
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: granaviva-package-lock
-          path: package-lock.json
-          retention-days: 7
+      - name: Install locked dependencies when available
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci --no-audit --no-fund
+          else
+            npm install --no-audit --no-fund
+          fi
       - run: npm run lint
       - run: npm run check:policy
       - run: npm run check:secrets
@@ -63,3 +62,32 @@ jobs:
         run: bash scripts/test-sql.sh
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/granaviva_test
+
+  lockfile:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'fase-2-fundacao'
+    needs: [validate, sql]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+      - name: Upgrade npm
+        run: npm install --global npm@11.21.2
+      - name: Generate reproducible dependency lock
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Commit lockfile to the working branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          if git diff --cached --quiet; then
+            echo "package-lock.json já está atualizado."
+          else
+            git commit -m "chore: lock npm dependency graph"
+            git push origin HEAD:refs/heads/fase-2-fundacao
+          fi
