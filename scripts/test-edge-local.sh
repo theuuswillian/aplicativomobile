@@ -33,7 +33,7 @@ for attempt in $(seq 1 60); do
     --header 'Access-Control-Request-Method: POST' \
     --header 'Access-Control-Request-Headers: authorization, apikey, content-type' \
     "$SUPABASE_URL/functions/v1/minha-conta" 2>>"$log_file" || true)"
-  if [ "$status" = "204" ]; then
+  if [ "$status" = "200" ] || [ "$status" = "204" ]; then
     ready=1
     break
   fi
