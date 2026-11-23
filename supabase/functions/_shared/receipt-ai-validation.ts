@@ -101,13 +101,12 @@ export function validateReceiptDraft(
   let category: string | null = null;
   if (raw.category !== null) {
     const suggested = cleanText(raw.category, 80);
-    if (suggested) {
-      const matched = categories.find((item) =>
-        item.kind === raw.kind && item.name.toLocaleLowerCase("pt-BR") === suggested.toLocaleLowerCase("pt-BR")
-      );
-      if (matched) category = matched.name;
-      else warnings.push("A categoria sugerida não existe na sua lista e precisa ser escolhida na revisão.");
-    }
+    if (!suggested) return null;
+    const matched = categories.find((item) =>
+      item.kind === raw.kind && item.name.toLocaleLowerCase("pt-BR") === suggested.toLocaleLowerCase("pt-BR")
+    );
+    if (matched) category = matched.name;
+    else warnings.push("A categoria sugerida não existe na sua lista e precisa ser escolhida na revisão.");
   }
 
   let paymentMethod: string | null = null;
