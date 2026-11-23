@@ -157,6 +157,14 @@ Deno.serve(async (request: Request) => {
     outputSchema,
   );
 
+  if (aiOutput === null) {
+    await finalizeAiUsage(reservation.reservationId, false);
+    return jsonResponse(
+      { error: { code: "AI_PROVIDER_UNAVAILABLE", message: "Leitura de comprovantes temporariamente indisponível. Tente novamente." } },
+      503,
+      origin,
+    );
+  }
   const draft = validateReceiptDraft(aiOutput, categories);
   if (!draft) {
     await finalizeAiUsage(reservation.reservationId, false);
