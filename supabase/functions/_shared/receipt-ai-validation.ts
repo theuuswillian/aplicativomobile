@@ -49,7 +49,7 @@ function amountInCents(value: string): bigint | null {
 
 function cleanText(value: unknown, maximum: number): string | null {
   if (typeof value !== "string") return null;
-  const cleaned = value.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim();
+  const cleaned = Array.from(value).map((character) => { const code = character.charCodeAt(0); return code <= 0x1f || code === 0x7f ? " " : character; }).join("").replace(/\\s+/g, " ").trim();
   return cleaned.length > 0 && cleaned.length <= maximum ? cleaned : null;
 }
 
