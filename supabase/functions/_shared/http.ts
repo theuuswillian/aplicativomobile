@@ -74,7 +74,10 @@ export function internalError(origin: string | null): Response {
 }
 
 export function isJsonRequest(request: Request): boolean {
-  return request.headers.get("content-type")?.toLowerCase().includes("application/json") ?? false;
+  const contentType = request.headers.get("content-type");
+  if (!contentType) return false;
+  const mediaType = contentType.split(";", 1)[0].trim().toLowerCase();
+  return mediaType === "application/json";
 }
 
 export async function readJsonObject(
