@@ -37,6 +37,7 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: npm run lint
       - run: npm run check:policy
+      - run: npm run check:secrets
       - name: Install PostgreSQL client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - name: Validate migrations and RLS on PostgreSQL 17
