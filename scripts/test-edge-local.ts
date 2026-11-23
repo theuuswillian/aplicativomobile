@@ -101,19 +101,8 @@ try {
     preflight.status === 200 || preflight.status === 204,
     "Preflight CORS permitido deve retornar sucesso HTTP (200 ou 204).",
   );
-  assert(
-    preflight.headers.get("Access-Control-Allow-Origin") === allowedOrigin,
-    `CORS deve liberar somente a origem configurada (status=${preflight.status}; Access-Control-Allow-Origin=${preflight.headers.get("Access-Control-Allow-Origin") ?? "ausente"}).`,
-  );
-
-  const hostilePreflight = await fetch(`${apiUrl}/functions/v1/minha-conta`, {
-    method: "OPTIONS",
-    headers: { apikey: anonKey!, Origin: "https://attacker.example", "Access-Control-Request-Method": "POST" },
-  });
-  assert(
-    hostilePreflight.headers.get("Access-Control-Allow-Origin") === null,
-    "CORS não deve refletir origem não configurada.",
-  );
+  // The local Supabase gateway may answer OPTIONS itself with its platform-wide
+  // preflight headers. The function's exact allowlist is tested at runtime below.
 
   const unauthenticated = await invoke("minha-conta", null, { action: "consultar" });
   assert(unauthenticated.response.status === 401, "Requisição sem JWT deve ser rejeitada.");
@@ -127,6 +116,23 @@ try {
 
   const profile = await invoke("minha-conta", tokenA, { action: "consultar" });
   assert(profile.response.ok, "Usuário autenticado deve consultar seu perfil.");
+  assert(
+    profile.response.headers.get("Access-Control-Allow-Origin") === allowedOrigin,
+    "Resposta da função deve liberar somente a origem configurada.",
+  );
+
+  const hostileOriginRequest = await invoke(
+    "minha-conta",
+    tokenA,
+    { action: "consultar" },
+    "POST",
+    "https://attacker.example",
+  );
+  assert(
+    hostileOriginRequest.response.status === 403 &&
+      hostileOriginRequest.response.headers.get("Access-Control-Allow-Origin") === null,
+    "A função deve rejeitar requisições de origens não configuradas, mesmo com JWT válido.",
+  );
   assert(profile.body?.data?.profile?.id === userA.id, "Perfil retornado deve pertencer ao usuário A.");
   assert(profile.body?.data?.settings, "Preferências iniciais devem ser criadas pelo trigger.");
 
