@@ -174,3 +174,14 @@ A execução mais recente do workflow foi cancelada durante a inicialização do
 - [x] Assertions de RLS incluem tentativa de INSERT cruzado, além de SELECT/UPDATE/DELETE.
 - [x] Adicionado teste PostgreSQL com duas sessões concorrentes para demonstrar que cota de IA e rate limit aceitam no máximo uma operação para limite 1.
 - [ ] O teste concorrente está implementado no CI, mas ainda aguarda execução real no PostgreSQL 17.
+
+
+## Resultado da primeira execução completa no PostgreSQL 17 — 23/11/2026
+
+- [x] As cinco migrations `001` a `005` foram aplicadas em PostgreSQL 17.12 sem erro.
+- [x] Assertions SQL passaram: schema esperado, RLS, grants, isolamento por usuário, INSERT/UPDATE/DELETE cruzados, SECURITY DEFINER e `search_path` fixo.
+- [x] Teste concorrente real passou: duas sessões simultâneas aceitaram exatamente uma reserva de IA e uma chamada de rate limit com limite 1.
+- [x] `npm install` passou após atualizar o npm do runner Node 22 para 11.21.2; o lockfile foi gerado e exportado como artefato temporário.
+- [x] A primeira execução de lint encontrou três problemas de estilo (dois blocos catch vazios e regex de controle intencional); os três foram corrigidos.
+- [ ] Reexecutar lint, typecheck, Vitest e build com as correções.
+- [ ] Após validate e SQL verdes, o job controlado de CI versionará `package-lock.json` na branch; depois será feita nova execução usando `npm ci`.
