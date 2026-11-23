@@ -32,6 +32,7 @@ const outputSchema = {
     category: { anyOf: [{ type: "string" }, { type: "null" }] },
     payment_method: { anyOf: [{ type: "string" }, { type: "null" }] },
     installment_count: { anyOf: [{ type: "integer" }, { type: "null" }] },
+    card_last_four: { anyOf: [{ type: "string" }, { type: "null" }] },
     confidence: { type: "number" },
     warnings: { type: "array", items: { type: "string" } },
   },
@@ -150,6 +151,7 @@ Deno.serve(async (request: Request) => {
           type: "input_text",
           text: JSON.stringify({
             allowed_categories: categories,
+            allowed_cards: cards,
             rules: {
               max_amount_brl: "10000000.00",
               max_description_characters: 80,
