@@ -77,7 +77,6 @@ Deno.serve(async (request: Request) => {
   const sourceText = JSON.stringify({
     question: input.question,
     facts: input.facts,
-    history: input.history,
   });
   const output = await requestStructuredAi(
     instructions,
@@ -89,6 +88,14 @@ Deno.serve(async (request: Request) => {
     "granaviva_assistant_answer",
     outputSchema,
   );
+  if (output === null) {
+    await finalizeAiUsage(reservation.reservationId, false);
+    return jsonResponse(
+      { error: { code: "AI_PROVIDER_UNAVAILABLE", message: "Assistente temporariamente indisponível. Tente novamente." } },
+      503,
+      origin,
+    );
+  }
   const validated = validateAssistantOutput(output, sourceText);
 
   if (!validated) {
