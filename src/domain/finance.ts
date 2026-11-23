@@ -24,6 +24,7 @@ export interface CardCycle {
 export interface InvoicePayment {
   amountCents: number;
   date: string;
+  status?: FinancialStatus;
   accountId?: string | null;
 }
 
@@ -167,7 +168,7 @@ export function calculateInvoice(
   const paidCents = payments.reduce((sum, payment) => {
     parseDate(payment.date);
     assertCents(payment.amountCents);
-    return sum + payment.amountCents;
+    return sum + (isEffectiveStatus(payment.status) ? payment.amountCents : 0);
   }, 0);
   if (!Number.isSafeInteger(totalCents) || !Number.isSafeInteger(paidCents)) throw new RangeError("Total de fatura excede o limite seguro de centavos.");
   const remainingCents = Math.max(0, totalCents - paidCents);
