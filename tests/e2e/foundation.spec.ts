@@ -49,9 +49,10 @@ test("serves the cached app shell after going offline", async ({ page, context }
   });
   await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
   const cachedAssets = await page.evaluate(async () => {
-    const cache = await caches.open("granaviva-shell-v2");
+    const cache = await caches.open("granaviva-shell-v3");
     return (await cache.keys()).map((request) => new URL(request.url).pathname);
   });
+  expect(cachedAssets).toContain("/");
   expect(cachedAssets.some((path) => path.endsWith(".js"))).toBeTruthy();
   expect(cachedAssets.some((path) => path.endsWith(".css"))).toBeTruthy();
   expect(cachedAssets.some((path) => path.endsWith(".woff2"))).toBeTruthy();
