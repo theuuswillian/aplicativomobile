@@ -1,0 +1,71 @@
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color-scheme: dark;
+}
+
+.app-shell {
+  --color-bg: #07090b;
+  --color-surface: #101417;
+  --color-surface-raised: #151b1e;
+  --color-text: #f3f6f4;
+  --color-muted: #9aa6a0;
+  --color-line: rgb(255 255 255 / 9%);
+  --color-accent: #4ade80;
+  --color-accent-strong: #22c55e;
+  --color-accent-soft: rgb(34 197 94 / 10%);
+  --color-focus: #86efac;
+  --shadow-card: 0 18px 48px rgb(0 0 0 / 22%);
+  --radius-card: 22px;
+  --radius-control: 12px;
+  --content-width: 1120px;
+  min-height: 100vh;
+  color: var(--color-text);
+  background: var(--color-bg);
+  transition: color .2s ease, background-color .2s ease;
+}
+
+.app-shell[data-theme="light"] {
+  color-scheme: light;
+  --color-bg: #f3f5f4;
+  --color-surface: #fff;
+  --color-surface-raised: #f7f9f8;
+  --color-text: #17201b;
+  --color-muted: #65716a;
+  --color-line: rgb(22 40 29 / 11%);
+  --color-accent: #15803d;
+  --color-accent-strong: #16a34a;
+  --color-accent-soft: rgb(22 163 74 / 8%);
+  --color-focus: #166534;
+  --shadow-card: 0 16px 42px rgb(25 45 32 / 8%);
+}
+
+.app-shell *,
+.app-shell *::before,
+.app-shell *::after { box-sizing: border-box; }
+
+.app-shell button,
+.app-shell input,
+.app-shell select,
+.app-shell textarea { font: inherit; }
+
+.app-shell button:focus-visible,
+.app-shell a:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell,
+  .app-shell *,
+  .app-shell *::before,
+  .app-shell *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
