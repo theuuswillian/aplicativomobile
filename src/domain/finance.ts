@@ -121,6 +121,28 @@ export function calculateCardCycle(purchaseDate: string, closingDay: number, due
   return { closingDate: iso(closing), dueDate: iso(due) };
 }
 
+export function cardInstallmentDates(purchaseDate: string, closingDay: number, dueDay: number, count: number): string[] {
+  const purchase = parseDate(purchaseDate);
+  if (!Number.isInteger(count) || count < 1 || count > 48) throw new TypeError("Quantidade de parcelas inválida.");
+  const firstCycle = calculateCardCycle(purchaseDate, closingDay, dueDay);
+  const firstClosing = parseDate(firstCycle.closingDate);
+  return Array.from({ length: count }, (_, index) => {
+    if (index === 0) return purchaseDate;
+    const targetClosing = clampDay(firstClosing.getUTCFullYear(), firstClosing.getUTCMonth() + index, closingDay);
+    const previousClosing = clampDay(firstClosing.getUTCFullYear(), firstClosing.getUTCMonth() + index - 1, closingDay);
+    const candidate = clampDay(purchase.getUTCFullYear(), purchase.getUTCMonth() + index, purchase.getUTCDate());
+    const candidateDate = iso(candidate);
+    const candidateClosing = calculateCardCycle(candidateDate, closingDay, dueDay).closingDate;
+    if (candidateClosing === iso(targetClosing)) return candidateDate;
+    if (candidateClosing < iso(targetClosing)) {
+      const firstDayAfterPreviousClose = new Date(previousClosing);
+      firstDayAfterPreviousClose.setUTCDate(firstDayAfterPreviousClose.getUTCDate() + 1);
+      return iso(firstDayAfterPreviousClose);
+    }
+    return iso(targetClosing);
+  });
+}
+
 export function calculateInvoice(
   cardId: string,
   closingDay: number,
