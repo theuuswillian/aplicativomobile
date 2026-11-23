@@ -184,7 +184,7 @@ export function calculateCardCommittedLimitCents(
   closingDay: number,
   dueDay: number,
   entries: readonly LedgerEntry[],
-  paymentsByClosingDate: ReadonlyMap<string, number>,
+  paymentsByClosingDate: ReadonlyMap<string, readonly InvoicePayment[]>,
   today: string
 ): number {
   parseDate(today);
@@ -201,8 +201,12 @@ export function calculateCardCommittedLimitCents(
   }
   let committed = 0;
   for (const [closingDate, invoice] of invoices) {
-    const paid = paymentsByClosingDate.get(closingDate) ?? 0;
-    assertCents(paid);
+    const paid = (paymentsByClosingDate.get(closingDate) ?? []).reduce((sum, payment) => {
+      parseDate(payment.date);
+      assertCents(payment.amountCents);
+      return sum + (isEffectiveStatus(payment.status) ? payment.amountCents : 0);
+    }, 0);
+    if (!Number.isSafeInteger(paid)) throw new RangeError("Pagamento de fatura excede o limite seguro de centavos.");
     committed += Math.max(0, invoice.total - paid);
   }
   if (!Number.isSafeInteger(committed)) throw new RangeError("Limite comprometido excede o limite seguro de centavos.");
