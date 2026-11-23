@@ -23,7 +23,7 @@ function sanitizeValue(value: unknown, depth: number): SafeJson | null {
   if (value === null || typeof value === "boolean") return value;
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
   if (typeof value === "string") {
-    return value.length <= 400 ? value.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "") : null;
+    return value.length <= 400 ? stripControlCharacters(value) : null;
   }
   if (Array.isArray(value)) {
     if (value.length > 30) return null;
@@ -73,12 +73,12 @@ export function validateAssistantInput(body: Record<string, unknown>) {
         typeof record.content !== "string" || record.content.length > 300) return null;
     history.push({
       role: record.role,
-      content: record.content.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, ""),
+      content: stripControlCharacters(record.content),
     });
   }
 
   return {
-    question: body.question.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim(),
+    question: replaceControlCharactersWithSpaces(body.question).replace(/\\s+/g, " ").trim(),
     facts,
     history,
   };
