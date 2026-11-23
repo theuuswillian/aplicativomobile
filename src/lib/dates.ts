@@ -1,7 +1,7 @@
 const BUSINESS_TIME_ZONE = "America/Sao_Paulo";
 
 export function formatBusinessDate(value: string | Date): string {
-  const date = typeof value === "string" ? new Date(`${value.slice(0, 10)}T12:00:00`) : value;
+  const date = typeof value === "string" ? new Date(`${value.slice(0, 10)}T12:00:00Z`) : value;
   if (Number.isNaN(date.getTime())) throw new TypeError("Data inválida");
   return new Intl.DateTimeFormat("pt-BR", {
     timeZone: BUSINESS_TIME_ZONE,
