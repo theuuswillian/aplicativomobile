@@ -45,7 +45,7 @@ Deno.serve(async (request: Request) => {
   const input = body ? validateAssistantInput(body) : null;
   if (!input) {
     return jsonResponse(
-      { error: { code: "INVALID_ASSISTANT_INPUT", message: "Pergunta, fatos ou histórico inválidos." } },
+      { error: { code: "INVALID_ASSISTANT_INPUT", message: "Confirme o envio dos fatos à IA e revise pergunta, fatos e histórico." } },
       400,
       origin,
     );
