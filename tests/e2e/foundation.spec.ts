@@ -58,7 +58,7 @@ test("serves the cached app shell after going offline", async ({ page, context }
   expect(cachedAssets.some((path) => path.endsWith(".woff2"))).toBeTruthy();
 
   await context.setOffline(true);
-  await page.reload();
+  await page.goto("/", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { level: 1, name: /sua vida financeira/i })).toBeVisible();
   await context.setOffline(false);
 });
