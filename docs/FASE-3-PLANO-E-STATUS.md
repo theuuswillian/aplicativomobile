@@ -60,7 +60,7 @@ Implementar o backend do GranaViva conforme `docs/ARQUITETURA_TRAVADA.md`, sem c
 - [x] Endpoint `assistente`: recebe pergunta, fatos calculados no cliente e até três pares recentes; não consulta nem altera dados financeiros.
 - [x] Endpoint `ler-comprovante`: valida PDF/imagem até 5 MB, extrai uma prévia estrita e exige confirmação humana; não grava transação nem persiste o arquivo.
 - [x] Provedor OpenAI Responses API configurado exclusivamente por segredo de backend, com `store: false`, timeout e limite de resposta.
-- [x] Validação de schema, categorias existentes do próprio usuário, valor até R$ 10 milhões, datas, parcelas, anti-injection e números da resposta do assistente.
+- [x] Validação de schema, categorias e finais de cartões existentes do próprio usuário, valor até R$ 10 milhões, datas, parcelas, anti-injection e números da resposta do assistente.
 - [x] Consentimento explícito obrigatório antes de enviar fatos ou comprovantes ao provedor.
 - [x] Reservas atômicas de uso justo e rate limit por usuário; assistente usa o bucket técnico `phrase` existente, comprovantes usam `receipt`; falhas e respostas inválidas liberam a reserva.
 - [ ] Configurar segredos e limites técnicos no ambiente local/deploy, após aprovação do usuário.
@@ -87,7 +87,7 @@ A leitura do comprovante é atualmente efêmera: o arquivo é enviado para extra
 
 ## Validação pendente
 
-Os jobs `edge-runtime` e `edge-integration` foram adicionados ao GitHub Actions. A execução desses jobs para o commit atual ainda não foi confirmada. O status Vercel retornado pelo GitHub é um limite de builds da conta e não comprova falha ou sucesso do código. Não marcar a validação Deno como aprovada até obter o resultado do job.
+Os jobs `edge-runtime` e `edge-integration` foram adicionados ao GitHub Actions. A execução `45161146983` (SHA `bf438047...`) detectou falhas de lint e dois testes Deno; as causas foram corrigidas depois desse SHA (tipagem Supabase sem `any`, limpeza de controles, base64 sem regex de backtracking, permissão de ambiente nos testes e contagem de frases sem confundir separadores de milhar). A execução não valida os commits posteriores. A execução dos jobs para o HEAD atual ainda não foi confirmada. O status Vercel retornado pelo GitHub é um limite de builds da conta e não comprova falha ou sucesso do código. Não marcar a validação Deno como aprovada até obter o resultado do job.
 
 ## Limites atuais
 
