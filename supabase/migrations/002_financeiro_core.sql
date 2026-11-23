@@ -308,8 +308,13 @@ begin
     execute format('create policy %I on public.%I for delete to authenticated using (user_id = (select auth.uid()))', t || '_delete_own', t);
     execute format('grant select, insert, update, delete on public.%I to authenticated', t);
     execute format('grant all on public.%I to service_role', t);
+  end loop;
+  foreach t in array array[
+    'accounts','cards','recurrence_rules','import_batches','transactions','budgets',
+    'goals','tangible_assets','liabilities','receivables'
+  ] loop
     execute format('create trigger %I before update on public.%I for each row execute function public.set_updated_at()', t || '_set_updated_at', t);
   end loop;
-end $$;
+end $;
 
 commit;
