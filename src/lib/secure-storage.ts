@@ -121,7 +121,9 @@ export async function saveFinancialRecord<T>(
     db = await openDatabase();
     const key = await getOrCreateKey(db);
     const iv = globalThis.crypto.getRandomValues(new Uint8Array(12));
-    const plaintext = new TextEncoder().encode(JSON.stringify(value));
+    const serialized = JSON.stringify(value);
+    if (serialized === undefined) throw new TypeError("Registro financeiro não serializável.");
+    const plaintext = new TextEncoder().encode(serialized);
     const ciphertext = await subtle.encrypt(
       { name: "AES-GCM", iv, additionalData: new TextEncoder().encode(id) },
       key,
@@ -160,7 +162,8 @@ export async function readFinancialRecord<T>(
     if (record.version !== 1 || record.iv.length !== 12) {
       throw new SecureStorageError("Registro criptografado incompatível ou corrompido.");
     }
-    const key = await getOrCreateKey(db);
+    const key = await readKey(db);
+    if (!key || key.extractable) throw new SecureStorageError("Chave criptográfica ausente ou inválida; leitura bloqueada.");
     const plaintext = await subtle.decrypt(
       { name: "AES-GCM", iv: record.iv, additionalData: new TextEncoder().encode(id) },
       key,
