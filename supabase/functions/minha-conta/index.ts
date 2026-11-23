@@ -1,4 +1,5 @@
 import { authenticateRequest } from "../_shared/auth.ts";
+import { validateDisplayName } from "../_shared/validation.ts";
 import {
   handleOptions,
   internalError,
@@ -59,22 +60,24 @@ Deno.serve(async (request: Request) => {
     }
 
     const body = await readJsonObject(request, 4_096);
-    if (!body || Object.keys(body).length !== 1 || typeof body.display_name !== "string") {
+    if (!body || Object.keys(body).length !== 1) {
       return jsonResponse(
-        { error: { code: "INVALID_PROFILE", message: "Informe somente display_name como texto." } },
+        { error: { code: "INVALID_PROFILE", message: "Informe somente display_name." } },
         400,
         origin,
       );
     }
 
-    const displayName = body.display_name.trim();
-    if (displayName.length > 80) {
+    const validatedName = validateDisplayName(body.display_name);
+    if (!validatedName.ok) {
       return jsonResponse(
-        { error: { code: "INVALID_PROFILE", message: "O nome deve ter até 80 caracteres." } },
+        { error: { code: "INVALID_PROFILE", message: "O nome deve ser um texto com até 80 caracteres." } },
         400,
         origin,
       );
     }
+
+    const displayName = validatedName.value;
 
     const { data, error } = await auth.context.supabase
       .from("profiles")
