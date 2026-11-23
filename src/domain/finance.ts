@@ -92,7 +92,7 @@ export function calculateMonthlyTotals(
   const totals = { incomeCents: 0, expenseCents: 0, plannedIncomeCents: 0, plannedExpenseCents: 0 };
   for (const entry of entries) {
     assertCents(entry.amountCents);
-    if (entry.date.slice(0, 7) !== month || entry.kind === "transfer" || entry.kind === "card_payment" || entry.kind === "card_expense" || entry.status === "cancelled") continue;
+    if (entry.date.slice(0, 7) !== month || entry.kind === "transfer" || entry.kind === "card_payment" || entry.status === "cancelled") continue;
     const planned = entry.status === "planned";
     if (!planned && !isEffectiveStatus(entry.status)) continue;
     if (entry.kind === "income") totals[planned ? "plannedIncomeCents" : "incomeCents"] += entry.amountCents;
@@ -119,23 +119,27 @@ export function calculateInvoice(
   closingDay: number,
   dueDay: number,
   entries: readonly LedgerEntry[],
+  invoiceClosingDate: string,
   payments: readonly InvoicePayment[],
   today: string
 ): { totalCents: number; paidCents: number; remainingCents: number; status: "paid" | "partial" | "open" | "overdue" } {
   parseDate(today);
+  parseDate(invoiceClosingDate);
   let totalCents = 0;
   for (const entry of entries) {
     if (entry.cardId !== cardId || entry.kind !== "card_expense" || !isEffectiveStatus(entry.status)) continue;
     const cycle = calculateCardCycle(entry.date, closingDay, dueDay);
-    if (cycle.closingDate === calculateCardCycle(today, closingDay, dueDay).closingDate) totalCents += entry.amountCents;
+    if (cycle.closingDate === invoiceClosingDate) totalCents += entry.amountCents;
   }
   const paidCents = payments.reduce((sum, payment) => {
     assertCents(payment.amountCents);
     return sum + payment.amountCents;
   }, 0);
   const remainingCents = Math.max(0, totalCents - paidCents);
-  const cycle = calculateCardCycle(today, closingDay, dueDay);
-  const status = remainingCents === 0 ? "paid" : paidCents > 0 ? "partial" : cycle.dueDate < today ? "overdue" : "open";
+  const dueMonthOffset = dueDay > closingDay ? 0 : 1;
+  const closing = parseDate(invoiceClosingDate);
+  const dueDate = iso(clampDay(closing.getUTCFullYear(), closing.getUTCMonth() + dueMonthOffset, dueDay));
+  const status = remainingCents === 0 ? "paid" : paidCents > 0 ? "partial" : dueDate < today ? "overdue" : "open";
   return { totalCents, paidCents, remainingCents, status };
 }
 
