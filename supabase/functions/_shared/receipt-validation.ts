@@ -72,15 +72,17 @@ export function validateReceiptBase64(
   if (encoded.length > Math.ceil(MAX_RECEIPT_BYTES / 3) * 4) {
     return { ok: false, reason: "too_large" };
   }
+  if (encoded.length === 0 || encoded.length % 4 !== 0) {
+    return { ok: false, reason: "invalid_base64" };
+  }
+  const estimatedBytes = Math.floor(encoded.length * 3 / 4) -
+    (encoded.endsWith("==") ? 2 : encoded.endsWith("=") ? 1 : 0);
+  if (estimatedBytes > MAX_RECEIPT_BYTES) return { ok: false, reason: "too_large" };
   if (typeof mimeInput !== "string" ||
       !supportedMimes.has(mimeInput as ReceiptMime) ||
       !isStrictBase64(encoded)) {
     return { ok: false, reason: "invalid_base64" };
   }
-
-  const estimatedBytes = Math.floor(encoded.length * 3 / 4) -
-    (encoded.endsWith("==") ? 2 : encoded.endsWith("=") ? 1 : 0);
-  if (estimatedBytes > MAX_RECEIPT_BYTES) return { ok: false, reason: "too_large" };
 
   let binary: string;
   try {
