@@ -2,3 +2,6 @@ project_id = "granaviva"
 
 [functions.minha-conta]
 verify_jwt = true
+
+[functions.minhas-preferencias]
+verify_jwt = true
