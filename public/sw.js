@@ -21,27 +21,23 @@ self.addEventListener("fetch", (event) => {
   if (/^\/(auth|rest|storage|functions|realtime)(\/|$)/.test(url.pathname)) return;
 
   if (request.mode === "navigate") {
-    event.respondWith(
-      fetch(request).then((response) => {
-        if (response.ok) {
-          const copy = response.clone();
-          event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put("/", copy)));
-        }
-        return response;
-      }).catch(() => caches.match("/"))
-    );
+    const network = fetch(request).then((response) => {
+      if (!response.ok) return response;
+      return caches.open(CACHE_NAME).then((cache) => cache.put("/", response.clone())).then(() => response);
+    });
+    event.respondWith(network.catch(() => caches.match("/")));
     return;
   }
 
   if (/^\/assets\//.test(url.pathname) || /\.(?:svg|woff2|css|js)$/.test(url.pathname)) {
     event.respondWith(
-      caches.match(request).then((cached) => cached || fetch(request).then((response) => {
-        if (response.ok) {
-          const copy = response.clone();
-          event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)));
-        }
-        return response;
-      }))
+      caches.match(request).then((cached) => {
+        if (cached) return cached;
+        return fetch(request).then((response) => {
+          if (!response.ok) return response;
+          return caches.open(CACHE_NAME).then((cache) => cache.put(request, response.clone())).then(() => response);
+        });
+      })
     );
   }
 });
