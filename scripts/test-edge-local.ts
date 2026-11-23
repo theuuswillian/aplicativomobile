@@ -91,6 +91,7 @@ try {
   const preflight = await fetch(`${apiUrl}/functions/v1/minha-conta`, {
     method: "OPTIONS",
     headers: {
+      apikey: anonKey!,
       Origin: allowedOrigin,
       "Access-Control-Request-Method": "POST",
       "Access-Control-Request-Headers": "authorization, apikey, content-type",
@@ -107,7 +108,7 @@ try {
 
   const hostilePreflight = await fetch(`${apiUrl}/functions/v1/minha-conta`, {
     method: "OPTIONS",
-    headers: { Origin: "https://attacker.example", "Access-Control-Request-Method": "POST" },
+    headers: { apikey: anonKey!, Origin: "https://attacker.example", "Access-Control-Request-Method": "POST" },
   });
   assert(
     hostilePreflight.headers.get("Access-Control-Allow-Origin") === null,
