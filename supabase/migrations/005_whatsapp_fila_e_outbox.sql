@@ -359,6 +359,9 @@ begin
   alter table public.whatsapp_links enable row level security;
   create policy whatsapp_links_select_own on public.whatsapp_links
     for select to authenticated using (user_id = (select auth.uid()));
+  create policy whatsapp_links_update_own on public.whatsapp_links
+    for update to authenticated using (user_id = (select auth.uid()))
+    with check (user_id = (select auth.uid()));
 
   alter table public.whatsapp_link_codes enable row level security;
   alter table public.whatsapp_link_attempts enable row level security;
@@ -370,6 +373,7 @@ begin
     public.whatsapp_pending_transactions, public.whatsapp_inbox, public.whatsapp_outbox
     from public, anon, authenticated;
   grant select on public.whatsapp_links to authenticated;
+grant update (weekly_summary_enabled) on public.whatsapp_links to authenticated;
   grant all on public.whatsapp_links, public.whatsapp_link_codes, public.whatsapp_link_attempts,
     public.whatsapp_pending_transactions, public.whatsapp_inbox, public.whatsapp_outbox
     to service_role;
