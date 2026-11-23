@@ -96,7 +96,11 @@ export async function requestStructuredAi(
   }
 
   if (!response.ok) {
-    await response.body?.cancel();
+    try {
+      await response.body?.cancel();
+    } catch {
+      // A resposta já será tratada como indisponibilidade do provedor.
+    }
     return null;
   }
 
