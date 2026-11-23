@@ -213,6 +213,7 @@ revoke all on public.ai_usage, public.ai_usage_reservations, public.rate_limit_b
 from public, anon, authenticated;
 grant all on public.ai_usage, public.ai_usage_reservations, public.rate_limit_buckets, public.function_errors
 to service_role;
+revoke all on sequence public.function_errors_id_seq from public, anon, authenticated;
 grant usage, select on sequence public.function_errors_id_seq to service_role;
 
 revoke all on function public.ai_usage_reserve(uuid,text,integer,integer) from public, anon, authenticated;
