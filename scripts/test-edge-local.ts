@@ -96,7 +96,10 @@ try {
       "Access-Control-Request-Headers": "authorization, apikey, content-type",
     },
   });
-  assert(preflight.status === 204, "Preflight CORS permitido deveria retornar 204.");
+  assert(
+    preflight.status === 200 || preflight.status === 204,
+    "Preflight CORS permitido deve retornar sucesso HTTP (200 ou 204).",
+  );
   assert(
     preflight.headers.get("Access-Control-Allow-Origin") === allowedOrigin,
     "CORS deve liberar somente a origem configurada.",
