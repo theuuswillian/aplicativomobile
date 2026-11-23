@@ -1,6 +1,8 @@
 import { authenticateRequest } from "../_shared/auth.ts";
 import {
   handleOptions,
+  isAllowedOrigin,
+  originNotAllowedResponse,
   internalError,
   isJsonRequest,
   jsonResponse,
@@ -11,6 +13,7 @@ import { validateSettingsPatch } from "../_shared/settings-validation.ts";
 
 Deno.serve(async (request: Request) => {
   const origin = request.headers.get("origin");
+  if (!isAllowedOrigin(origin)) return originNotAllowedResponse(origin);
   if (request.method === "OPTIONS") return handleOptions(request);
   if (request.method !== "POST") {
     return methodNotAllowed(["POST", "OPTIONS"], origin);
