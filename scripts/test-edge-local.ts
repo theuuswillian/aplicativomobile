@@ -160,6 +160,24 @@ try {
   });
   assert(invalidSettings.response.status === 400, "Campo user_id enviado pelo cliente deve ser rejeitado.");
 
+  const assistantWithoutConsent = await invoke("assistente", tokenA, {
+    question: "Como foi meu mês?",
+    facts: { expenses_paid: "R$ 1.200,00" },
+  });
+  assert(
+    assistantWithoutConsent.response.status === 400,
+    "Assistente deve exigir consentimento antes de enviar fatos à IA.",
+  );
+
+  const receiptWithoutConsent = await invoke("ler-comprovante", tokenA, {
+    file_base64: btoa("%PDF-1.7"),
+    mime_type: "application/pdf",
+  });
+  assert(
+    receiptWithoutConsent.response.status === 400,
+    "Leitura de comprovante deve exigir consentimento antes de enviar o arquivo à IA.",
+  );
+
   const userBProfile = await fetch(
     `${apiUrl}/rest/v1/profiles?id=eq.${userB.id}&select=id`,
     {
