@@ -78,7 +78,7 @@ limit_b=$!
 wait "$limit_a"
 wait "$limit_b"
 
-allowed_count="$(grep -hxc 't' "$tmp_dir"/limit-*.out | awk '{sum += $1} END {print sum+0}')"
+allowed_count="$(awk '$0 == "t" { count++ } END { print count+0 }' "$tmp_dir"/limit-*.out)"
 if [[ "$allowed_count" != "1" ]]; then
   echo "Falha: rate limit concorrente permitiu $allowed_count chamadas; esperado 1."
   cat "$tmp_dir"/limit-*.out
