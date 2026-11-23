@@ -23,6 +23,7 @@ function draft(overrides: Record<string, unknown> = {}) {
     category: "Alimentação",
     payment_method: "Crédito",
     installment_count: 1,
+    card_last_four: null,
     confidence: 0.96,
     warnings: [],
     ...overrides,
@@ -37,6 +38,7 @@ describe("validateReceiptDraft", () => {
       amount: "123.45",
       category: "Alimentação",
       installment_count: null,
+      card_last_four: null,
     });
   });
 
@@ -65,6 +67,7 @@ describe("validateReceiptDraft", () => {
       category: null,
       payment_method: null,
       installment_count: null,
+      card_last_four: null,
       confidence: 0.2,
       warnings: ["Documento ilegível"],
     }, categories, [])).toMatchObject({ sufficient: false, kind: null, amount: null });
