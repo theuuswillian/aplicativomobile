@@ -68,6 +68,7 @@ export function calculateAccountBalance(
   parseDate(asOf);
   let balance = openingBalanceCents;
   for (const entry of entries) {
+    parseDate(entry.date);
     assertCents(entry.amountCents);
     if (entry.date > asOf || entry.status === "cancelled") continue;
     if (entry.status === "planned" && !includePlanned) continue;
@@ -95,6 +96,7 @@ export function calculateMonthlyTotals(
   }
   const totals = { incomeCents: 0, expenseCents: 0, plannedIncomeCents: 0, plannedExpenseCents: 0 };
   for (const entry of entries) {
+    parseDate(entry.date);
     assertCents(entry.amountCents);
     if (entry.date.slice(0, 7) !== month || entry.kind === "transfer" || entry.kind === "card_payment" || entry.status === "cancelled") continue;
     const planned = entry.status === "planned";
@@ -102,6 +104,7 @@ export function calculateMonthlyTotals(
     if (entry.kind === "income") totals[planned ? "plannedIncomeCents" : "incomeCents"] += entry.amountCents;
     if (entry.kind === "expense" || entry.kind === "card_expense") totals[planned ? "plannedExpenseCents" : "expenseCents"] += entry.amountCents;
   }
+  if (!Object.values(totals).every(Number.isSafeInteger)) throw new RangeError("Total mensal excede o limite seguro de centavos.");
   return totals;
 }
 
@@ -140,9 +143,11 @@ export function calculateInvoice(
     if (cycle.closingDate === invoiceClosingDate) totalCents += entry.amountCents;
   }
   const paidCents = payments.reduce((sum, payment) => {
+    parseDate(payment.date);
     assertCents(payment.amountCents);
     return sum + payment.amountCents;
   }, 0);
+  if (!Number.isSafeInteger(totalCents) || !Number.isSafeInteger(paidCents)) throw new RangeError("Total de fatura excede o limite seguro de centavos.");
   const remainingCents = Math.max(0, totalCents - paidCents);
   const dueMonthOffset = dueDay > closingDay ? 0 : 1;
   const closing = parseDate(invoiceClosingDate);
@@ -184,6 +189,7 @@ export function calculateGoalProgress(targetCents: number, contributions: readon
     assertCents(contribution.amountCents);
     return sum + (isEffectiveStatus(contribution.status) ? contribution.amountCents : 0);
   }, 0);
+  if (!Number.isSafeInteger(contributedCents)) throw new RangeError("Total da meta excede o limite seguro de centavos.");
   return {
     contributedCents,
     remainingCents: Math.max(0, targetCents - contributedCents),
