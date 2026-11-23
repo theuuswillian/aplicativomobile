@@ -117,6 +117,8 @@ for update to authenticated using (user_id = (select auth.uid())) with check (us
 create policy categories_delete_own on public.categories
 for delete to authenticated using (user_id = (select auth.uid()));
 
+revoke all on public.profiles, public.settings, public.categories from public, anon, authenticated;
+
 grant select, insert, update on public.profiles to authenticated;
 grant select, insert, update on public.settings to authenticated;
 grant select, insert, update, delete on public.categories to authenticated;
