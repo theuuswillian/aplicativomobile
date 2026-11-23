@@ -49,7 +49,9 @@ Implementar o backend do GranaViva conforme `docs/ARQUITETURA_TRAVADA.md`, sem c
 - [x] Endpoint autenticado de perfil e preferências via POST JSON, conforme o contrato das Edge Functions.
 - [x] Validação estrita de campos e leitura JSON limitada em streaming.
 - [x] Testes unitários dos validadores e parser HTTP.
-- [ ] Testes de integração com Supabase local e validação Deno.
+- [x] Testes nativos Deno para validadores, parser HTTP e cabeçalhos de segurança.
+- [x] Job dedicado no CI para `deno check` das Edge Functions e `deno test` dos helpers.
+- [ ] Execução verde do novo job CI e testes de integração com Supabase local.
 
 ### IA, Radar, push e WhatsApp
 - [ ] Assistente contextual e validação de IA.
@@ -58,6 +60,10 @@ Implementar o backend do GranaViva conforme `docs/ARQUITETURA_TRAVADA.md`, sem c
 - [ ] Cotações e Radar.
 - [ ] Push.
 - [ ] WhatsApp completo.
+
+## Validação pendente
+
+O job `edge-runtime` foi adicionado ao GitHub Actions, mas sua execução para o commit atual ainda não foi confirmada. O status Vercel retornado pelo GitHub é um limite de builds da conta e não comprova falha ou sucesso do código. Não marcar a validação Deno como aprovada até obter o resultado do job.
 
 ## Limites atuais
 
