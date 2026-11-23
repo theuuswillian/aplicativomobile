@@ -17,7 +17,8 @@
     "check:policy": "node scripts/check-policy.mjs",
     "test:sql": "bash scripts/test-sql.sh",
     "check:secrets": "node scripts/check-secrets.mjs",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "preview": "vite preview"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.86.0",
