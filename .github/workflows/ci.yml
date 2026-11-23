@@ -65,7 +65,7 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/granaviva_test
 
   lockfile:
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'fase-2-fundacao'
+    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'fase-2-fundacao') || (github.event_name == 'push' && github.ref == 'refs/heads/fase-2-fundacao')
     needs: [validate, sql]
     runs-on: ubuntu-latest
     permissions:
@@ -73,7 +73,7 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
