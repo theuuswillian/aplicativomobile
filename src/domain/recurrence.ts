@@ -20,8 +20,8 @@ function dateOf(value: string): Date {
 }
 function iso(d: Date): string { return d.toISOString().slice(0, 10); }
 function addDays(d: Date, n: number): Date { const x = new Date(d); x.setUTCDate(x.getUTCDate() + n); return x; }
-function addMonths(d: Date, n: number): Date {
-  const y = d.getUTCFullYear(), m = d.getUTCMonth() + n, day = d.getUTCDate();
+function addMonthsFrom(anchor: Date, n: number): Date {
+  const y = anchor.getUTCFullYear(), m = anchor.getUTCMonth() + n, day = anchor.getUTCDate();
   const target = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
   return new Date(Date.UTC(y, m, Math.min(day, target), 12));
 }
@@ -52,8 +52,8 @@ export function generateOccurrences(rule: RecurrenceRule, from: string, through:
     return out;
   }
   const step = rule.frequency === "yearly" ? 12 : rule.frequency === "interval" ? interval : 1;
-  let d = new Date(start);
-  while (d < lower) d = addMonths(d, step);
-  for (; d <= until; d = addMonths(d, step)) push(d);
+  let offset = 0;
+  while (addMonthsFrom(start, offset) < lower) offset += step;
+  for (let d = addMonthsFrom(start, offset); d <= until; offset += step, d = addMonthsFrom(start, offset)) push(d);
   return out;
 }
