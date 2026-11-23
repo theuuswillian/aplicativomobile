@@ -16,8 +16,8 @@ A interface atual é somente uma prévia visual: os valores exibidos são ilustr
 - [ ] Estrutura completa de domínio e tipos TypeScript.
 - [ ] Cinco migrations consolidadas, reproduzíveis e com RLS.
 - [ ] Assertions SQL para isolamento, grants e funções privilegiadas.
-- [ ] Testes unitários de datas e regras financeiras-base.
-- [ ] Verificação de lista negra (cobrança, planos comerciais, Pluggy e monólito).
+- [x] Primeiros testes unitários de datas e semântica dos lançamentos (execução pendente).
+- [x] Script inicial de verificação de lista negra e arquivos monolíticos (execução local do script concluída).
 - [ ] Build, lint, typecheck e testes executados com sucesso em ambiente com dependências.
 
 ## Limites de segurança
