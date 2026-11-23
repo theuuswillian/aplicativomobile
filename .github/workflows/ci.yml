@@ -64,7 +64,7 @@ jobs:
           supabase/functions/assistente/index.ts
           supabase/functions/ler-comprovante/index.ts
       - name: Run Edge runtime unit tests
-        run: deno test --no-config supabase/functions/_shared/edge_test.ts
+        run: deno test --no-config --allow-env supabase/functions/_shared/edge_test.ts
 
   edge-integration:
     runs-on: ubuntu-latest
