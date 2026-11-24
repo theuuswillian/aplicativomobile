@@ -168,3 +168,12 @@ Cotações automáticas permanecem desativadas independentemente do cron até au
 - [ ] Edge Functions continuam sem publicação; workers continuam desligados.
 - [ ] Secrets restantes de serviço, OpenAI, Meta e VAPID precisam ser configurados/confirmados nos painéis oficiais antes do deploy. Nunca compartilhar os valores no repositório ou chat.
 - [ ] Testes remotos dependem da publicação controlada das funções e de credenciais; CI local verde não equivale a teste remoto.
+
+
+## Operação dos workers — limites atuais (24/11/2026)
+
+- Radar: cada invocação processa uma página de até 20 alertas; o workflow pode consumir até três páginas por execução, interrompendo quando o lease estiver ocupado ou não houver próxima página.
+- WhatsApp: cada invocação processa até duas mensagens recebidas e dois resumos semanais; cada envio externo possui timeout de 25 segundos e o workflow aguarda até 130 segundos pela função.
+- O workflow continua opt-in. Não definir `WORKERS_ENABLED=true` e não executar manualmente com `run_workers=true` durante a configuração.
+- Esses limites são proteções iniciais, não uma validação de carga. Antes de ampliar lotes, medir duração e backlog em ambiente controlado.
+- Migration 013 já está aplicada no Supabase Brasil; histórico remoto contém 13 migrations. `APP_ORIGIN` foi cadastrado conforme confirmação do operador.
