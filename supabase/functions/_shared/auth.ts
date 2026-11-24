@@ -215,6 +215,7 @@ export type Database = {
     Views: Record<string, never>;
     Functions: {
       radar_alert_set_enabled: { Args: { p_alert_id: string; p_enabled: boolean }; Returns: { id: string; generation: number; is_enabled: boolean }[] };
+      whatsapp_link_attempt_allow: { Args: { p_phone: string }; Returns: boolean };
       whatsapp_link_consume: { Args: { p_code_hash: string; p_phone: string }; Returns: string | null };
       whatsapp_inbox_reserve: { Args: { p_message_id: string; p_payload: Json; p_lease_seconds?: number }; Returns: { reservation_status: string; fencing_token: string | null; attempt_number: number }[] };
       whatsapp_inbox_finalize: { Args: { p_message_id: string; p_fencing_token: string; p_success: boolean; p_error?: string | null }; Returns: boolean };
