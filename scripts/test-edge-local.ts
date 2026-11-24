@@ -211,6 +211,9 @@ try {
   const radarListB = await invoke("radar-alertas", tokenB, { action: "consultar" });
   assert(radarListB.response.ok && radarListB.body?.data?.length === 0,
     "Alertas Radar do usuário A não podem aparecer para o usuário B.");
+  const radarFiresA = await invoke("radar-alertas", tokenA, { action: "consultar_disparos" });
+  assert(radarFiresA.response.ok && Array.isArray(radarFiresA.body?.data) && radarFiresA.body.data.length === 0,
+    "Usuário A deve consultar apenas o histórico de disparos próprio.");
 
   const radarDisabled = await invoke("radar-alertas", tokenA, { action: "desativar", id: radarId });
   assert(radarDisabled.response.ok && radarDisabled.body?.data?.generation === 1 &&
