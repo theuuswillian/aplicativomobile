@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateInvestmentSummary } from "../src/domain/investments";
+import { calculateInvestmentSummary, normalizeManualReferencePrice } from "../src/domain/investments";
 
 describe("investment ledger", () => {
   it("calculates weighted average cost, partial sales and dividends", () => {
@@ -38,7 +38,6 @@ describe("investment ledger", () => {
 
 describe("manual investment reference price", () => {
   it("normalizes Brazilian decimal comma and accepts bounded positive values", async () => {
-    const { normalizeManualReferencePrice } = await import("../src/domain/investments");
     expect(normalizeManualReferencePrice(" 32,45 ")).toBe("32.45");
     expect(normalizeManualReferencePrice("0.00000001")).toBe("0.00000001");
   });
