@@ -301,9 +301,20 @@ Deno.serve(async (request: Request) => {
       });
       if (!sendResponse.ok) throw new Error("reply_delivery_failed");
       const sent = await sendResponse.json().catch(() => null) as { data?: { status?: string } } | null;
-      if (!sent?.data?.status || !["sent", "uncertain", "failed", "failed_safe", "busy"].includes(sent.data.status)) {
+      const deliveryStatus = sent?.data?.status;
+      if (!deliveryStatus || !["sent", "uncertain", "failed", "failed_safe", "busy"].includes(deliveryStatus)) {
         throw new Error("reply_status_unknown");
       }
+      // 429 (failed_safe) é uma rejeição segura e busy significa que outra
+      // tentativa ainda está resolvendo a mesma chave. Manter a inbox em retry
+      // permite tentar novamente sem duplicar: a outbox reserva a mesma chave.
+      if (deliveryStatus === "failed_safe" || deliveryStatus === "busy") {
+        if (!await finish(false, "Meta outbox: " + deliveryStatus)) throw new Error("inbox_fencing_lost");
+        failed++;
+        continue;
+      }
+      // sent, uncertain e failed são estados terminais da outbox. uncertain
+      // nunca deve ser repetido automaticamente para evitar envio duplicado.
       if (!await finish(true)) throw new Error("inbox_fencing_lost");
       processed++;
     } catch (error) {
