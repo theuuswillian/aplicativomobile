@@ -47,7 +47,14 @@ function decimalToCents(value: string | number): bigint {
 }
 
 function formatCents(value: bigint): string {
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value) / 100);
+  const negative = value < 0n;
+  const absolute = negative ? -value : value;
+  const whole = absolute / 100n;
+  const fraction = String(absolute % 100n).padStart(2, "0");
+  const formattedWhole = new Intl.NumberFormat("pt-BR", {
+    style: "currency", currency: "BRL", minimumFractionDigits: 0, maximumFractionDigits: 0,
+  }).format(whole);
+  return `${negative ? "-" : ""}${formattedWhole},${fraction}`;
 }
 
 function normalizeBrlAmount(value: string, allowZero = false, allowNegative = false): string | null {
@@ -330,6 +337,20 @@ export default function App() {
     finally { setBusy(false); }
   }
 
+  async function refreshBudgetSpend() {
+    if (!supabase || !session) return;
+    const { data, error } = await supabase.from("transactions")
+      .select("category_id,settled_amount").eq("user_id", session.user.id)
+      .eq("kind", "expense").eq("status", "paid")
+      .gte("transaction_date", currentBudgetMonthStart).lt("transaction_date", nextBudgetMonthStart)
+      .limit(10000);
+    if (error) {
+      setNotice("Lançamento salvo, mas não foi possível atualizar os orçamentos. Atualize a tela para sincronizar.");
+      return;
+    }
+    setBudgetSpend((data ?? []) as BudgetSpendRow[]);
+  }
+
   async function saveBudget(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!supabase || !session) return;
@@ -440,6 +461,7 @@ export default function App() {
       setTransactions((current) => [data as TransactionRow, ...current].slice(0, 30));
       setTxDescription(""); setTxAmount(""); setTxCategoryId("");
       setNotice(txStatus === "paid" ? "Lançamento realizado criado." : "Lançamento previsto criado.");
+      await refreshBudgetSpend();
     } catch (error) { setNotice(errorMessage(error)); }
     finally { setBusy(false); }
   }
@@ -470,6 +492,7 @@ export default function App() {
       setTransactions((current) => current.map((row) => row.id === item.id ? data as TransactionRow : row));
       setEditingTransactionId(null);
       setNotice("Lançamento atualizado.");
+      await refreshBudgetSpend();
     } catch (error) { setNotice(errorMessage(error)); }
     finally { setBusy(false); }
   }
@@ -484,6 +507,7 @@ export default function App() {
       setTransactions((current) => current.filter((row) => row.id !== item.id));
       if (editingTransactionId === item.id) setEditingTransactionId(null);
       setNotice("Lançamento excluído.");
+      await refreshBudgetSpend();
     } catch (error) { setNotice(errorMessage(error)); }
     finally { setBusy(false); }
   }
@@ -579,6 +603,7 @@ export default function App() {
       setTransactions((current) => [data as TransactionRow, ...current].slice(0, 30));
       setReceiptDraft(null); setReceiptFile(null); setReceiptConsent(false);
       setNotice("Lançamento confirmado e criado. O arquivo do comprovante não foi armazenado.");
+      await refreshBudgetSpend();
     } catch (error) { setNotice(errorMessage(error)); }
     finally { setBusy(false); }
   }
