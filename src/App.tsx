@@ -1399,14 +1399,17 @@ export default function App() {
             </section>
             <section className="panel" id="gastos" hidden={activeTab !== "gastos"} aria-labelledby="accounts-title">
               <div className="panel-heading"><div><span className="principles-label">BASE FINANCEIRA</span><h2 id="accounts-title">Contas e lançamentos</h2><p>Cadastre suas contas e registre receitas e despesas. Valores previstos permanecem separados dos realizados.</p></div></div>
-              <form className="finance-form" onSubmit={(event) => void createAccount(event)}>
+              <nav className="section-jump" aria-label="Atalhos da área de gastos">
+                <a href="#gastos-contas">Contas</a><a href="#gastos-cartoes">Cartões</a><a href="#gastos-categorias">Categorias</a><a href="#gastos-orcamentos">Orçamentos</a><a href="#gastos-recorrencias">Recorrências</a><a href="#gastos-lancamentos">Lançamentos</a><a href="#gastos-importacao">Importar</a><a href="#gastos-investimentos">Investimentos</a><a href="#gastos-metas">Metas</a><a href="#gastos-integracoes">Integrações</a>
+              </nav>
+              <form className="finance-form" id="gastos-contas" onSubmit={(event) => void createAccount(event)}>
                 <label>Nome da conta<input value={accountName} onChange={(event) => setAccountName(event.target.value)} maxLength={100} placeholder="Ex.: Conta principal" required /></label>
                 <label>Tipo<select value={accountType} onChange={(event) => setAccountType(event.target.value)}><option value="checking">Conta corrente</option><option value="savings">Poupança</option><option value="cash">Dinheiro</option><option value="investment">Investimentos</option><option value="other">Outra</option></select></label>
                 <label>Saldo inicial (R$)<input inputMode="decimal" value={openingBalance} onChange={(event) => setOpeningBalance(event.target.value)} placeholder="0,00" required /></label>
                 <button className="primary-button" type="submit" disabled={busy}>Adicionar conta</button>
               </form>
               {accounts.length > 0 ? <ul className="account-list">{accounts.map((account) => <li key={account.id}><strong>{account.name}{account.is_primary ? " · Principal" : ""}</strong><span>{account.account_type}</span><small>Saldo atual: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(accountBalances[account.id] ?? Number(account.opening_balance))} · Saldo inicial: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(account.opening_balance))}</small></li>)}</ul> : <p className="empty-state">Cadastre sua primeira conta para começar.</p>}
-              <section className="subpanel" aria-labelledby="cards-title">
+              <section className="subpanel" id="gastos-cartoes" aria-labelledby="cards-title">
                 <div className="transaction-heading"><strong id="cards-title">Cartões</strong><span>{cards.length} ativos</span></div>
                 <form className="finance-form" onSubmit={(event) => void createCard(event)}>
                   <label>Nome do cartão<input value={cardName} onChange={(event) => setCardName(event.target.value)} maxLength={100} placeholder="Ex.: Cartão principal" required /></label>
@@ -1419,7 +1422,7 @@ export default function App() {
                 </form>
                 {cards.length === 0 ? <p className="empty-state">Nenhum cartão cadastrado.</p> : <ul className="account-list">{cards.map((card) => <li key={card.id}><strong>{card.name} · final {card.last_four}</strong><span>{card.institution_name}</span><small>Limite total: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(card.credit_limit))} · Utilizado: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cardCommittedAmounts[card.id] ?? 0)} · Disponível: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(card.credit_limit) - (cardCommittedAmounts[card.id] ?? 0))} · Fecha dia {card.closing_day} · Vence dia {card.due_day}<button className="quiet-button danger-button" type="button" disabled={busy} onClick={() => void archiveCard(card)}>Arquivar</button></small></li>)}</ul>}
               </section>
-              <section className="subpanel" aria-labelledby="categories-title">
+              <section className="subpanel" id="gastos-categorias" aria-labelledby="categories-title">
                 <div className="transaction-heading"><strong id="categories-title">Categorias</strong><span>{categories.length} cadastradas</span></div>
                 <form className="finance-form" onSubmit={(event) => void createCategory(event)}>
                   <label>Nome da categoria<input value={categoryName} onChange={(event) => setCategoryName(event.target.value)} maxLength={80} placeholder="Ex.: Alimentação" required /></label>
@@ -1428,7 +1431,7 @@ export default function App() {
                 </form>
                 {categories.length === 0 ? <p className="empty-state">Crie categorias para organizar seus lançamentos.</p> : <ul className="category-list">{categories.map((category) => <li key={category.id}><span>{category.kind === "income" ? "Receita" : "Despesa"}</span><strong>{category.name}</strong></li>)}</ul>}
               </section>
-              <section className="subpanel" aria-labelledby="budgets-title">
+              <section className="subpanel" id="gastos-orcamentos" aria-labelledby="budgets-title">
                 <div className="transaction-heading"><strong id="budgets-title">Orçamentos do mês</strong><span>{new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(new Date(`${currentBudgetMonthStart}T12:00:00`))}</span></div>
                 <form className="finance-form" onSubmit={(event) => void saveBudget(event)}>
                   <label>Categoria<select value={budgetCategoryId} onChange={(event) => setBudgetCategoryId(event.target.value)} required><option value="">Selecione uma despesa</option>{categories.filter((category) => category.kind === "expense").map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
@@ -1445,7 +1448,7 @@ export default function App() {
                 })}</ul>}
                 <p className="helper-text">O gasto considera somente lançamentos de despesa com situação realizada e valor efetivamente liquidado no mês atual. Despesas previstas não entram no cálculo.</p>
               </section>
-              <section className="subpanel" aria-labelledby="whatsapp-title">
+              <section className="subpanel" id="gastos-integracoes" aria-labelledby="whatsapp-title">
                 <div className="transaction-heading"><strong id="whatsapp-title">WhatsApp</strong><span>{whatsappLink ? "Vinculado" : "Não vinculado"}</span></div>
                 {whatsappLink ? <>
                   <p className="helper-text">Número vinculado: {whatsappLink.phone}</p>
@@ -1465,7 +1468,7 @@ export default function App() {
                   {pushSubscriptions.length > 0 ? "Gerenciar notificações deste dispositivo" : "Ativar notificações"}
                 </button>
               </section>
-              <section className="subpanel" aria-labelledby="imports-title">
+              <section className="subpanel" id="gastos-importacao" aria-labelledby="imports-title">
                 <div className="transaction-heading"><strong id="imports-title">Importar extrato bancário</strong><span>CSV / OFX</span></div>
                 <p className="helper-text">Selecione o destino e um arquivo de até 5 MB. A prévia identifica duplicados antes de criar lançamentos realizados.</p>
                 <div className="finance-form">
@@ -1480,7 +1483,7 @@ export default function App() {
                   <div className="alert-actions"><button className="primary-button" type="button" onClick={() => void confirmStatementImport()} disabled={busy || importPreview.every((row) => row.duplicate)}>Confirmar importação</button><button className="quiet-button" type="button" onClick={() => { setImportPreview([]); setImportFileName(""); setNotice("Prévia descartada."); }} disabled={busy}>Descartar prévia</button></div>
                 </>}
               </section>
-              <section className="subpanel" aria-labelledby="investments-title">
+              <section className="subpanel" id="gastos-investimentos" aria-labelledby="investments-title">
                 <div className="transaction-heading"><strong id="investments-title">Carteira de investimentos</strong><span>{investmentAssets.length} ativos</span></div>
                 <form className="finance-form" onSubmit={(event) => void createInvestmentAsset(event)}>
                   <label>Ticker<input value={investmentSymbol} onChange={(event) => setInvestmentSymbol(event.target.value.toUpperCase())} maxLength={32} placeholder="Ex.: PETR4" required /></label>
@@ -1530,7 +1533,7 @@ export default function App() {
                 })}</ul>}
                 <p className="helper-text">Os valores são lançados manualmente e não são previsões automáticas de mercado. Somente itens marcados como recebidos entram no total recebido; o histórico não altera automaticamente o saldo da conta.</p>
               </section>
-              <section className="subpanel" aria-labelledby="goals-title">
+              <section className="subpanel" id="gastos-metas" aria-labelledby="goals-title">
                 <div className="transaction-heading"><strong id="goals-title">Metas financeiras</strong><span>{goals.length} cadastradas</span></div>
                 <form className="finance-form" onSubmit={(event) => void createGoal(event)}>
                   <label>Nome da meta<input value={goalName} onChange={(event) => setGoalName(event.target.value)} maxLength={100} placeholder="Ex.: Reserva de emergência" required /></label>
@@ -1558,7 +1561,7 @@ export default function App() {
                 })}</ul>}
                 <p className="helper-text">As contribuições são registradas em histórico e atualizam o total de forma atômica. O valor planejado mensal não é contabilizado como dinheiro guardado.</p>
               </section>
-              <section className="subpanel" aria-labelledby="recurrences-title">
+              <section className="subpanel" id="gastos-recorrencias" aria-labelledby="recurrences-title">
                 <div className="transaction-heading"><strong id="recurrences-title">Recorrências</strong><span>{recurrences.filter((rule) => rule.is_active).length} ativas</span></div>
                 <form className="finance-form" onSubmit={(event) => void createRecurrence(event)}>
                   <label>Nome da regra<input value={recurrenceName} onChange={(event) => setRecurrenceName(event.target.value)} maxLength={100} placeholder="Ex.: Aluguel, salário, academia" required /></label>
@@ -1579,7 +1582,7 @@ export default function App() {
                 {recurrences.length === 0 ? <p className="empty-state">Cadastre uma regra para acompanhar despesas e receitas periódicas.</p> : <ul className="account-list">{recurrences.map((rule) => <li key={rule.id}><strong>{rule.name} · {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(rule.amount))}</strong><span>{rule.kind === "income" ? "Receita" : "Despesa"} · {({daily:"Diária",weekly:"Semanal",biweekly:"Quinzenal",monthly:"Mensal",yearly:"Anual",interval:"Por intervalo"})[rule.frequency]}</span><small>Próxima data: {new Date(`${rule.next_occurrence_on}T12:00:00`).toLocaleDateString("pt-BR")} · {rule.is_active ? "Ativa" : "Pausada"}<button className="quiet-button" type="button" disabled={busy} onClick={() => void toggleRecurrence(rule)}>{rule.is_active ? "Pausar" : "Reativar"}</button></small></li>)}</ul>}
                 <p className="helper-text">A regra apenas programa a próxima ocorrência. A geração de lançamentos será ativada com o processamento idempotente da agenda, sem marcar valores como realizados.</p>
               </section>
-              <form className="finance-form transaction-form" onSubmit={(event) => void createTransaction(event)}>
+              <form className="finance-form transaction-form" id="gastos-lancamentos" onSubmit={(event) => void createTransaction(event)}>
                 <label>Tipo de lançamento<select value={txKind} onChange={(event) => { const nextKind = event.target.value as "income" | "expense"; setTxKind(nextKind); setTxCategoryId(""); if (nextKind === "income") setTxCardId(""); }}><option value="expense">Despesa</option><option value="income">Receita</option></select></label>
                 <label>Situação<select value={txStatus} onChange={(event) => setTxStatus(event.target.value as "paid" | "planned")}><option value="paid">Realizado</option><option value="planned">Previsto</option></select></label>
                 <label>Valor (R$)<input inputMode="decimal" value={txAmount} onChange={(event) => setTxAmount(event.target.value)} placeholder="0,00" required /></label>
