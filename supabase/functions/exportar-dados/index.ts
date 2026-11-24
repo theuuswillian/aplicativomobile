@@ -50,14 +50,16 @@ Deno.serve(async (request: Request) => {
       "investment_operations", "income_events", "radar_alerts", "radar_fires",
       "import_batches", "import_items", "receipt_files",
     ];
-    const [profile, settings, ...tables] = await Promise.all([
+    const [profile, settings] = await Promise.all([
       db.from("profiles").select("*").eq("id", userId).maybeSingle(),
       db.from("settings").select("*").eq("user_id", userId).maybeSingle(),
-      ...tableNames.map((table) => ownRows(db, table, userId)),
     ]);
     if (profile.error || settings.error) return internalError(origin);
-    const exportedTables = Object.fromEntries(tableNames.map((name, index) => [name, tables[index]]));
-    const totalRows = Object.values(exportedTables).reduce((total, rows) => total + (rows as unknown[]).length, 0);
+    const tables = await Promise.all(tableNames.map((table) => ownRows(db, table, userId)));
+    const exportedTables: Record<string, unknown[]> = Object.fromEntries(
+      tableNames.map((name, index) => [name, tables[index]]),
+    );
+    const totalRows = Object.values(exportedTables).reduce((total, rows) => total + rows.length, 0);
     if (totalRows > 50_000) {
       return jsonResponse({ error: { code: "EXPORT_TOO_LARGE", message: "A exportação excede o limite seguro. Solicite um arquivo por período." } }, 413, origin);
     }
