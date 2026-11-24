@@ -90,23 +90,24 @@ Deno.serve(async (request: Request) => {
   });
   let attempted = 0, delivered = 0, removed = 0, failedSafe = 0, uncertain = 0, busy = 0;
 
-  for (const subscription of subscriptions ?? []) {
+  const processSubscription = async (subscription: {
+    id: string; endpoint: string; p256dh: string; auth_key: string;
+  }) => {
     const { data: reservations, error: reserveError } = await db.rpc("push_delivery_reserve", {
       p_user_id: userId, p_delivery_key: deliveryKey,
       p_subscription_id: subscription.id, p_lease_seconds: 60,
     });
-    if (reserveError) return internalError(origin);
+    if (reserveError) return { error: true, attempted: 0, delivered: 0, removed: 0, failedSafe: 0, uncertain: 0, busy: 0 };
     const reservation = Array.isArray(reservations) ? reservations[0] : null;
-    if (!reservation) return internalError(origin);
-    if (reservation.reservation_status === "sent") { delivered++; continue; }
-    if (reservation.reservation_status === "removed") { removed++; continue; }
-    if (reservation.reservation_status === "uncertain") { uncertain++; continue; }
-    if (reservation.reservation_status === "busy") { busy++; continue; }
+    if (!reservation) return { error: true, attempted: 0, delivered: 0, removed: 0, failedSafe: 0, uncertain: 0, busy: 0 };
+    if (reservation.reservation_status === "sent") return { error: false, attempted: 0, delivered: 1, removed: 0, failedSafe: 0, uncertain: 0, busy: 0 };
+    if (reservation.reservation_status === "removed") return { error: false, attempted: 0, delivered: 0, removed: 1, failedSafe: 0, uncertain: 0, busy: 0 };
+    if (reservation.reservation_status === "uncertain") return { error: false, attempted: 0, delivered: 0, removed: 0, failedSafe: 0, uncertain: 1, busy: 0 };
+    if (reservation.reservation_status === "busy") return { error: false, attempted: 0, delivered: 0, removed: 0, failedSafe: 0, uncertain: 0, busy: 1 };
     if (reservation.reservation_status !== "reserved" || typeof reservation.fencing_token !== "string") {
-      return internalError(origin);
+      return { error: true, attempted: 0, delivered: 0, removed: 0, failedSafe: 0, uncertain: 0, busy: 0 };
     }
 
-    attempted++;
     let finalStatus: "sent" | "failed_safe" | "uncertain" | "removed";
     let errorMessage: string | null = null;
     if (!isTrustedEndpoint(subscription.endpoint)) {
@@ -151,12 +152,31 @@ Deno.serve(async (request: Request) => {
       p_user_id: userId, p_delivery_key: deliveryKey, p_subscription_id: subscription.id,
       p_fencing_token: reservation.fencing_token, p_status: finalStatus, p_error: errorMessage,
     });
-    if (finalizeError || finalized !== true) return internalError(origin);
+    if (finalizeError || finalized !== true) {
+      return { error: true, attempted: 1, delivered: 0, removed: 0, failedSafe: 0, uncertain: 0, busy: 0 };
+    }
+    return {
+      error: false, attempted: 1,
+      delivered: finalStatus === "sent" ? 1 : 0,
+      removed: finalStatus === "removed" ? 1 : 0,
+      failedSafe: finalStatus === "failed_safe" ? 1 : 0,
+      uncertain: finalStatus === "uncertain" ? 1 : 0,
+      busy: 0,
+    };
+  };
 
-    if (finalStatus === "sent") delivered++;
-    else if (finalStatus === "removed") removed++;
-    else if (finalStatus === "failed_safe") failedSafe++;
-    else uncertain++;
+  const subscriptionList = subscriptions ?? [];
+  for (let offset = 0; offset < subscriptionList.length; offset += 10) {
+    const batch = await Promise.all(subscriptionList.slice(offset, offset + 10).map(processSubscription));
+    if (batch.some((item) => item.error)) return internalError(origin);
+    for (const item of batch) {
+      attempted += item.attempted;
+      delivered += item.delivered;
+      removed += item.removed;
+      failedSafe += item.failedSafe;
+      uncertain += item.uncertain;
+      busy += item.busy;
+    }
   }
 
   return jsonResponse({
