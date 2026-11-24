@@ -588,7 +588,7 @@ export default function App() {
                 {categories.length === 0 ? <p className="empty-state">Crie categorias para organizar seus lançamentos.</p> : <ul className="category-list">{categories.map((category) => <li key={category.id}><span>{category.kind === "income" ? "Receita" : "Despesa"}</span><strong>{category.name}</strong></li>)}</ul>}
               </section>
               <form className="finance-form transaction-form" onSubmit={(event) => void createTransaction(event)}>
-                <label>Tipo de lançamento<select value={txKind} onChange={(event) => setTxKind(event.target.value as "income" | "expense")}><option value="expense">Despesa</option><option value="income">Receita</option></select></label>
+                <label>Tipo de lançamento<select value={txKind} onChange={(event) => { const nextKind = event.target.value as "income" | "expense"; setTxKind(nextKind); setTxCategoryId(""); if (nextKind === "income") setTxCardId(""); }}><option value="expense">Despesa</option><option value="income">Receita</option></select></label>
                 <label>Situação<select value={txStatus} onChange={(event) => setTxStatus(event.target.value as "paid" | "planned")}><option value="paid">Realizado</option><option value="planned">Previsto</option></select></label>
                 <label>Valor (R$)<input inputMode="decimal" value={txAmount} onChange={(event) => setTxAmount(event.target.value)} placeholder="0,00" required /></label>
                 <label>Data<input type="date" value={txDate} onChange={(event) => setTxDate(event.target.value)} required /></label>
