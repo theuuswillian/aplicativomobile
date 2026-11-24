@@ -38,7 +38,7 @@ Deno.serve(async (request: Request) => {
   try {
     const storageDb = admin.schema("storage").from("objects");
     const paths: string[] = [];
-    for (let offset = 0; offset < MAX_RECEIPTS; offset += PAGE_SIZE) {
+    for (let offset = 0; offset <= MAX_RECEIPTS; offset += PAGE_SIZE) {
       const { data, error } = await storageDb.select("name").eq("bucket_id", "receipt-files")
         .like("name", `${userId}/%`).range(offset, offset + PAGE_SIZE - 1);
       if (error) return internalError(origin);
