@@ -300,3 +300,6 @@ O CI verde valida o código e as migrações em ambiente local; não comprova ch
 - [ ] CI dos novos arquivos deve concluir integralmente no HEAD final antes de considerar a correção validada.
 - [ ] Fazer teste de carga/tempo real em ambiente local ou Preview; manter workers desativados até aceite.
 - Nenhuma Edge Function foi publicada, nenhum worker foi ativado e nenhum ambiente Production foi alterado.
+- [x] A camada Push também passou a registrar o resultado por assinatura. Somente HTTP 429 é retry seguro; timeout/resultado ambíguo vira estado uncertain e não é reenviado automaticamente. A chave por dispositivo impede repetir notificações já confirmadas.
+- [x] O Radar mantém o checkpoint na página enquanto houver retry seguro de push pendente; quando todos os dispositivos forem confirmados, removidos ou ficarem em estado ambíguo terminal, a página pode avançar.
+- [x] Teste SQL adicional cobre retry de HTTP 429 e idempotência após entrega confirmada por assinatura.
