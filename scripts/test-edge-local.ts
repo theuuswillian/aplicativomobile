@@ -221,6 +221,15 @@ try {
   assert(pushRegistered.response.status === 201 && pushRegistered.body?.data?.id,
     "Usuário A deve registrar inscrição Push.");
   const pushId = pushRegistered.body.data.id as string;
+  const pushRepeated = await invoke("push-inscricoes", tokenA, {
+    action: "registrar",
+    endpoint: "https://fcm.googleapis.com/fcm/send/local-test-token",
+    p256dh: "A".repeat(87),
+    auth_key: "B".repeat(22),
+    user_agent: "GranaViva Integration Test",
+  });
+  assert(pushRepeated.response.ok && pushRepeated.body?.data?.id === pushId,
+    "Registrar novamente a mesma inscrição deve ser idempotente.");
   const pushListA = await invoke("push-inscricoes", tokenA, { action: "consultar" });
   assert(pushListA.response.ok && pushListA.body?.data?.length === 1,
     "Usuário A deve consultar sua inscrição Push.");
