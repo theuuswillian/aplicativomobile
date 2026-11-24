@@ -146,6 +146,11 @@ values
  ('10000000-0000-4000-8000-000000000001','Conta fixture A','checking',100,'2026-01-01'),
  ('10000000-0000-4000-8000-000000000002','Conta fixture B','checking',200,'2026-01-01');
 
+insert into public.radar_alerts(id,user_id,asset_class,symbol,condition_type,threshold)
+values
+ ('20000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','stock','TEST3','above',10),
+ ('20000000-0000-4000-8000-000000000002','10000000-0000-4000-8000-000000000002','stock','TEST4','below',5);
+
 set local role authenticated;
 select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000001',true);
 
@@ -180,6 +185,42 @@ begin
     raise exception 'RLS permitiu DELETE de conta de outro usuário';
   end if;
 end $$;
+
+
+do $assert_radar_generation$
+declare
+  v_id uuid;
+  v_generation integer;
+  v_enabled boolean;
+begin
+  -- Desativar preserva a geração; reativar avança exatamente uma vez.
+  select id, generation, is_enabled into v_id, v_generation, v_enabled
+    from public.radar_alert_set_enabled('20000000-0000-4000-8000-000000000001', false);
+  if v_id is null or v_generation <> 1 or v_enabled then
+    raise exception 'Desativação do Radar alterou geração ou falhou';
+  end if;
+
+  select generation into v_generation
+    from public.radar_alert_set_enabled('20000000-0000-4000-8000-000000000001', true);
+  if v_generation <> 2 then
+    raise exception 'Reativação do Radar não incrementou geração';
+  end if;
+
+  select generation into v_generation
+    from public.radar_alert_set_enabled('20000000-0000-4000-8000-000000000001', true);
+  if v_generation <> 2 then
+    raise exception 'Ativação repetida incrementou geração indevidamente';
+  end if;
+
+  if exists (
+    select 1 from public.radar_alert_set_enabled(
+      '20000000-0000-4000-8000-000000000002', false
+    )
+  ) then
+    raise exception 'RPC do Radar permitiu alterar alerta de outro usuário';
+  end if;
+end
+$assert_radar_generation$;
 
 reset role;
 set local role service_role;
