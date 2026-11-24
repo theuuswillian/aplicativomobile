@@ -1014,14 +1014,22 @@ export default function App() {
 
   async function confirmReceiptDraft() {
     if (!supabase || !session || !receiptDraft?.sufficient || !receiptDraft.amount ||
-        !receiptDraft.date || !receiptDraft.kind || !receiptDraft.description || !receiptAccountId) return;
+        !receiptDraft.date || !receiptDraft.kind || !receiptDraft.description || !receiptAccountId || !receiptFile) return;
     if (receiptDraft.installment_count && receiptDraft.installment_count > 1) {
       setNotice("Este comprovante indica compra parcelada. O lançamento parcelado precisa ser cadastrado manualmente nesta versão.");
+      return;
+    }
+    if (receiptFile.size <= 0 || receiptFile.size > 5 * 1024 * 1024 ||
+        !["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(receiptFile.type)) {
+      setNotice("O arquivo do comprovante não é válido ou excede 5 MB.");
       return;
     }
     const amount = normalizeBrlAmount(receiptDraft.amount.replace(".", ","));
     if (!amount) { setNotice("O valor extraído precisa ser revisado."); return; }
     setBusy(true); setNotice("");
+    const transactionId = crypto.randomUUID();
+    let storagePath: string | null = null;
+    let transactionCreated = false;
     try {
       let categoryId: string | null = null;
       if (receiptDraft.category) {
@@ -1033,26 +1041,59 @@ export default function App() {
       }
       let cardId: string | null = null;
       if (receiptDraft.card_last_four) {
-        const { data: cards, error: cardError } = await supabase.from("cards")
+        const { data: matchedCards, error: cardError } = await supabase.from("cards")
           .select("id").eq("user_id", session.user.id).eq("is_archived", false)
           .eq("last_four", receiptDraft.card_last_four);
         if (cardError) throw cardError;
-        if (cards?.length === 1) cardId = cards[0].id;
+        if (matchedCards?.length === 1) cardId = matchedCards[0].id;
       }
       const { data, error } = await supabase.from("transactions").insert({
-        user_id: session.user.id, kind: receiptDraft.kind, status: "paid",
+        id: transactionId, user_id: session.user.id, kind: receiptDraft.kind, status: "paid",
         amount, transaction_date: receiptDraft.date, description: receiptDraft.description,
         category_id: categoryId, account_id: cardId ? null : receiptAccountId,
         card_id: cardId, payment_method: receiptDraft.payment_method,
         settled_amount: amount, settled_at: receiptDraft.date, source: "receipt",
       }).select("id,kind,status,amount,transaction_date,description,account_id").single();
-      if (error) throw error;
+      if (error || !data) throw error ?? new Error("Não foi possível criar o lançamento.");
+      transactionCreated = true;
+
+      const extension = receiptFile.type === "image/jpeg" ? "jpg" :
+        receiptFile.type === "image/png" ? "png" :
+        receiptFile.type === "image/webp" ? "webp" : "pdf";
+      storagePath = `${session.user.id}/${transactionId}/${crypto.randomUUID()}.${extension}`;
+      const bytes = await receiptFile.arrayBuffer();
+      const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+      const sha256 = [...digest].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+      const { error: uploadError } = await supabase.storage.from("receipt-files").upload(storagePath, receiptFile, {
+        contentType: receiptFile.type, cacheControl: "0", upsert: false,
+      });
+      if (uploadError) throw uploadError;
+
+      const { error: receiptError } = await supabase.from("receipt_files").insert({
+        user_id: session.user.id, transaction_id: transactionId, storage_path: storagePath,
+        mime_type: receiptFile.type, byte_size: receiptFile.size, sha256,
+      });
+      if (receiptError) throw receiptError;
+
       setTransactions((current) => [data as TransactionRow, ...current].slice(0, 30));
       setReceiptDraft(null); setReceiptFile(null); setReceiptConsent(false);
-      setNotice("Lançamento confirmado e criado. O arquivo do comprovante não foi armazenado.");
+      setNotice("Lançamento confirmado e comprovante armazenado com acesso privado.");
       await refreshBudgetSpend();
-    } catch (error) { setNotice(errorMessage(error)); }
-    finally { setBusy(false); }
+    } catch (error) {
+      let cleanupFailed = false;
+      if (storagePath) {
+        const { error: removeError } = await supabase.storage.from("receipt-files").remove([storagePath]);
+        if (removeError) cleanupFailed = true;
+      }
+      if (transactionCreated) {
+        const { error: deleteError } = await supabase.from("transactions").delete()
+          .eq("id", transactionId).eq("user_id", session.user.id);
+        if (deleteError) cleanupFailed = true;
+      }
+      setNotice(cleanupFailed
+        ? `A gravação do comprovante falhou e a limpeza automática precisa de revisão: ${errorMessage(error)}`
+        : `Lançamento não confirmado; os dados parciais foram revertidos. ${errorMessage(error)}`);
+    } finally { setBusy(false); }
   }
 
   async function createAlert(event: FormEvent<HTMLFormElement>) {
