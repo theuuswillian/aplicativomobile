@@ -15,6 +15,8 @@ type RadarAlert = {
 };
 type Profile = { display_name: string | null; email?: string };
 type AccountRow = { id: string; name: string; account_type: string; opening_balance: string; is_primary: boolean };
+type CardRow = { id: string; name: string; institution_name: string; last_four: string; brand: string | null; credit_limit: string; closing_day: number; due_day: number; is_archived: boolean };
+type CategoryRow = { id: string; name: string; kind: "income" | "expense"; color: string | null; icon: string | null };
 type TransactionRow = { id: string; kind: "income" | "expense" | "transfer"; status: "paid" | "planned" | "cancelled"; amount: string; transaction_date: string; description: string; account_id: string | null };
 type ReceiptDraft = { sufficient: boolean; kind: "income" | "expense" | null; amount: string | null; date: string | null; description: string | null; category: string | null; payment_method: string | null; installment_count: number | null; card_last_four: string | null; confidence: number; warnings: string[] };
 const THEME_STORAGE_KEY = "granaviva:theme:v1";
@@ -64,7 +66,18 @@ export default function App() {
   const [condition, setCondition] = useState<RadarAlert["condition_type"]>("above");
   const [threshold, setThreshold] = useState("");
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
+  const [cards, setCards] = useState<CardRow[]>([]);
+  const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [transactions, setTransactions] = useState<TransactionRow[]>([]);
+  const [cardName, setCardName] = useState("");
+  const [cardInstitution, setCardInstitution] = useState("");
+  const [cardLastFour, setCardLastFour] = useState("");
+  const [cardLimit, setCardLimit] = useState("0,00");
+  const [cardClosingDay, setCardClosingDay] = useState("10");
+  const [cardDueDay, setCardDueDay] = useState("17");
+  const [categoryName, setCategoryName] = useState("");
+  const [categoryKind, setCategoryKind] = useState<"income" | "expense">("expense");
+  const [txCategoryId, setTxCategoryId] = useState("");
   const [accountName, setAccountName] = useState("");
   const [accountType, setAccountType] = useState("checking");
   const [openingBalance, setOpeningBalance] = useState("0,00");
@@ -101,7 +114,7 @@ export default function App() {
       setSession(nextSession);
       setNotice("");
       if (!nextSession || event === "SIGNED_IN") {
-        setProfile(null); setAlerts([]); setAccounts([]); setTransactions([]);
+        setProfile(null); setAlerts([]); setAccounts([]); setCards([]); setCategories([]); setTransactions([]); setTxCategoryId("");
         setTxAccountId(""); setReceiptAccountId(""); setEditingTransactionId(null);
         setAssistantAnswer(""); setAssistantQuestion(""); setAssistantConsent(false);
         setReceiptDraft(null); setReceiptFile(null); setReceiptConsent(false);
@@ -116,24 +129,30 @@ export default function App() {
     let active = true;
     const load = async () => {
       try {
-        const [account, preferences, radar, accountRows, transactionRows] = await Promise.all([
+        const [account, preferences, radar, accountRows, transactionRows, cardRows, categoryRows] = await Promise.all([
           client.functions.invoke("minha-conta", { body: { action: "consultar" } }),
           client.functions.invoke("minhas-preferencias", { body: { action: "consultar" } }),
           client.functions.invoke("radar-alertas", { body: { action: "consultar" } }),
           client.from("accounts").select("id,name,account_type,opening_balance,is_primary").eq("user_id", session.user.id).eq("is_archived", false).order("created_at", { ascending: true }),
           client.from("transactions").select("id,kind,status,amount,transaction_date,description,account_id").eq("user_id", session.user.id).order("transaction_date", { ascending: false }).limit(30),
+          client.from("cards").select("id,name,institution_name,last_four,brand,credit_limit,closing_day,due_day,is_archived").eq("user_id", session.user.id).eq("is_archived", false).order("created_at", { ascending: true }),
+          client.from("categories").select("id,name,kind,color,icon").eq("user_id", session.user.id).order("kind", { ascending: true }).order("name", { ascending: true }),
         ]);
         if (account.error) throw account.error;
         if (preferences.error) throw preferences.error;
         if (radar.error) throw radar.error;
         if (accountRows.error) throw accountRows.error;
         if (transactionRows.error) throw transactionRows.error;
+        if (cardRows.error) throw cardRows.error;
+        if (categoryRows.error) throw categoryRows.error;
         if (!active) return;
         setProfile(account.data?.data?.profile ?? null);
         const serverTheme = preferences.data?.data?.theme;
         if (serverTheme === "light" || serverTheme === "dark") setTheme(serverTheme);
         setAlerts(Array.isArray(radar.data?.data) ? radar.data.data as RadarAlert[] : []);
         setAccounts((accountRows.data ?? []) as AccountRow[]);
+        setCards((cardRows.data ?? []) as CardRow[]);
+        setCategories((categoryRows.data ?? []) as CategoryRow[]);
         setTransactions((transactionRows.data ?? []) as TransactionRow[]);
         if (accountRows.data?.[0]?.id) setTxAccountId((current) => current || accountRows.data[0].id);
         if (accountRows.data?.[0]?.id) setReceiptAccountId((current) => current || accountRows.data[0].id);
@@ -211,6 +230,61 @@ export default function App() {
     finally { setBusy(false); }
   }
 
+  async function createCard(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase || !session) return;
+    const limit = normalizeBrlAmount(cardLimit, true);
+    const closing = Number(cardClosingDay);
+    const due = Number(cardDueDay);
+    if (!cardName.trim() || !cardInstitution.trim() || !/^\\d{4}$/.test(cardLastFour) ||
+        !limit || !Number.isInteger(closing) || closing < 1 || closing > 31 ||
+        !Number.isInteger(due) || due < 1 || due > 31) {
+      setNotice("Confira nome, instituição, últimos quatro dígitos, limite e dias de fechamento/vencimento.");
+      return;
+    }
+    setBusy(true); setNotice("");
+    try {
+      const { data, error } = await supabase.from("cards").insert({
+        user_id: session.user.id, name: cardName.trim(), institution_name: cardInstitution.trim(),
+        last_four: cardLastFour, credit_limit: limit, closing_day: closing, due_day: due,
+      }).select("id,name,institution_name,last_four,brand,credit_limit,closing_day,due_day,is_archived").single();
+      if (error) throw error;
+      setCards((current) => [...current, data as CardRow]);
+      setCardName(""); setCardInstitution(""); setCardLastFour(""); setCardLimit("0,00");
+      setNotice("Cartão cadastrado.");
+    } catch (error) { setNotice(errorMessage(error)); }
+    finally { setBusy(false); }
+  }
+
+  async function archiveCard(card: CardRow) {
+    if (!supabase || !session || !window.confirm(`Arquivar o cartão ${card.name} final ${card.last_four}?`)) return;
+    setBusy(true); setNotice("");
+    try {
+      const { error } = await supabase.from("cards").update({ is_archived: true })
+        .eq("id", card.id).eq("user_id", session.user.id);
+      if (error) throw error;
+      setCards((current) => current.filter((item) => item.id !== card.id));
+      setNotice("Cartão arquivado. O histórico financeiro foi preservado.");
+    } catch (error) { setNotice(errorMessage(error)); }
+    finally { setBusy(false); }
+  }
+
+  async function createCategory(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase || !session || !categoryName.trim()) return;
+    setBusy(true); setNotice("");
+    try {
+      const { data, error } = await supabase.from("categories").insert({
+        user_id: session.user.id, name: categoryName.trim(), kind: categoryKind,
+      }).select("id,name,kind,color,icon").single();
+      if (error) throw error;
+      setCategories((current) => [...current, data as CategoryRow].sort((a,b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name, "pt-BR")));
+      setCategoryName("");
+      setNotice("Categoria criada.");
+    } catch (error) { setNotice(errorMessage(error)); }
+    finally { setBusy(false); }
+  }
+
   async function createTransaction(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!supabase || !session) return;
@@ -223,12 +297,12 @@ export default function App() {
       const { data, error } = await supabase.from("transactions").insert({
         user_id: session.user.id, kind: txKind, status: txStatus, amount,
         transaction_date: txDate, description: txDescription.trim(),
-        account_id: txAccountId, settled_amount: txStatus === "paid" ? amount : "0.00",
+        account_id: txAccountId, category_id: txCategoryId || null, settled_amount: txStatus === "paid" ? amount : "0.00",
         settled_at: txStatus === "paid" ? txDate : null, source: "manual",
       }).select("id,kind,status,amount,transaction_date,description,account_id").single();
       if (error) throw error;
       setTransactions((current) => [data as TransactionRow, ...current].slice(0, 30));
-      setTxDescription(""); setTxAmount("");
+      setTxDescription(""); setTxAmount(""); setTxCategoryId("");
       setNotice(txStatus === "paid" ? "Lançamento realizado criado." : "Lançamento previsto criado.");
     } catch (error) { setNotice(errorMessage(error)); }
     finally { setBusy(false); }
@@ -490,12 +564,35 @@ export default function App() {
                 <button className="primary-button" type="submit" disabled={busy}>Adicionar conta</button>
               </form>
               {accounts.length > 0 ? <ul className="account-list">{accounts.map((account) => <li key={account.id}><strong>{account.name}{account.is_primary ? " · Principal" : ""}</strong><span>{account.account_type}</span><small>Saldo inicial: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(account.opening_balance))}</small></li>)}</ul> : <p className="empty-state">Cadastre sua primeira conta para começar.</p>}
+              <section className="subpanel" aria-labelledby="cards-title">
+                <div className="transaction-heading"><strong id="cards-title">Cartões</strong><span>{cards.length} ativos</span></div>
+                <form className="finance-form" onSubmit={(event) => void createCard(event)}>
+                  <label>Nome do cartão<input value={cardName} onChange={(event) => setCardName(event.target.value)} maxLength={100} placeholder="Ex.: Cartão principal" required /></label>
+                  <label>Instituição<input value={cardInstitution} onChange={(event) => setCardInstitution(event.target.value)} maxLength={120} placeholder="Banco ou instituição" required /></label>
+                  <label>Últimos 4 dígitos<input inputMode="numeric" autoComplete="off" value={cardLastFour} onChange={(event) => setCardLastFour(event.target.value.replace(/\\D/g, "").slice(0, 4))} pattern="[0-9]{4}" maxLength={4} required /></label>
+                  <label>Limite (R$)<input inputMode="decimal" value={cardLimit} onChange={(event) => setCardLimit(event.target.value)} required /></label>
+                  <label>Fechamento<input type="number" min="1" max="31" value={cardClosingDay} onChange={(event) => setCardClosingDay(event.target.value)} required /></label>
+                  <label>Vencimento<input type="number" min="1" max="31" value={cardDueDay} onChange={(event) => setCardDueDay(event.target.value)} required /></label>
+                  <button className="primary-button" type="submit" disabled={busy}>Adicionar cartão</button>
+                </form>
+                {cards.length === 0 ? <p className="empty-state">Nenhum cartão cadastrado.</p> : <ul className="account-list">{cards.map((card) => <li key={card.id}><strong>{card.name} · final {card.last_four}</strong><span>{card.institution_name}</span><small>Limite: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(card.credit_limit))} · Fecha dia {card.closing_day} · Vence dia {card.due_day}<button className="quiet-button danger-button" type="button" disabled={busy} onClick={() => void archiveCard(card)}>Arquivar</button></small></li>)}</ul>}
+              </section>
+              <section className="subpanel" aria-labelledby="categories-title">
+                <div className="transaction-heading"><strong id="categories-title">Categorias</strong><span>{categories.length} cadastradas</span></div>
+                <form className="finance-form" onSubmit={(event) => void createCategory(event)}>
+                  <label>Nome da categoria<input value={categoryName} onChange={(event) => setCategoryName(event.target.value)} maxLength={80} placeholder="Ex.: Alimentação" required /></label>
+                  <label>Tipo<select value={categoryKind} onChange={(event) => setCategoryKind(event.target.value as "income" | "expense")}><option value="expense">Despesa</option><option value="income">Receita</option></select></label>
+                  <button className="primary-button" type="submit" disabled={busy}>Criar categoria</button>
+                </form>
+                {categories.length === 0 ? <p className="empty-state">Crie categorias para organizar seus lançamentos.</p> : <ul className="category-list">{categories.map((category) => <li key={category.id}><span>{category.kind === "income" ? "Receita" : "Despesa"}</span><strong>{category.name}</strong></li>)}</ul>}
+              </section>
               <form className="finance-form transaction-form" onSubmit={(event) => void createTransaction(event)}>
                 <label>Tipo de lançamento<select value={txKind} onChange={(event) => setTxKind(event.target.value as "income" | "expense")}><option value="expense">Despesa</option><option value="income">Receita</option></select></label>
                 <label>Situação<select value={txStatus} onChange={(event) => setTxStatus(event.target.value as "paid" | "planned")}><option value="paid">Realizado</option><option value="planned">Previsto</option></select></label>
                 <label>Valor (R$)<input inputMode="decimal" value={txAmount} onChange={(event) => setTxAmount(event.target.value)} placeholder="0,00" required /></label>
                 <label>Data<input type="date" value={txDate} onChange={(event) => setTxDate(event.target.value)} required /></label>
                 <label>Conta<select value={txAccountId} onChange={(event) => setTxAccountId(event.target.value)} required><option value="">Selecione</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
+                <label>Categoria<select value={txCategoryId} onChange={(event) => setTxCategoryId(event.target.value)}><option value="">Sem categoria</option>{categories.filter((category) => category.kind === txKind).map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
                 <label className="wide-field">Descrição<input value={txDescription} onChange={(event) => setTxDescription(event.target.value)} maxLength={240} placeholder="Ex.: Mercado" required /></label>
                 <button className="primary-button" type="submit" disabled={busy || accounts.length === 0}>Salvar lançamento</button>
               </form>
@@ -540,7 +637,7 @@ export default function App() {
               <p className="muted-copy">A confirmação cria somente o lançamento. O armazenamento privado do arquivo e o vínculo do anexo ainda serão implementados separadamente.</p>
             </section>
 
-            <section className="panel coming-panel"><span className="principles-label">PRÓXIMAS CONEXÕES</span><h2>Seu financeiro em expansão</h2><p>Investimentos, importações, metas, cartões, notificações e automações serão conectados em etapas testadas, preservando a separação entre valores realizados e previstos.</p></section>
+            <section className="panel coming-panel"><span className="principles-label">PRÓXIMAS CONEXÕES</span><h2>Seu financeiro em expansão</h2><p>Investimentos, importações, metas, recorrências, notificações e automações serão conectados em etapas testadas, preservando a separação entre valores realizados e previstos.</p></section>
             {notice && <p className="notice" role="status">{notice}</p>}
           </section>
         )}
