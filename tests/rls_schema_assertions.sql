@@ -34,7 +34,7 @@ begin
       ('accounts'),('cards'),('recurrence_rules'),('import_batches'),('transactions'),
       ('budgets'),('goals'),('goal_contributions'),('tangible_assets'),('liabilities'),
       ('net_worth_snapshots'),('receivables'),('import_items'),('receipt_files'),
-      ('investment_assets'),('investment_operations'),('income_events'),('quote_cache'),
+      ('investment_assets'),('investment_operations'),('income_events'),('quote_cache'),('market_data_usage'),
       ('radar_alerts'),('radar_fires'),('push_subscriptions'),('push_deliveries'),
       ('ai_usage'),('ai_usage_reservations'),('rate_limit_buckets'),('function_errors'),
       ('whatsapp_links'),('whatsapp_link_codes'),('whatsapp_link_attempts'),
