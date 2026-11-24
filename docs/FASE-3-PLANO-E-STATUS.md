@@ -150,3 +150,15 @@ O status do Vercel é separado do GitHub Actions. Nenhum deploy de produção fo
 ## Limites atuais
 
 A Fase 2 continua preservada como base e a PR #1 não será mesclada por esta etapa. Esta branch é derivada da Fase 2; a revisão da Fase 3 será separada. Nenhuma função está implantada no projeto Supabase remoto.
+
+
+## Integração Meta WhatsApp Cloud API
+
+- Provedor escolhido: Meta WhatsApp Cloud API (decisão aprovada pelo usuário em 23/11/2026).
+- `supabase/functions/whatsapp-webhook` implementa GET de verificação `hub.mode`, `hub.verify_token` e `hub.challenge`, além de POST com validação HMAC-SHA256 de `X-Hub-Signature-256` sobre o corpo bruto antes de parsear JSON.
+- Webhook limita payload a 1 MiB, filtra identificadores e telefones, persiste mensagens recebidas na inbox com deduplicação por `message_id` e responde 503 quando a persistência falha para permitir retry da Meta.
+- `supabase/functions/whatsapp-meta-send` envia texto pela Graph API, registra a outbox por chave idempotente e respeita resultados ambíguos: timeout/rede/5xx ficam `uncertain` sem retry automático; HTTP 429 é `failed_safe`; falhas 4xx ficam `failed`.
+- `WHATSAPP_META_VERIFY_TOKEN`, `WHATSAPP_META_APP_SECRET`, `WHATSAPP_META_ACCESS_TOKEN`, `WHATSAPP_META_PHONE_NUMBER_ID`, `WHATSAPP_META_GRAPH_VERSION` e `WHATSAPP_WORKER_SECRET` são secrets/variáveis obrigatórios do Supabase; nenhum valor real deve ser commitado.
+- O webhook tem `verify_jwt = false` porque a autenticação de origem é a assinatura HMAC da Meta. O endpoint de envio continua protegido por JWT de serviço e segredo interno.
+- Testes automatizados cobrem assinatura HMAC, challenge e extração/validação de mensagens.
+- Ainda depende de criar/configurar o app Meta, obter credenciais permanentes, configurar callback HTTPS e assinar o campo `messages`. A inbox ainda requer worker de processamento semântico para conversas, confirmações de lançamentos e resumo semanal antes de operação completa com usuários.
