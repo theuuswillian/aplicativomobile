@@ -105,6 +105,7 @@ declare
   v_link_phone text;
   v_kind text;
   v_amount numeric(14,2);
+  v_amount_text text;
   v_date date;
   v_description text;
   v_category_id uuid;
@@ -145,7 +146,57 @@ begin
 
   begin
     v_kind := v_pending.payload->>'kind';
-    v_amount := (v_pending.payload->>'amount')::numeric;
+    v_amount_text := v_pending.payload->>'amount';
+    if v_amount_text is null or v_amount_text !~ '^\\d{1,8}(\\.\\d{1,2})?
+    v_date := (v_pending.payload->>'transaction_date')::date;
+    v_description := btrim(v_pending.payload->>'description');
+    v_category_id := nullif(v_pending.payload->>'category_id','')::uuid;
+    v_account_id := nullif(v_pending.payload->>'account_id','')::uuid;
+    v_card_id := nullif(v_pending.payload->>'card_id','')::uuid;
+  exception when others then
+    return query select 'invalid_payload'::text, null::uuid;
+    return;
+  end;
+
+  if v_kind is null or v_kind not in ('income','expense')
+     or v_amount is null or v_amount <= 0 or v_amount > 10000000
+     or round(v_amount,2) <> v_amount
+     or v_date is null or v_date > current_date + 1
+     or v_description is null or length(v_description) not between 1 and 240
+     or (v_account_id is null and v_card_id is null)
+     or (v_account_id is not null and v_card_id is not null)
+     or (v_card_id is not null and v_kind <> 'expense') then
+    return query select 'invalid_payload'::text, null::uuid;
+    return;
+  end if;
+
+  insert into public.transactions (
+    user_id, kind, status, amount, transaction_date, description,
+    category_id, account_id, card_id, payment_method, settled_amount,
+    settled_at, source, external_reference
+  ) values (
+    v_pending.user_id, v_kind, 'paid', v_amount, v_date, v_description,
+    v_category_id, v_account_id, v_card_id, 'whatsapp', v_amount,
+    v_date, 'whatsapp', v_pending.source_message_id
+  ) returning id into v_transaction_id;
+
+  update public.whatsapp_pending_transactions
+     set status='confirmed'
+   where id=p_pending_id and status='pending';
+
+  return query select 'confirmed'::text, v_transaction_id;
+end;
+$$;
+
+revoke all on function public.whatsapp_pending_confirm(text) from public, anon, authenticated;
+grant execute on function public.whatsapp_pending_confirm(text) to service_role;
+
+commit;
+ then
+      return query select 'invalid_payload'::text, null::uuid;
+      return;
+    end if;
+    v_amount := v_amount_text::numeric;
     v_date := (v_pending.payload->>'transaction_date')::date;
     v_description := btrim(v_pending.payload->>'description');
     v_category_id := nullif(v_pending.payload->>'category_id','')::uuid;
