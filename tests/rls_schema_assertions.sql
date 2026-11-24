@@ -2,7 +2,26 @@
 -- Executar como postgres/superuser. Tudo é revertido ao final.
 begin;
 
-do $$
+do $assert_manual_price_source$
+begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema='public' and table_name='investment_assets'
+      and column_name='price_source' and data_type='text'
+  ) then
+    raise exception 'Origem do preço de referência não foi criada';
+  end if;
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid='public.investment_assets'::regclass
+      and conname='investment_assets_price_source_check'
+  ) then
+    raise exception 'Restrição da origem do preço de referência ausente';
+  end if;
+end
+$assert_manual_price_source$;
+
+do $
 declare
   v_missing text;
 begin
