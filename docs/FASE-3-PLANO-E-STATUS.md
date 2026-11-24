@@ -2,7 +2,7 @@
 
 **Branch:** `fase-3-backend`  
 **Base:** `fase-2-fundacao`  
-**Estado:** em execução; nenhum serviço remoto foi alterado.
+**Estado:** implementação e CI automatizado aprovados no commit `1c141f53ad4062aad41a78e09763fe02563aedf2`; integração remota parcial. Supabase Brasil recebeu migrations 001–012 e Vercel recebeu apenas variáveis públicas para Preview da branch `fase-3-backend` e Development. Edge Functions, secrets, workers e produção permanecem sem ativação.
 
 ## Objetivo
 
@@ -227,3 +227,19 @@ A migration 010 ainda está apenas na branch; precisa ser aplicada ao Supabase r
 - Preview Vercel atualizado para o commit `911fe20ec6ca73fbae60a240572ac30baffb8761`: [abrir Preview](https://granaviva-p6s8ubj1c-grana6.vercel.app). É uma implantação Preview, não produção; o acesso web automatizado não confirmou o funcionamento com backend, pois não há projeto Supabase acessível pela conexão atual.
 - A conexão Supabase consultada mostra a organização, mas nenhum projeto disponível. Antes de qualquer migration/deploy remoto, é necessário selecionar/vincular o projeto correto ou conceder acesso à conexão. Não criar projeto nem assumir custo sem confirmação.
 - CI para o commit de código `911fe20ec6ca73fbae60a240572ac30baffb8761`: [#45377392284](https://github.com/theuuswillian/aplicativomobile/actions/runs/45377392284); Edge Runtime passou, enquanto validação, SQL e integração local estavam em execução na última consulta. O commit seguinte atualiza somente documentação.
+
+
+## Atualização de execução — 24/11/2026
+
+- [x] Migrations 001–011 aplicadas no projeto Supabase Brasil `dvddqexnvllrxogbwmdf`, região São Paulo (`sa-east-1`).
+- [x] Migration 012 (`20261124113232_remove_duplicate_recurrence_index_and_lock_rls_trigger.sql`) aplicada e verificada. Removeu o índice duplicado e revogou execução direta de `rls_auto_enable()` para os papéis de API, preservando o event trigger automático.
+- [x] Auditoria pós-correção: 0 tabelas públicas sem RLS; bucket `receipt-files` privado; alertas de execução da função e índice duplicado corrigidos.
+- [x] CI integral aprovado no commit `1c141f53ad4062aad41a78e09763fe02563aedf2`: `validate`, `sql`, `edge-runtime` e `edge-integration` passaram. Execuções: [#45385601229](https://github.com/theuuswillian/aplicativomobile/actions/runs/45385601229) e [#45385611245](https://github.com/theuuswillian/aplicativomobile/actions/runs/45385611245).
+- [x] Vercel `granaviva`: variáveis públicas `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` cadastradas para Preview somente na branch `fase-3-backend` e para Development. Nenhuma variável foi criada para Production.
+- [ ] Preview correspondente ao commit validado ainda não encontrado. Há um Preview anterior READY, mas associado a commit antigo; não tratá-lo como validação do HEAD atual. A tentativa anterior de build encontrou limite de deploy do Vercel.
+- [ ] Implantar Edge Functions no Supabase após revisão e autorização específica.
+- [ ] Configurar secrets de backend e Meta/OpenAI/VAPID diretamente nos painéis, após definição e geração segura dos valores.
+- [ ] Executar testes de aceite remoto e testes manuais no Safari e app instalado do iPhone.
+- [ ] Manter `WORKERS_ENABLED` ausente/falso e cotações Brapi desativadas até concluir aceite e licença.
+
+O CI verde valida o código e as migrações em ambiente local; não comprova chamadas reais de Edge Functions, integrações Meta/OpenAI/Push, Preview atual ou experiência no iPhone. PR #2 permanece draft e sem merge; produção permanece intacta.
