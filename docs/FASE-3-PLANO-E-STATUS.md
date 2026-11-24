@@ -262,3 +262,15 @@ O CI verde valida o código e as migrações em ambiente local; não comprova ch
 - Valor exato para configurar no Supabase Edge Function Secrets: `APP_ORIGIN=https://granaviva-rust.vercel.app`. A gravação remota ainda está pendente porque a conexão disponível não oferece ferramenta para cadastrar Edge Function Secrets; o valor foi registrado no guia operacional.
 - CI no HEAD `493c367d309bed14e506011d1e66148d1cb27034`, execução [#45386967728](https://github.com/theuuswillian/aplicativomobile/actions/runs/45386967728): `validate`, `sql`, `edge-runtime` e `edge-integration` passaram; `lockfile` foi ignorado normalmente.
 - Nenhuma Edge Function foi publicada, nenhum worker foi habilitado e produção permanece intocada.
+
+
+## Revisão técnica complementar — 24/11/2026
+
+- [x] CI integral no HEAD documental `59210ecd4020811e6216e7545a1dcf7b7481799d`: execuções [#45387789542](https://github.com/theuuswillian/aplicativomobile/actions/runs/45387789542) (PR) e [#45387783934](https://github.com/theuuswillian/aplicativomobile/actions/runs/45387783934) (push) concluídas com sucesso. Em ambas passaram `validate`, `sql`, `edge-runtime` e `edge-integration`; `lockfile` foi ignorado conforme condição do workflow.
+- [x] Revisão do workflow agendado: permanece opt-in por `WORKERS_ENABLED`; execução manual também exige seleção explícita `run_workers=true`. Nenhuma execução foi disparada.
+- [x] Revisão de configuração: `APP_ORIGIN` continua pendente de cadastro manual no Supabase; o domínio oficial provisório permanece `https://granaviva-rust.vercel.app`.
+- [x] Confirmação de estado: PR #2 permanece draft e aberta; nenhuma Edge Function foi implantada; nenhum worker, feed Brapi ou ambiente Production foi ativado.
+- [ ] Limitações de escala a resolver antes de ampliar operação: `radar-worker` consulta no máximo 1.000 alertas por execução; o resumo semanal WhatsApp consulta no máximo 500 vínculos por execução. Planejar paginação/batches e testes de carga antes de habilitar para uma base maior.
+- [ ] A tentativa de Preview atualizado continua bloqueada pelo limite temporário de deployments da Vercel; o CI verde não substitui o teste manual no Safari/PWA.
+
+**Nota de atualização:** este registro é o mais recente e prevalece sobre referências históricas anteriores deste documento que indiquem migrations 001–011 apenas na branch ou CI ainda em andamento. O projeto Supabase Brasil já recebeu migrations 001–012, conforme verificação remota registrada acima.
