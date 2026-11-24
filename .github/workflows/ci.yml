@@ -65,6 +65,7 @@ jobs:
           supabase/functions/ler-comprovante/index.ts
           supabase/functions/radar-alertas/index.ts
           supabase/functions/radar-worker/index.ts
+          supabase/functions/quote-feed-worker/index.ts
           supabase/functions/recurrence-worker/index.ts
           supabase/functions/exportar-dados/index.ts
           supabase/functions/excluir-conta/index.ts
@@ -75,7 +76,7 @@ jobs:
           supabase/functions/whatsapp-meta-send/index.ts
           supabase/functions/whatsapp-worker/index.ts
       - name: Run Edge runtime unit tests
-        run: deno test --no-config --allow-env supabase/functions/_shared/edge_test.ts supabase/functions/_shared/whatsapp-command.test.ts
+        run: deno test --no-config --allow-env supabase/functions/_shared/edge_test.ts supabase/functions/_shared/brapi-quotes.test.ts supabase/functions/_shared/whatsapp-command.test.ts
 
   edge-integration:
     runs-on: ubuntu-latest
