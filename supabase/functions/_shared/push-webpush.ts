@@ -39,7 +39,7 @@ async function hkdfExpand(prk: Uint8Array, info: Uint8Array, length: number): Pr
   const blocks: Uint8Array[] = [];
   let previous = new Uint8Array();
   for (let counter = 1; blocks.reduce((sum, item) => sum + item.length, 0) < length; counter++) {
-    previous = await hmac(prk, concatBytes(previous, info, new Uint8Array([counter])));
+    previous = new Uint8Array(await hmac(prk, concatBytes(previous, info, new Uint8Array([counter]))));
     blocks.push(previous);
   }
   return concatBytes(...blocks).slice(0, length);
