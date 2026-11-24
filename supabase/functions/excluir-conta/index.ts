@@ -36,21 +36,33 @@ Deno.serve(async (request: Request) => {
   });
   const userId = auth.context.user.id;
   try {
-    const storageDb = admin.schema("storage").from("objects");
-    const paths: string[] = [];
+    const bucket = admin.storage.from("receipt-files");
+    const folders: string[] = [];
     for (let offset = 0; offset <= MAX_RECEIPTS; offset += PAGE_SIZE) {
-      const { data, error } = await storageDb.select("name").eq("bucket_id", "receipt-files")
-        .like("name", `${userId}/%`).range(offset, offset + PAGE_SIZE - 1);
+      const { data, error } = await bucket.list(userId, { limit: PAGE_SIZE, offset });
       if (error) return internalError(origin);
-      paths.push(...(data ?? []).map((item: { name: string }) => item.name));
-      if (paths.length > MAX_RECEIPTS) {
+      folders.push(...(data ?? []).map((item) => item.name));
+      if (folders.length > MAX_RECEIPTS) {
         return jsonResponse({ error: { code: "TOO_MANY_RECEIPTS", message: "Há muitos comprovantes para excluir com segurança nesta operação." } }, 413, origin);
       }
       if ((data?.length ?? 0) < PAGE_SIZE) break;
     }
 
+    const paths: string[] = [];
+    for (const folder of folders) {
+      for (let offset = 0; offset <= MAX_RECEIPTS; offset += PAGE_SIZE) {
+        const { data, error } = await bucket.list(`${userId}/${folder}`, { limit: PAGE_SIZE, offset });
+        if (error) return internalError(origin);
+        paths.push(...(data ?? []).map((item) => `${userId}/${folder}/${item.name}`));
+        if (paths.length > MAX_RECEIPTS) {
+          return jsonResponse({ error: { code: "TOO_MANY_RECEIPTS", message: "Há muitos comprovantes para excluir com segurança nesta operação." } }, 413, origin);
+        }
+        if ((data?.length ?? 0) < PAGE_SIZE) break;
+      }
+    }
+
     for (let offset = 0; offset < paths.length; offset += 100) {
-      const { error } = await admin.storage.from("receipt-files").remove(paths.slice(offset, offset + 100));
+      const { error } = await bucket.remove(paths.slice(offset, offset + 100));
       if (error) return internalError(origin);
     }
 
