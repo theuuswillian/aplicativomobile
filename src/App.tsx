@@ -131,7 +131,7 @@ export default function App() {
       setSession(nextSession);
       setNotice("");
       if (!nextSession || event === "SIGNED_IN") {
-        setProfile(null); setAlerts([]); setAccounts([]); setCards([]); setCategories([]); setRecurrences([]); setTransactions([]); setTxCategoryId(""); setRecurrenceCategoryId(""); setRecurrenceAccountId(""); setRecurrenceCardId("");
+        setProfile(null); setAlerts([]); setAccounts([]); setCards([]); setCategories([]); setRecurrences([]); setTransactions([]); setTxCategoryId(""); setRecurrenceCategoryId(""); setRecurrenceAccountId(""); setRecurrenceCardId(""); setRecurrenceName(""); setRecurrenceAmount(""); setRecurrenceEnd(""); setRecurrenceStart(todayInBrazil());
         setTxAccountId(""); setTxCardId(""); setReceiptAccountId(""); setEditingTransactionId(null);
         setAssistantAnswer(""); setAssistantQuestion(""); setAssistantConsent(false);
         setReceiptDraft(null); setReceiptFile(null); setReceiptConsent(false);
@@ -323,7 +323,8 @@ export default function App() {
       setNotice("Confira nome, valor, frequência, data inicial/final e os parâmetros do calendário.");
       return;
     }
-    const horizon = new Date(`${todayInBrazil()}T12:00:00.000Z`);
+    const horizonBase = recurrenceStart > todayInBrazil() ? recurrenceStart : todayInBrazil();
+    const horizon = new Date(`${horizonBase}T12:00:00.000Z`);
     horizon.setUTCFullYear(horizon.getUTCFullYear() + 10);
     const nextDate = generateOccurrences({
       id: "recurrence-preview", frequency: recurrenceFrequency, startsOn: recurrenceStart,
