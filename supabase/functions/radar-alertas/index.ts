@@ -55,18 +55,20 @@ Deno.serve(async (request: Request) => {
         return jsonResponse({ error: { code: "INVALID_ALERT_ID", message: "Identificador do alerta inválido." } }, 400, origin);
       }
       const { action: _action, id: _id, ...input } = body;
-      const current = await db.from("radar_alerts").select("condition_type")
+      const current = await db.from("radar_alerts").select("condition_type, threshold")
         .eq("id", body.id).eq("user_id", userId).maybeSingle();
       if (current.error) return internalError(origin);
       if (!current.data) return jsonResponse({ error: { code: "NOT_FOUND", message: "Alerta não encontrado." } }, 404, origin);
 
       const condition = input.condition_type ?? current.data.condition_type;
-      const validated = validateRadarAlertPatch({ ...input, condition_type: condition });
+      const effectiveThreshold = input.threshold ?? Number(current.data.threshold);
+      const validated = validateRadarAlertPatch({ ...input, condition_type: condition, threshold: effectiveThreshold });
       if (!validated.ok) {
         return jsonResponse({ error: { code: "INVALID_ALERT", message: "Dados do alerta inválidos." } }, 400, origin);
       }
       const patch = { ...validated.value };
       if (!("condition_type" in input)) delete patch.condition_type;
+      if (!("threshold" in input)) delete patch.threshold;
       const { data, error } = await db.from("radar_alerts").update(patch)
         .eq("id", body.id).eq("user_id", userId).select(columns).maybeSingle();
       if (error) return internalError(origin);
