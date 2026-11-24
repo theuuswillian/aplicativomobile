@@ -591,6 +591,9 @@ export default function App() {
     try {
       const content = await file.text();
       const parsed = format === "CSV" ? parseCsvStatement(content) : parseOfxStatement(content);
+      if (importDestinationType === "card" && parsed.some((row) => row.kind !== "expense")) {
+        throw new Error("Extratos de cartão só podem ser importados como despesas nesta versão. Escolha uma conta para receitas.");
+      }
       const existing = await supabase.from("import_items").select("dedupe_key")
         .eq("user_id", session.user.id).eq("destination_type", importDestinationType)
         .eq("destination_id", importDestinationId).limit(10000);
