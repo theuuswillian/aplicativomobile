@@ -1,6 +1,6 @@
 # ARQUITETURA TRAVADA — GranaViva
 
-**Versão:** 1.0  
+**Versão:** 1.1  
 **Fase:** 1 — auditoria e constituição da arquitetura  
 **Base de análise:** `grana-viva-rebuild-grana-viva-next.zip` (222 entradas)  
 **Status:** contrato proposto para aprovação; nenhuma aplicação foi implementada nesta fase.
@@ -14,7 +14,7 @@ O GranaViva será um aplicativo de gestão financeira pessoal, investimentos e a
 Este documento é o contrato funcional e técnico para as próximas fases. A implementação deverá:
 
 1. liberar as mesmas funcionalidades para todos os usuários autenticados;
-2. não criar cobrança, níveis comerciais, tela de venda, bloqueio de recursos por categoria de usuário ou dependência de provedor financeiro externo;
+2. não criar cobrança, níveis comerciais, tela de venda ou bloqueio de recursos por categoria de usuário; dados pessoais/bancários não dependerão de agregadores financeiros externos; cotações públicas de mercado podem usar um provedor externo somente conforme o aditivo aprovado na seção 13;
 3. preservar a semântica financeira observada no legado, corrigindo apenas inconsistências documentadas e cobertas por testes;
 4. manter segredos exclusivamente no backend;
 5. aplicar RLS a todas as tabelas e validar isolamento entre usuários;
@@ -1079,3 +1079,49 @@ A execução será interrompida ao final de cada fase.
 - [ ] Aprovação do usuário.
 
 **Fim da Fase 1. A próxima fase só começa após `APROVADO`.**
+
+---
+
+## 13. Aditivo aprovado — fonte externa de cotações (24/11/2026)
+
+O usuário autorizou explicitamente a revisão da proibição de fonte externa **somente para dados públicos de cotação de mercado**. A autorização não inclui custos de assinatura, redistribuição sem licença, operações financeiras, conexão a bancos ou exposição de chaves.
+
+### 13.1 Provedor inicial e escopo gratuito
+
+- Provedor técnico inicial: **brapi.dev**, endpoint legado documentado `/api/quote/{ticker}`, que aceita um ticker por chamada no plano Gratuito.
+- Escopo: ações, FIIs, ETFs e BDRs brasileiros denominados em BRL.
+- Plano Gratuito divulgado pela fonte: 15.000 chamadas/mês, um ticker por chamada e atraso aproximado de 30 minutos para ações.
+- O worker usa cache de 30 minutos, no máximo quatro consultas por execução do cron de 15 minutos e reserva atômica com teto interno de 12.000 chamadas por mês. A rotação por ticker evita starvation; chamadas que falham também consomem a cota interna, por segurança.
+- API key somente em Supabase Secret `BRAPI_API_KEY`. Nenhum segredo ou chamada de provedor no frontend.
+- Toda cotação persistida inclui preço, moeda, classe, fonte, horário observado na origem e horário de ingestão. A interface e as notificações devem atribuir a fonte e identificar o atraso; nunca usar a expressão “tempo real”.
+- A cotação é referência informativa para exibição e Radar; não altera operações, custo médio, saldo, patrimônio realizado nem recomenda compra/venda.
+
+### 13.2 Condição de licença para exibição
+
+Os termos públicos da brapi proíbem revender/redistribuir dados e criar proxy público. A FAQ permite integração em aplicativos, mas alerta que redistribuição pode exigir validação jurídica/licença adicional. Portanto, a integração técnica fica **desabilitada por padrão** até haver confirmação escrita da brapi de que a exibição limitada de cotações dentro do GranaViva gratuito, sem API pública ou exportação de feed, está autorizada no plano escolhido.
+
+- Edge Function exige `BRAPI_PUBLIC_DISPLAY_APPROVED=true`, além de `BRAPI_API_KEY`.
+- Não configurar essa flag como verdadeira sem confirmação escrita/licença aplicável.
+- Atribuição visível: “Dados de mercado: brapi.dev”.
+- Não expor endpoints públicos para consultar o cache global nem permitir download em massa.
+
+Referências oficiais consultadas:
+- https://brapi.dev/faq/api-e-gratis-mesmo
+- https://brapi.dev/faq/como-a-api-e-calculada
+- https://brapi.dev/faq/qual-a-diferenca-real-no-atraso-delay-dos-dados-entre-os-planos
+- https://brapi.dev/faq/posso-usar-a-brapi-para-construir-um-app-comercial-ou-para-minha-empresa
+- https://brapi.dev/legal/terms-of-use
+
+### 13.3 Cripto e renda fixa
+
+- O endpoint de cripto da brapi informa disponibilidade apenas nos planos Startup e Pro; não será ativado no plano Gratuito.
+- CoinPaprika declara o plano Free para uso pessoal, planos pagos para uso comercial interno e Enterprise para redistribuição a clientes. CoinGecko também não concede direitos comerciais no plano Demo gratuito.
+- Como o GranaViva deve permanecer gratuito e não foi autorizada despesa com feed, nenhuma dessas fontes será usada para cotação pública de cripto agora.
+- Alertas de cripto e preços de renda fixa permanecem sem feed automático até existir fonte com licença compatível e custo autorizado. Não simular preço, reaproveitar cotação de outro ativo ou apresentar último valor sem horário/fonte.
+
+### 13.4 Segurança e operação
+
+- Migration `010_market_data_provider.sql` cria contador global sem dados pessoais, RLS habilitada sem grants a usuários e RPC atômica exclusiva de `service_role`.
+- Segredo independente `QUOTE_WORKER_SECRET` protege o worker; `BRAPI_API_KEY` fica exclusivamente em Supabase Secrets.
+- `BRAPI_PUBLIC_DISPLAY_APPROVED` é um bloqueio de licença, não um aceite automático.
+- O workflow de workers permanece desativado até configuração autorizada de secrets e variável operacional.
