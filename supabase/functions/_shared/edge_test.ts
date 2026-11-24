@@ -6,6 +6,7 @@ import { MAX_RECEIPT_BYTES, validateReceiptBase64 } from "./receipt-validation.t
 import { validateAssistantInput, validateAssistantOutput } from "./assistant-validation.ts";
 import { validateReceiptDraft } from "./receipt-ai-validation.ts";
 import { isRadarAlertId, validateRadarAlertInput, validateRadarAlertPatch } from "./radar-validation.ts";
+import { evaluateRadarAlert } from "./radar-evaluation.ts";
 import { isPushSubscriptionId, validatePushSubscription } from "./push-validation.ts";
 import { base64UrlBytes, createVapidAuthorization, encryptWebPushPayload, toArrayBuffer } from "./push-webpush.ts";
 
