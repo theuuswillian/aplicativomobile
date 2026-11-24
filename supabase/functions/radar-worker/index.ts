@@ -39,7 +39,8 @@ Deno.serve(async (request: Request) => {
 
   try {
     const pageSize = 200;
-    let offset = 0;
+    let cursorCreatedAt: string | null = null;
+    let cursorId: string | null = null;
     let checked = 0, fired = 0, duplicates = 0, notifications = 0, notificationFailures = 0;
     const pushSecret = Deno.env.get("PUSH_WORKER_SECRET");
 
@@ -47,11 +48,14 @@ Deno.serve(async (request: Request) => {
     // impede que alertas habilitados após o primeiro lote fiquem invisíveis.
     while (true) {
       let alertsQuery = db.from("radar_alerts")
-        .select("id,user_id,asset_class,symbol,condition_type,threshold,generation")
+        .select("id,user_id,asset_class,symbol,condition_type,threshold,generation,created_at")
         .eq("is_enabled", true)
         .order("created_at", { ascending: true })
         .order("id", { ascending: true })
-        .range(offset, offset + pageSize - 1);
+        .limit(pageSize);
+      if (cursorCreatedAt && cursorId) {
+        alertsQuery = alertsQuery.or(`created_at.gt.${cursorCreatedAt},and(created_at.eq.${cursorCreatedAt},id.gt.${cursorId})`);
+      }
       if (typeof body.symbol === "string") alertsQuery = alertsQuery.eq("symbol", body.symbol);
       const { data: alerts, error: alertsError } = await alertsQuery;
       if (alertsError) return internalError(origin);
@@ -101,8 +105,10 @@ Deno.serve(async (request: Request) => {
         } catch { notificationFailures++; }
       }
 
+      const lastAlert = alerts[alerts.length - 1];
+      cursorCreatedAt = lastAlert.created_at;
+      cursorId = lastAlert.id;
       if (alerts.length < pageSize) break;
-      offset += pageSize;
     }
 
     return jsonResponse({
