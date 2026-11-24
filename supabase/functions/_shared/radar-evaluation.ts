@@ -33,7 +33,7 @@ export function evaluateRadarAlert(
       typeof quote.source !== "string" || quote.source.trim().length < 1 || quote.source.length > 80 || !Number.isFinite(Number(alert.threshold)) || Number(alert.threshold) <= 0) {
     return { shouldFire: false, price: null, reason: "invalid_quote" };
   }
-  if (quote.asset_class && quote.asset_class !== alert.asset_class) {
+  if (quote.asset_class !== alert.asset_class) {
     return { shouldFire: false, price: null, reason: "asset_mismatch" };
   }
   const observed = Date.parse(quote.observed_at ?? quote.saved_at);
