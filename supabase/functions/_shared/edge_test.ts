@@ -217,7 +217,7 @@ Deno.test("VAPID authorization signs an ES256 JWT for the push origin", async ()
   if (!token) throw new Error("VAPID token was not produced.");
   const [header, payload, signature] = token.split(".");
   const verifyKey = await crypto.subtle.importKey(
-    "raw", Uint8Array.from(atob(publicKey.replace(/-/g, "+").replace(/_/g, "/") + "=="), (c) => c.charCodeAt(0)),
+    "raw", Uint8Array.from(atob(publicKey.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - publicKey.length % 4) % 4)), (c) => c.charCodeAt(0)),
     { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"],
   );
   const decodedPayload = JSON.parse(new TextDecoder().decode(
