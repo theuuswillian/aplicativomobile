@@ -203,7 +203,7 @@ Deno.test("push subscriptions require HTTPS endpoints and valid browser keys", (
   }).ok, false);
   strictEqual(isPushSubscriptionId("20000000-0000-4000-8000-000000000001"), true);
 });
-\n
+
 Deno.test("VAPID authorization signs an ES256 JWT for the push origin", async () => {
   const pair = await crypto.subtle.generateKey(
     { name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"],
