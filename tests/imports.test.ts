@@ -16,7 +16,7 @@ describe("CSV/OFX import semantics", () => {
     ].join("\n"));
     expect(rows).toEqual([
       { sourceId: "A-1", date: "2026-11-23", amountCents: 12345, kind: "expense", description: "Mercado; bairro" },
-      { sourceId: "A-2", date: "2026-11-24", amountCents: 250000, kind: "expense", description: 'Salário "empresa"' }
+      { sourceId: "A-2", date: "2026-11-24", amountCents: 250000, kind: "income", description: 'Salário "empresa"' }
     ]);
   });
 
