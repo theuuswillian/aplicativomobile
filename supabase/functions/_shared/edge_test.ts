@@ -261,7 +261,7 @@ Deno.test("Web Push payload encryption creates an aes128gcm record", async () =>
   const expand = async (prk: Uint8Array, info: Uint8Array, length: number) => {
     let previous = new Uint8Array(), result = new Uint8Array();
     for (let counter = 1; result.length < length; counter++) {
-      previous = await hmac(prk, new Uint8Array([...previous, ...info, counter]));
+      previous = new Uint8Array(await hmac(prk, new Uint8Array([...previous, ...info, counter])));
       result = new Uint8Array([...result, ...previous]);
     }
     return result.slice(0, length);
