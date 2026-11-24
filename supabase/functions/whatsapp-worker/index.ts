@@ -52,8 +52,13 @@ async function sendWeeklySummaries(
 ): Promise<{ sent: number; skipped: number; failed: number }> {
   const range = previousWeekRange();
   if (!range) return { sent: 0, skipped: 0, failed: 0 };
+  // A RPC de reserva atualiza last_summary_week atomicamente. Consultar apenas
+  // quem ainda não recebeu/reservou esta semana permite continuar em lotes nas
+  // próximas execuções, sem depender de offset nem repetir os primeiros 500.
   const { data: links, error } = await db.from("whatsapp_links")
-    .select("user_id,phone").eq("weekly_summary_enabled", true).limit(500);
+    .select("user_id,phone").eq("weekly_summary_enabled", true)
+    .or(`last_summary_week.is.null,last_summary_week.lt.${range.monday}`)
+    .order("user_id", { ascending: true }).limit(10);
   if (error) return { sent: 0, skipped: 0, failed: 1 };
   let sent = 0, skipped = 0, failed = 0;
   for (const link of links ?? []) {
@@ -61,7 +66,16 @@ async function sendWeeklySummaries(
       const { data: settings, error: settingsError } = await db.from("settings")
         .select("whatsapp_weekly_summary").eq("user_id", link.user_id).maybeSingle();
       if (settingsError) throw new Error("summary_settings_failed");
-      if (settings?.whatsapp_weekly_summary !== true) { skipped++; continue; }
+      if (settings?.whatsapp_weekly_summary !== true) {
+        // Marcar como tratado evita que vínculos sem consentimento ocupem
+        // indefinidamente os primeiros lugares do próximo lote.
+        const { error: skipReserveError } = await db.rpc("whatsapp_summary_reserve", {
+          p_user_id: link.user_id, p_week: range.monday,
+        });
+        if (skipReserveError) throw new Error("summary_skip_reserve_failed");
+        skipped++;
+        continue;
+      }
       const { data: transactions, error: transactionError } = await db.from("transactions")
         .select("kind,amount").eq("user_id", link.user_id).eq("status", "paid")
         .gte("transaction_date", range.monday).lte("transaction_date", range.sunday);
