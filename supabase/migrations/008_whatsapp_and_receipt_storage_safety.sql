@@ -147,7 +147,16 @@ begin
   begin
     v_kind := v_pending.payload->>'kind';
     v_amount_text := v_pending.payload->>'amount';
-    if v_amount_text is null or v_amount_text !~ '^[0-9]{1,8}([.][0-9]{1,2})?    v_date := (v_pending.payload->>'transaction_date')::date;
+    if v_amount_text is null
+       or v_amount_text !~ '^[0-9.]+$'
+       or length(split_part(v_amount_text, '.', 1)) not between 1 and 8
+       or (position('.' in v_amount_text) > 0 and length(split_part(v_amount_text, '.', 2)) not between 1 and 2)
+       or length(v_amount_text) - length(replace(v_amount_text, '.', '')) > 1 then
+      return query select 'invalid_payload'::text, null::uuid;
+      return;
+    end if;
+    v_amount := v_amount_text::numeric;
+    v_date := (v_pending.payload->>'transaction_date')::date;
     v_description := btrim(v_pending.payload->>'description');
     v_category_id := nullif(v_pending.payload->>'category_id','')::uuid;
     v_account_id := nullif(v_pending.payload->>'account_id','')::uuid;
