@@ -214,6 +214,13 @@ try {
   const radarWorkerWithoutSecret = await invoke("radar-worker", serviceRoleKey, {});
   assert(radarWorkerWithoutSecret.response.status === 401,
     "Worker Radar deve rejeitar JWT válido sem o segredo interno.");
+  const whatsappWorkerWithoutJwt = await invoke("whatsapp-worker", null, {});
+  assert(whatsappWorkerWithoutJwt.response.status === 401,
+    "Worker WhatsApp deve exigir JWT de serviço.");
+  const whatsappWorkerWithoutSecret = await invoke("whatsapp-worker", serviceRoleKey, {});
+  assert(whatsappWorkerWithoutSecret.response.status === 401,
+    "Worker WhatsApp deve rejeitar JWT válido sem o segredo interno.");
+
   const recurrenceWorkerWithoutJwt = await invoke("recurrence-worker", null, {});
   assert(recurrenceWorkerWithoutJwt.response.status === 401,
     "Worker de recorrências deve exigir JWT de serviço.");
