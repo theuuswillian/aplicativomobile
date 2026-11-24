@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
+import type { Database } from "../_shared/auth.ts";
 import { parseWhatsAppCommand } from "../_shared/whatsapp-command.ts";
 
 function safeEqual(left: string, right: string): boolean {
@@ -47,7 +48,7 @@ function brl(cents: bigint): string {
   return (negative ? "-" : "") + "R$ " + whole + "," + fraction;
 }
 async function sendWeeklySummaries(
-  db: SupabaseClient<any, "public">, url: string, serviceKey: string, secret: string,
+  db: SupabaseClient<Database, "public">, url: string, serviceKey: string, secret: string,
 ): Promise<{ sent: number; skipped: number; failed: number }> {
   const range = previousWeekRange();
   if (!range) return { sent: 0, skipped: 0, failed: 0 };
@@ -113,7 +114,7 @@ Deno.serve(async (request: Request) => {
   }
   const url = Deno.env.get("SUPABASE_URL"), serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!url || !serviceKey) return Response.json({ error: "configuration" }, { status: 503 });
-  const db = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+  const db = createClient<Database>(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
   const expiredLease = new Date().toISOString();
   const { data: rows, error } = await db.from("whatsapp_inbox")
     .select("message_id,payload")
