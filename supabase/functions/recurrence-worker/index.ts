@@ -47,7 +47,7 @@ Deno.serve(async (request: Request) => {
   const untilDate = body.until_date === undefined ? addDays(brazilDate(), 30) : body.until_date;
   const maxOccurrences = body.max_occurrences === undefined ? 100 : body.max_occurrences;
   if (typeof untilDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(untilDate) ||
-      !Number.isInteger(maxOccurrences) || (maxOccurrences as number) < 1 || (maxOccurrences as number) > 500) {
+      typeof maxOccurrences !== "number" || !Number.isInteger(maxOccurrences) || maxOccurrences < 1 || maxOccurrences > 500) {
     return jsonResponse({ error: { code: "INVALID_REQUEST", message: "Data ou limite de geração inválido." } }, 400, origin);
   }
   const date = new Date(`${untilDate}T12:00:00.000Z`);
