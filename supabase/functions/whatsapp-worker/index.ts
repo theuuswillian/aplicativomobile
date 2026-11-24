@@ -105,7 +105,7 @@ async function sendWeeklySummaries(
     .select("user_id,week_start")
     .eq("week_start", range.monday)
     .or(`status.eq.pending,and(status.eq.processing,lease_until.lt.${now})`)
-    .order("user_id", { ascending: true }).limit(4);
+    .order("user_id", { ascending: true }).limit(2);
   if (jobsError) return { sent, skipped, failed: failed + 1, queued };
 
   for (const job of jobs ?? []) {
