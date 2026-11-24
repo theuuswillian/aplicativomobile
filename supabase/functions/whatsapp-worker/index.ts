@@ -49,33 +49,34 @@ function brl(cents: bigint): string {
 }
 async function sendWeeklySummaries(
   db: SupabaseClient<Database, "public">, url: string, serviceKey: string, secret: string,
-): Promise<{ sent: number; skipped: number; failed: number }> {
+): Promise<{ sent: number; skipped: number; failed: number; queued: number }> {
   const range = previousWeekRange();
-  if (!range) return { sent: 0, skipped: 0, failed: 0 };
-  // A RPC de reserva atualiza last_summary_week atomicamente. Consultar apenas
-  // quem ainda não recebeu/reservou esta semana permite continuar em lotes nas
-  // próximas execuções, sem depender de offset nem repetir os primeiros 500.
-  const { data: links, error } = await db.from("whatsapp_links")
+  if (!range) return { sent: 0, skipped: 0, failed: 0, queued: 0 };
+
+  // O texto e o destinatário são persistidos antes de qualquer tentativa.
+  // Assim, toda repetição reutiliza exatamente o mesmo payload e a mesma chave
+  // idempotente da outbox Meta, inclusive após timeout ou queda do worker.
+  const { data: links, error: linksError } = await db.from("whatsapp_links")
     .select("user_id,phone").eq("weekly_summary_enabled", true)
     .or(`last_summary_week.is.null,last_summary_week.lt.${range.monday}`)
-    .order("user_id", { ascending: true }).limit(10);
-  if (error) return { sent: 0, skipped: 0, failed: 1 };
-  let sent = 0, skipped = 0, failed = 0;
+    .order("user_id", { ascending: true }).limit(4);
+  if (linksError) return { sent: 0, skipped: 0, failed: 1, queued: 0 };
+
+  let sent = 0, skipped = 0, failed = 0, queued = 0;
   for (const link of links ?? []) {
     try {
       const { data: settings, error: settingsError } = await db.from("settings")
         .select("whatsapp_weekly_summary").eq("user_id", link.user_id).maybeSingle();
       if (settingsError) throw new Error("summary_settings_failed");
       if (settings?.whatsapp_weekly_summary !== true) {
-        // Marcar como tratado evita que vínculos sem consentimento ocupem
-        // indefinidamente os primeiros lugares do próximo lote.
-        const { error: skipReserveError } = await db.rpc("whatsapp_summary_reserve", {
+        const result = await db.rpc("whatsapp_summary_job_skip", {
           p_user_id: link.user_id, p_week: range.monday,
         });
-        if (skipReserveError) throw new Error("summary_skip_reserve_failed");
+        if (result.error) throw new Error("summary_skip_failed");
         skipped++;
         continue;
       }
+
       const { data: transactions, error: transactionError } = await db.from("transactions")
         .select("kind,amount").eq("user_id", link.user_id).eq("status", "paid")
         .gte("transaction_date", range.monday).lte("transaction_date", range.sunday);
@@ -86,38 +87,80 @@ async function sendWeeklySummaries(
         if (transaction.kind === "income") income += amount;
         else if (transaction.kind === "expense") expense += amount;
       }
-      const { data: reserved, error: reserveError } = await db.rpc("whatsapp_summary_reserve", {
-        p_user_id: link.user_id, p_week: range.monday,
-      });
-      if (reserveError) throw new Error("summary_reserve_failed");
-      if (reserved !== true) { skipped++; continue; }
       const message = "Resumo semanal GranaViva (" + range.monday + " a " + range.sunday + ")" +
         "\nReceitas realizadas: " + brl(income) +
         "\nDespesas realizadas: " + brl(expense) +
         "\nSaldo do período: " + brl(income - expense) +
         "\nSomente lançamentos realizados foram considerados.";
-      const response = await fetch(url + "/functions/v1/whatsapp-meta-send", {
-        method: "POST", redirect: "error", signal: AbortSignal.timeout(25_000),
-        headers: {
-          Authorization: "Bearer " + serviceKey, "Content-Type": "application/json",
-          "x-whatsapp-worker-secret": secret,
-        },
-        body: JSON.stringify({
-          idempotency_key: "weekly:" + link.user_id + ":" + range.monday,
-          phone: link.phone, text: message,
-        }),
+      const { error: enqueueError } = await db.rpc("whatsapp_summary_job_enqueue", {
+        p_user_id: link.user_id, p_week: range.monday, p_phone: link.phone, p_message: message,
       });
-      if (!response.ok) throw new Error("summary_delivery_failed");
-      const result = await response.json().catch(() => null) as { data?: { status?: string } } | null;
-      if (!result?.data?.status || !["sent", "uncertain", "failed", "failed_safe", "busy"].includes(result.data.status)) {
-        throw new Error("summary_delivery_unknown");
-      }
-      sent++;
-    } catch {
-      failed++;
-    }
+      if (enqueueError) throw new Error("summary_enqueue_failed");
+      queued++;
+    } catch { failed++; }
   }
-  return { sent, skipped, failed };
+
+  const now = new Date().toISOString();
+  const { data: jobs, error: jobsError } = await db.from("whatsapp_weekly_summary_jobs")
+    .select("user_id,week_start")
+    .eq("week_start", range.monday)
+    .or(`status.eq.pending,and(status.eq.processing,lease_until.lt.${now})`)
+    .order("user_id", { ascending: true }).limit(4);
+  if (jobsError) return { sent, skipped, failed: failed + 1, queued };
+
+  for (const job of jobs ?? []) {
+    try {
+      const { data: reservations, error: reserveError } = await db.rpc("whatsapp_summary_job_claim", {
+        p_user_id: job.user_id, p_week: job.week_start, p_lease_seconds: 180,
+      });
+      if (reserveError) throw new Error("summary_claim_failed");
+      const reservation = Array.isArray(reservations) ? reservations[0] : null;
+      if (!reservation) throw new Error("summary_claim_missing");
+      if (reservation.reservation_status === "skipped") { skipped++; continue; }
+      if (reservation.reservation_status !== "reserved" ||
+          typeof reservation.fencing_token !== "string" ||
+          typeof reservation.phone !== "string" || typeof reservation.message !== "string") continue;
+
+      let outcome = "pending";
+      let errorMessage = "Resumo será tentado novamente com a mesma chave idempotente.";
+      try {
+        const response = await fetch(url + "/functions/v1/whatsapp-meta-send", {
+          method: "POST", redirect: "error", signal: AbortSignal.timeout(25_000),
+          headers: {
+            Authorization: "Bearer " + serviceKey, "Content-Type": "application/json",
+            "x-whatsapp-worker-secret": secret,
+          },
+          body: JSON.stringify({
+            idempotency_key: "weekly:" + job.user_id + ":" + range.monday,
+            phone: reservation.phone, text: reservation.message,
+          }),
+        });
+        const result = await response.json().catch(() => null) as { data?: { status?: string } } | null;
+        const providerStatus = result?.data?.status;
+        if (providerStatus === "sent") outcome = "sent";
+        else if (providerStatus === "uncertain") outcome = "uncertain";
+        else if (providerStatus === "failed") outcome = "failed";
+        else if (providerStatus === "failed_safe" || providerStatus === "busy" || !response.ok) outcome = "pending";
+        else outcome = "pending";
+        errorMessage = providerStatus ? "Meta outbox: " + providerStatus : "Resposta da Meta sem estado confirmado.";
+      } catch {
+        // Repetir a chamada interna é seguro: whatsapp-meta-send e a outbox
+        // resolvem a mesma chave como sent/uncertain/failed_safe, sem duplicar.
+        outcome = "pending";
+      }
+
+      const { data: finalized, error: finalizeError } = await db.rpc("whatsapp_summary_job_finalize", {
+        p_user_id: job.user_id, p_week: job.week_start,
+        p_fencing_token: reservation.fencing_token,
+        p_status: outcome, p_error: errorMessage,
+      });
+      if (finalizeError || finalized !== true) throw new Error("summary_finalize_failed");
+      if (outcome === "sent") sent++;
+      else if (outcome === "uncertain" || outcome === "failed") failed++;
+      else queued++;
+    } catch { failed++; }
+  }
+  return { sent, skipped, failed, queued };
 }
 
 Deno.serve(async (request: Request) => {
