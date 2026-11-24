@@ -325,7 +325,7 @@ begin
     raise exception 'Reserva liberada não devolveu a cota de IA';
   end if;
 
-  if not public.market_data_reserve('brapi', 1)
+  if not public.market_data_reserve('brapi', 'PETR4', 1)
      or public.market_data_reserve('brapi', 1) then
     raise exception 'Quota mensal do provedor não foi reservada atomicamente';
   end if;
