@@ -5,7 +5,7 @@ Este guia é um checklist operacional. **Não coloque valores de secrets neste a
 ## 1. Estado e pré-requisitos
 
 - [x] Projeto selecionado: `Aplicativo Mobile`, ref `dvddqexnvllrxogbwmdf`, região São Paulo (`sa-east-1`), PostgreSQL 17. Não criar outro projeto.
-- [ ] Definir a URL pública canônica do GranaViva (origem HTTPS exata).
+- [x] URL pública canônica provisória aprovada: `https://granaviva-rust.vercel.app` (domínio gratuito Vercel já vinculado e verificado no projeto `granaviva`; ainda não é domínio próprio).
 - [ ] Confirmar acesso administrativo ao repositório GitHub e ao projeto Vercel.
 - [ ] Manter `WORKERS_ENABLED` ausente/falso durante a configuração.
 - [ ] Manter `BRAPI_PUBLIC_DISPLAY_APPROVED` ausente/falso: cotação automática continua bloqueada por licença.
@@ -21,7 +21,7 @@ Depois de confirmar o projeto correto:
 4. Confirmar RLS, grants, bucket privado `receipt-files` e políticas de Storage.
 5. Em **Integrations → Data API**, confirmar que `public` está incluído nos schemas expostos. Projetos novos não expõem automaticamente tabelas novas à Data API por padrão; a inclusão do schema não substitui grants mínimos nem RLS.
 6. Implantar as Edge Functions desta branch após revisão e confirmação do projeto de destino.
-7. Configurar `APP_ORIGIN` com a origem HTTPS canônica exata do frontend. Não usar curingas.
+7. Configurar `APP_ORIGIN=https://granaviva-rust.vercel.app` com a origem HTTPS exata do frontend. Não usar curingas.
 8. Configurar os secrets listados abaixo diretamente no Supabase.
 
 ### Secrets gerais
@@ -149,3 +149,12 @@ Cotações automáticas permanecem desativadas independentemente do cron até au
 - Vercel: variáveis públicas de URL e publishable key do Supabase Brasil cadastradas para Preview da branch `fase-3-backend` e Development. Nenhuma variável de produção ou secret foi adicionado.
 - Ainda não implantadas: Edge Functions; ainda não configurados: secrets de backend, OpenAI, Meta, VAPID e workers.
 - `WORKERS_ENABLED` permanece ausente/falso; Brapi permanece desligada por decisão de licença.
+
+
+## URL canônica aprovada — 24/11/2026
+
+- URL provisória oficial escolhida: `https://granaviva-rust.vercel.app`.
+- O endereço foi confirmado como domínio de projeto verificado no Vercel `granaviva`. O nome mais curto `granaviva.vercel.app` já pertence a outro projeto e não pode ser vinculado.
+- Definir no Supabase Edge Function Secrets: `APP_ORIGIN=https://granaviva-rust.vercel.app`.
+- A conexão disponível nesta sessão não oferece operação para gravar Edge Function Secrets. Portanto, o valor está documentado, mas **ainda não foi cadastrado remotamente**. Fazer isso pelo painel Supabase em Project Settings → Edge Functions → Secrets (ou seção equivalente atual).
+- Não publicar funções, ativar workers nem alterar produção nesta etapa.
