@@ -120,7 +120,8 @@ Deno.serve(async (request: Request) => {
             url: "/", tag: `radar-${item.alertKey}`,
           }),
         });
-        return response.ok;
+        const result = await response.json().catch(() => null) as { data?: { retryable?: boolean } } | null;
+        return response.ok && result?.data?.retryable !== true;
       } catch { return false; }
     }));
     const notifications = notificationResults.filter(Boolean).length;
