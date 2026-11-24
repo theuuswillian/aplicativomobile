@@ -72,6 +72,21 @@ begin
     raise exception 'Tabela interna concedeu acesso de leitura a anon/authenticated';
   end if;
 
+  if not exists (select 1 from storage.buckets where id='receipt-files' and public=false and file_size_limit=5242880) then
+    raise exception 'Bucket privado de comprovantes ausente ou com limites incorretos';
+  end if;
+  if (select relrowsecurity from pg_class where oid='storage.objects'::regclass) is not true then
+    raise exception 'Storage objects precisa manter RLS habilitado';
+  end if;
+  if not exists (select 1 from pg_policies where schemaname='storage' and tablename='objects' and policyname='receipt_files_insert_own_transaction')
+     or not exists (select 1 from pg_policies where schemaname='storage' and tablename='objects' and policyname='receipt_files_select_own_transaction')
+     or not exists (select 1 from pg_policies where schemaname='storage' and tablename='objects' and policyname='receipt_files_delete_own_transaction') then
+    raise exception 'Policies de Storage privado de comprovantes incompletas';
+  end if;
+  if (select whatsapp_weekly_summary from public.settings where user_id='10000000-0000-4000-8000-000000000001') is distinct from false then
+    raise exception 'Consentimento WhatsApp deve iniciar desativado';
+  end if;
+
   if exists (select 1 from pg_policies where schemaname='public' and tablename='quote_cache') then
     raise exception 'quote_cache deve permanecer sem policies (somente backend)';
   end if;
@@ -92,7 +107,8 @@ begin
     'public.whatsapp_inbox_finalize(text,uuid,boolean,text)'::regprocedure,
     'public.whatsapp_outbox_reserve(text,text,jsonb,integer)'::regprocedure,
     'public.whatsapp_outbox_finalize(text,uuid,text,text,text)'::regprocedure,
-    'public.whatsapp_summary_reserve(uuid,date)'::regprocedure
+    'public.whatsapp_summary_reserve(uuid,date)'::regprocedure,
+    'public.whatsapp_pending_confirm(text)'::regprocedure
   ] loop
     if not (select p.prosecdef and p.proconfig @> array['search_path=pg_catalog, public']
             from pg_proc p where p.oid = v_fn) then
