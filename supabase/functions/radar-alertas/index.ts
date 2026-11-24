@@ -39,7 +39,7 @@ Deno.serve(async (request: Request) => {
 
     if (body.action === "consultar_disparos" && Object.keys(body).length === 1) {
       const { data, error } = await db.from("radar_fires")
-        .select("alert_key,fired_at,observed_price")
+        .select("alert_key,fired_at,observed_price,source,quote_observed_at")
         .eq("user_id", userId).order("fired_at", { ascending: false }).limit(50);
       if (error) return internalError(origin);
       return jsonResponse({ data: data ?? [] }, 200, origin);
