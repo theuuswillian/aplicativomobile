@@ -114,7 +114,7 @@ export function parseCsvStatement(content: string): ParsedStatementRow[] {
     if (!date || !description || !amount) throw new TypeError(`Linha CSV ${result.length + 2} inválida: confira data, descrição e valor.`);
     const explicitType = normalizeHeader(record[typeIndex] ?? "");
     const kind = explicitType.includes("receita") || explicitType === "income" || explicitType === "credit" || (credit !== null && debit === null) || (amountIndex >= 0 && !parsedAmount?.negative && /^\\s*\\+/.test(rawAmount))
-      ? "income" : explicitType.includes("despesa") || explicitType === "expense" || explicitType === "debit" || (parsedAmount?.negative ?? false) || debit !== null ? "expense" : "expense";
+      ? "income" : explicitType.includes("despesa") || explicitType === "expense" || explicitType === "debit" || (parsedAmount?.negative ?? false) || debit !== null ? "expense" : "income";
     result.push({ sourceId: (record[idIndex] ?? "").trim() || null, date, amountCents: amount.amountCents, kind, description });
   }
   return result;
