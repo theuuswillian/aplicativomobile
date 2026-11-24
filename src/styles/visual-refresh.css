@@ -341,3 +341,6 @@
   .bottom-nav button svg { width:18px; height:18px; }
   .bottom-nav button span { font-size:8px; }
 }
+
+.overview-flow { grid-column:1 / -1; }
+.cashflow-chart { width:100%; }
