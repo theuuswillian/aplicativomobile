@@ -83,9 +83,10 @@ Implementar backend e integração gradual da interface do GranaViva conforme `d
 - [x] Schema de vínculo, tentativas, inbox, transações pendentes e outbox na Fase 2.
 - [x] RPCs de rate limit, vínculo, leases/fencing e envio idempotente na Fase 2.
 - [ ] Adaptador de provedor e validação HMAC do webhook sobre corpo bruto.
-- [ ] Solicitação/entrega de código temporário de vinculação.
-- [ ] Worker de inbox, parser de mensagem, confirmação explícita e worker de outbox.
-- [ ] Resumo semanal com consentimento e opt-out.
+- [x] Endpoint autenticado de geração de código temporário, hash SHA-256, expiração de 10 minutos e rate limit de 3 códigos por hora.
+- [x] UI de vínculo, desvinculação e consentimento explícito do resumo semanal; gerar código não ativa o resumo.
+- [ ] Worker de inbox, parser de mensagem, confirmação explícita atômica e worker de outbox.
+- [ ] Resumo semanal com consentimento e opt-out no worker.
 - Nenhum provedor, segredo, número ou envio real foi configurado.
 
 ### Frontend e validação
@@ -124,7 +125,7 @@ O commit `bd53ebfc18aedeadf992aeaa5c75de7802291dd4` passou integralmente na exec
 - `sql`: migrations, RLS, grants, isolamento e concorrência no PostgreSQL 17.
 - `edge-integration`: Auth local, perfil, preferências, CORS, Radar, Push e isolamento entre dois usuários.
 
-O CI verde não significa que a Fase 3 esteja concluída. Permanecem integrações de cotação, WhatsApp, armazenamento privado de comprovantes, configuração remota autorizada, agendamento do worker Push e validação manual no dispositivo.
+O CI verde não significa que a Fase 3 esteja concluída. Permanecem integrações de cotação, webhook/provedor e workers WhatsApp, armazenamento privado de comprovantes, configuração remota autorizada, agendamento do worker Push e validação manual no dispositivo.
 
 - HEAD consultado anteriormente: `bd53ebfc18aedeadf992aeaa5c75de7802291dd4`. A implementação de metas, a migration `007_goal_contribution_atomic.sql`, a carteira de investimentos e a validação do livro de operações foram adicionadas depois; a CI do HEAD final ainda precisa concluir.
 - [Branch Fase 3](https://github.com/theuuswillian/aplicativomobile/tree/fase-3-backend).
