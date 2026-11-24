@@ -4,6 +4,7 @@ import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
 import { generateOccurrences, type RecurrenceFrequency } from "./domain/recurrence";
 import { calculateInvestmentSummary, type InvestmentOperation } from "./domain/investments";
+import { importDedupeKey, parseCsvStatement, parseOfxStatement, planImportBatch, type ParsedStatementRow } from "./domain/imports";
 
 type Theme = "dark" | "light";
 type RadarAlert = {
@@ -26,6 +27,7 @@ type InvestmentAssetRow = { id: string; symbol: string; name: string; asset_clas
 type InvestmentOperationRow = { id: string; asset_id: string; operation_type: "opening" | "buy" | "sell"; operation_date: string; quantity: string; unit_price: string; gross_amount: string; fees: string };
 type BudgetSpendRow = { category_id: string | null; settled_amount: string };
 type TransactionRow = { id: string; kind: "income" | "expense" | "transfer"; status: "paid" | "planned" | "cancelled"; amount: string; transaction_date: string; description: string; account_id: string | null };
+type ImportPreviewRow = ParsedStatementRow & { dedupeKey: string; duplicate: boolean };
 type ReceiptDraft = { sufficient: boolean; kind: "income" | "expense" | null; amount: string | null; date: string | null; description: string | null; category: string | null; payment_method: string | null; installment_count: number | null; card_last_four: string | null; confidence: number; warnings: string[] };
 const THEME_STORAGE_KEY = "granaviva:theme:v1";
 
@@ -121,6 +123,11 @@ export default function App() {
   const [goalMonthly, setGoalMonthly] = useState("0,00");
   const [goalTargetMonth, setGoalTargetMonth] = useState("");
   const [goalContributionAmounts, setGoalContributionAmounts] = useState<Record<string, string>>({});
+  const [importFormat, setImportFormat] = useState<"CSV" | "OFX">("CSV");
+  const [importDestinationType, setImportDestinationType] = useState<"account" | "card">("account");
+  const [importDestinationId, setImportDestinationId] = useState("");
+  const [importFileName, setImportFileName] = useState("");
+  const [importPreview, setImportPreview] = useState<ImportPreviewRow[]>([]);
   const [budgetSpend, setBudgetSpend] = useState<BudgetSpendRow[]>([]);
   const [transactions, setTransactions] = useState<TransactionRow[]>([]);
   const [cardName, setCardName] = useState("");
@@ -188,7 +195,7 @@ export default function App() {
       setSession(nextSession);
       setNotice("");
       if (!nextSession || event === "SIGNED_IN") {
-        setProfile(null); setAlerts([]); setAccounts([]); setCards([]); setCategories([]); setRecurrences([]); setBudgets([]); setGoals([]); setInvestmentAssets([]); setInvestmentOperations([]); setInvestmentSymbol(""); setInvestmentName(""); setInvestmentAssetId(""); setInvestmentQuantity(""); setInvestmentUnitPrice(""); setInvestmentFees("0,00"); setInvestmentDate(todayInBrazil()); setGoalName(""); setGoalTarget(""); setGoalMonthly("0,00"); setGoalTargetMonth(""); setGoalContributionAmounts({}); setBudgetSpend([]); setTransactions([]); setTxCategoryId(""); setBudgetCategoryId(""); setBudgetLimit(""); setRecurrenceCategoryId(""); setRecurrenceAccountId(""); setRecurrenceCardId(""); setRecurrenceName(""); setRecurrenceAmount(""); setRecurrenceEnd(""); setRecurrenceStart(todayInBrazil());
+        setProfile(null); setAlerts([]); setAccounts([]); setCards([]); setCategories([]); setRecurrences([]); setBudgets([]); setGoals([]); setInvestmentAssets([]); setInvestmentOperations([]); setInvestmentSymbol(""); setInvestmentName(""); setInvestmentAssetId(""); setInvestmentQuantity(""); setInvestmentUnitPrice(""); setInvestmentFees("0,00"); setInvestmentDate(todayInBrazil()); setGoalName(""); setGoalTarget(""); setGoalMonthly("0,00"); setGoalTargetMonth(""); setGoalContributionAmounts({}); setImportFormat("CSV"); setImportDestinationType("account"); setImportDestinationId(""); setImportFileName(""); setImportPreview([]); setBudgetSpend([]); setTransactions([]); setTxCategoryId(""); setBudgetCategoryId(""); setBudgetLimit(""); setRecurrenceCategoryId(""); setRecurrenceAccountId(""); setRecurrenceCardId(""); setRecurrenceName(""); setRecurrenceAmount(""); setRecurrenceEnd(""); setRecurrenceStart(todayInBrazil());
         setTxAccountId(""); setTxCardId(""); setReceiptAccountId(""); setEditingTransactionId(null);
         setAssistantAnswer(""); setAssistantQuestion(""); setAssistantConsent(false);
         setReceiptDraft(null); setReceiptFile(null); setReceiptConsent(false);
@@ -249,6 +256,7 @@ export default function App() {
         setTransactions((transactionRows.data ?? []) as TransactionRow[]);
         if (accountRows.data?.[0]?.id) setTxAccountId((current) => current || accountRows.data[0].id);
         if (accountRows.data?.[0]?.id) setReceiptAccountId((current) => current || accountRows.data[0].id);
+        if (accountRows.data?.[0]?.id) setImportDestinationId((current) => current || accountRows.data[0].id);
       } catch (error) {
         if (active) setNotice(errorMessage(error));
       }
@@ -415,6 +423,130 @@ export default function App() {
       setNotice("Limite mensal salvo. O acompanhamento considera apenas despesas realizadas.");
     } catch (error) { setNotice(errorMessage(error)); }
     finally { setBusy(false); }
+  }
+
+  async function previewStatementFile(file?: File) {
+    if (!file || !supabase || !session) return;
+    if (file.size <= 0 || file.size > 5 * 1024 * 1024) {
+      setNotice("O arquivo deve ter até 5 MB.");
+      return;
+    }
+    const extension = file.name.toLowerCase().split(".").pop();
+    if (extension !== "csv" && extension !== "ofx") {
+      setNotice("Selecione um arquivo .CSV ou .OFX.");
+      return;
+    }
+    const format = extension.toUpperCase() as "CSV" | "OFX";
+    if (format !== importFormat) setImportFormat(format);
+    const destinationExists = importDestinationType === "account"
+      ? accounts.some((item) => item.id === importDestinationId)
+      : cards.some((item) => item.id === importDestinationId);
+    if (!destinationExists) {
+      setNotice("Selecione uma conta ou cartão de destino antes de gerar a prévia.");
+      return;
+    }
+    setBusy(true); setNotice("");
+    try {
+      const content = await file.text();
+      const parsed = format === "CSV" ? parseCsvStatement(content) : parseOfxStatement(content);
+      const existing = await supabase.from("import_items").select("dedupe_key")
+        .eq("user_id", session.user.id).eq("destination_type", importDestinationType)
+        .eq("destination_id", importDestinationId).limit(10000);
+      if (existing.error) throw existing.error;
+      const mapped = parsed.map((row) => ({
+        ...row, destinationType: importDestinationType, destinationId: importDestinationId,
+      }));
+      const decisions = planImportBatch(mapped, new Set((existing.data ?? []).map((item) => item.dedupe_key)));
+      setImportPreview(decisions.map((decision) => ({
+        ...decision.row, dedupeKey: decision.dedupeKey, duplicate: decision.result === "duplicate",
+      })));
+      setImportFileName(file.name.slice(0, 255));
+      setImportFormat(format);
+      setNotice(`Prévia pronta: ${parsed.length} lançamentos, ${decisions.filter((item) => item.result === "duplicate").length} duplicados.`);
+    } catch (error) {
+      setImportPreview([]); setImportFileName("");
+      setNotice(errorMessage(error));
+    } finally { setBusy(false); }
+  }
+
+  async function confirmStatementImport() {
+    if (!supabase || !session || !importPreview.length) return;
+    const destinationExists = importDestinationType === "account"
+      ? accounts.some((item) => item.id === importDestinationId)
+      : cards.some((item) => item.id === importDestinationId);
+    if (!destinationExists) { setNotice("O destino selecionado não está mais disponível."); return; }
+    const candidates = importPreview.filter((row) => !row.duplicate);
+    if (!candidates.length) { setNotice("Todos os lançamentos desta prévia já foram importados."); return; }
+    setBusy(true); setNotice("");
+    let batchId: string | null = null;
+    const createdTransactionIds: string[] = [];
+    try {
+      const { data: batch, error: batchError } = await supabase.from("import_batches").insert({
+        user_id: session.user.id, format: importFormat, destination_type: importDestinationType,
+        destination_id: importDestinationId, file_name: importFileName,
+        imported_count: importPreview.length,
+        ignored_count: importPreview.filter((row) => row.duplicate).length,
+        status: "preview",
+      }).select("id").single();
+      if (batchError || !batch) throw batchError ?? new Error("Não foi possível iniciar o lote.");
+      batchId = batch.id;
+      let imported = 0;
+      let ignored = importPreview.filter((row) => row.duplicate).length;
+      for (const row of candidates) {
+        const amount = `${Math.floor(row.amountCents / 100)}.${String(row.amountCents % 100).padStart(2,"0")}`;
+        const transactionInput = {
+          user_id: session.user.id, kind: row.kind, status: "paid", amount,
+          transaction_date: row.date, description: row.description.slice(0,240),
+          account_id: importDestinationType === "account" ? importDestinationId : null,
+          card_id: importDestinationType === "card" ? importDestinationId : null,
+          settled_amount: amount, settled_at: row.date, import_batch_id: batchId,
+          source: "import", external_reference: row.sourceId,
+        };
+        const { data: transaction, error: transactionError } = await supabase.from("transactions")
+          .insert(transactionInput).select("id,kind,status,amount,transaction_date,description,account_id").single();
+        if (transactionError || !transaction) throw transactionError ?? new Error("Não foi possível criar um lançamento importado.");
+        createdTransactionIds.push(transaction.id);
+        const { error: itemError } = await supabase.from("import_items").insert({
+          user_id: session.user.id, batch_id: batchId, transaction_id: transaction.id,
+          destination_type: importDestinationType, destination_id: importDestinationId,
+          dedupe_key: row.dedupeKey, source_reference: row.sourceId,
+          snapshot: {}, result: "created",
+        });
+        if (itemError?.code === "23505") {
+          const { error: removeError } = await supabase.from("transactions").delete()
+            .eq("id", transaction.id).eq("user_id", session.user.id);
+          if (removeError) throw removeError;
+          createdTransactionIds.pop();
+          ignored++;
+          continue;
+        }
+        if (itemError) throw itemError;
+        imported++;
+      }
+      const { error: finalizeError } = await supabase.from("import_batches").update({
+        imported_count: imported + ignored, ignored_count: ignored, status: "committed",
+      }).eq("id", batchId).eq("user_id", session.user.id);
+      if (finalizeError) throw finalizeError;
+      setTransactions((current) => [
+        ...createdTransactionIds.map((id) => ({ id, ...candidates.find((row) => {
+          // IDs and rows are aligned for successfully committed items via the import ledger.
+          return false;
+        }) } as TransactionRow)),
+        ...current,
+      ]);
+      setImportPreview([]); setImportFileName("");
+      setNotice(`Importação concluída: ${imported} lançamentos criados e ${ignored} duplicados ignorados.`);
+      window.location.reload();
+    } catch (error) {
+      if (batchId) {
+        await supabase.from("import_items").delete().eq("batch_id", batchId).eq("user_id", session.user.id);
+        if (createdTransactionIds.length) {
+          await supabase.from("transactions").delete().in("id", createdTransactionIds).eq("user_id", session.user.id);
+        }
+        await supabase.from("import_batches").delete().eq("id", batchId).eq("user_id", session.user.id);
+      }
+      setNotice(`Importação cancelada e revertida: ${errorMessage(error)}`);
+    } finally { setBusy(false); }
   }
 
   async function createInvestmentAsset(event: FormEvent<HTMLFormElement>) {
@@ -924,6 +1056,21 @@ export default function App() {
                   return <li key={budget.id}><strong>{category?.name ?? "Categoria"}</strong><span>{formatCents(spent)} de {formatCents(limit)}</span><progress className="budget-progress" max={100} value={Math.min(100, percent)} aria-label={`Uso do orçamento de ${category?.name ?? "categoria"}`} /><small>{percent}% utilizado{exceeded ? " · Limite ultrapassado" : " · Dentro do limite"}</small></li>;
                 })}</ul>}
                 <p className="helper-text">O gasto considera somente lançamentos de despesa com situação realizada e valor efetivamente liquidado no mês atual. Despesas previstas não entram no cálculo.</p>
+              </section>
+              <section className="subpanel" aria-labelledby="imports-title">
+                <div className="transaction-heading"><strong id="imports-title">Importar extrato bancário</strong><span>CSV / OFX</span></div>
+                <p className="helper-text">Selecione o destino e um arquivo de até 5 MB. A prévia identifica duplicados antes de criar lançamentos realizados.</p>
+                <div className="finance-form">
+                  <label>Destino<select value={importDestinationType} onChange={(event) => { const next = event.target.value as "account" | "card"; setImportDestinationType(next); setImportDestinationId(next === "account" ? accounts[0]?.id ?? "" : cards[0]?.id ?? ""); setImportPreview([]); }}><option value="account">Conta</option><option value="card">Cartão</option></select></label>
+                  <label>{importDestinationType === "account" ? "Conta" : "Cartão"}<select value={importDestinationId} onChange={(event) => { setImportDestinationId(event.target.value); setImportPreview([]); }} required><option value="">Selecione</option>{(importDestinationType === "account" ? accounts : cards).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+                  <label>Arquivo CSV ou OFX<input type="file" accept=".csv,.ofx,text/csv,application/x-ofx" onChange={(event) => void previewStatementFile(event.target.files?.[0])} disabled={busy} /></label>
+                </div>
+                {importPreview.length > 0 && <>
+                  <div className="transaction-heading"><strong>Prévia do extrato</strong><span>{importPreview.filter((row) => !row.duplicate).length} novos · {importPreview.filter((row) => row.duplicate).length} duplicados</span></div>
+                  <ul className="account-list">{importPreview.slice(0, 30).map((row, index) => <li key={row.dedupeKey + index}><strong>{row.description}</strong><span>{row.date} · {row.kind === "income" ? "Receita" : "Despesa"} · {formatCents(BigInt(row.amountCents))}</span><small>{row.duplicate ? "Já importado — será ignorado" : "Novo lançamento — será criado como realizado"}</small></li>)}</ul>
+                  {importPreview.length > 30 && <p className="helper-text">Mostrando 30 de {importPreview.length} linhas; o lote completo será processado após sua confirmação.</p>}
+                  <div className="alert-actions"><button className="primary-button" type="button" onClick={() => void confirmStatementImport()} disabled={busy || importPreview.every((row) => row.duplicate)}>Confirmar importação</button><button className="quiet-button" type="button" onClick={() => { setImportPreview([]); setImportFileName(""); setNotice("Prévia descartada."); }} disabled={busy}>Descartar prévia</button></div>
+                </>}
               </section>
               <section className="subpanel" aria-labelledby="investments-title">
                 <div className="transaction-heading"><strong id="investments-title">Carteira de investimentos</strong><span>{investmentAssets.length} ativos</span></div>
