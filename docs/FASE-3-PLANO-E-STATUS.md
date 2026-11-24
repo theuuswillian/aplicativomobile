@@ -74,9 +74,10 @@ Implementar backend e integração gradual da interface do GranaViva conforme `d
 - [x] Registro, listagem e remoção de inscrições por usuário autenticado.
 - [x] Validação de HTTPS, hosts de push conhecidos e tamanho real das chaves.
 - [x] Testes unitários e de isolamento por usuário.
-- [ ] Chaves VAPID e worker de envio no backend.
-- [ ] Deduplicação de entregas e remoção automática de endpoints 404/410.
-- [ ] Permissão e gerenciamento da inscrição no frontend.
+- [x] Worker `push-worker` com VAPID ES256, criptografia Web Push `aes128gcm`, segredo interno, preferência global de consentimento e reserva idempotente por entrega.
+- [x] Deduplicação de entregas e remoção automática de endpoints 404/410.
+- [x] Permissão e gerenciamento da inscrição por dispositivo no frontend e Service Worker para exibir/abrir notificações.
+- [ ] Configuração dos secrets VAPID e agendamento/orquestração de chamadas do worker, somente após autorização.
 
 ### WhatsApp
 - [x] Schema de vínculo, tentativas, inbox, transações pendentes e outbox na Fase 2.
@@ -93,9 +94,10 @@ Implementar backend e integração gradual da interface do GranaViva conforme `d
 - [x] Cartões, categorias, recorrências e orçamentos mensais conectados à interface.
 - [x] Metas financeiras conectadas: cadastro, progresso e contribuições com histórico; RPC invoker transacional bloqueia a meta, insere o evento e atualiza o acumulado atomicamente.
 - [x] Carteira de investimentos conectada: cadastro de ativos, posições iniciais, compras e vendas, cálculo de quantidade, custo médio e resultado realizado a partir do livro de operações.
-- [ ] Importação CSV/OFX com prévia, deduplicação e confirmação ainda pendente.
+- [x] Importação CSV/OFX com parser validado, prévia, deduplicação por destino e confirmação humana; lote revertido em caso de falha.
+- [x] Registro manual de dividendos, JCP e outros proventos com estados anunciado/previsto/recebido/cancelado.
 - [x] Consentimento por uso da IA e prévia editável de comprovante no frontend; arquivo não persistido.
-- [ ] Push e WhatsApp no frontend.
+- [x] Push no frontend e Service Worker; WhatsApp ainda pendente.
 - [ ] Auditoria de acessibilidade e testes reais do usuário após a integração dos módulos.
 
 ## Configuração necessária do backend (ainda não aplicada)
@@ -120,7 +122,7 @@ O commit `bd53ebfc18aedeadf992aeaa5c75de7802291dd4` passou integralmente na exec
 - `sql`: migrations, RLS, grants, isolamento e concorrência no PostgreSQL 17.
 - `edge-integration`: Auth local, perfil, preferências, CORS, Radar, Push e isolamento entre dois usuários.
 
-O CI verde não significa que a Fase 3 esteja concluída. Permanecem integrações de cotação, envio Push, WhatsApp, importação CSV/OFX, armazenamento privado de comprovantes, configuração remota autorizada e validação manual no dispositivo.
+O CI verde não significa que a Fase 3 esteja concluída. Permanecem integrações de cotação, WhatsApp, armazenamento privado de comprovantes, configuração remota autorizada, agendamento do worker Push e validação manual no dispositivo.
 
 - HEAD consultado anteriormente: `bd53ebfc18aedeadf992aeaa5c75de7802291dd4`. A implementação de metas, a migration `007_goal_contribution_atomic.sql`, a carteira de investimentos e a validação do livro de operações foram adicionadas depois; a CI do HEAD final ainda precisa concluir.
 - [Branch Fase 3](https://github.com/theuuswillian/aplicativomobile/tree/fase-3-backend).
