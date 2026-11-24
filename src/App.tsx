@@ -236,7 +236,7 @@ export default function App() {
     const limit = normalizeBrlAmount(cardLimit, true);
     const closing = Number(cardClosingDay);
     const due = Number(cardDueDay);
-    if (!cardName.trim() || !cardInstitution.trim() || !/^\\d{4}$/.test(cardLastFour) ||
+    if (!cardName.trim() || !cardInstitution.trim() || !/^\d{4}$/.test(cardLastFour) ||
         !limit || !Number.isInteger(closing) || closing < 1 || closing > 31 ||
         !Number.isInteger(due) || due < 1 || due > 31) {
       setNotice("Confira nome, instituição, últimos quatro dígitos, limite e dias de fechamento/vencimento.");
@@ -569,7 +569,7 @@ export default function App() {
                 <form className="finance-form" onSubmit={(event) => void createCard(event)}>
                   <label>Nome do cartão<input value={cardName} onChange={(event) => setCardName(event.target.value)} maxLength={100} placeholder="Ex.: Cartão principal" required /></label>
                   <label>Instituição<input value={cardInstitution} onChange={(event) => setCardInstitution(event.target.value)} maxLength={120} placeholder="Banco ou instituição" required /></label>
-                  <label>Últimos 4 dígitos<input inputMode="numeric" autoComplete="off" value={cardLastFour} onChange={(event) => setCardLastFour(event.target.value.replace(/\\D/g, "").slice(0, 4))} pattern="[0-9]{4}" maxLength={4} required /></label>
+                  <label>Últimos 4 dígitos<input inputMode="numeric" autoComplete="off" value={cardLastFour} onChange={(event) => setCardLastFour(event.target.value.replace(/\D/g, "").slice(0, 4))} pattern="[0-9]{4}" maxLength={4} required /></label>
                   <label>Limite (R$)<input inputMode="decimal" value={cardLimit} onChange={(event) => setCardLimit(event.target.value)} required /></label>
                   <label>Fechamento<input type="number" min="1" max="31" value={cardClosingDay} onChange={(event) => setCardClosingDay(event.target.value)} required /></label>
                   <label>Vencimento<input type="number" min="1" max="31" value={cardDueDay} onChange={(event) => setCardDueDay(event.target.value)} required /></label>
