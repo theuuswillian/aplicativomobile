@@ -23,3 +23,6 @@ verify_jwt = true
 
 [functions.whatsapp-vincular]
 verify_jwt = true
+
+[functions.radar-worker]
+verify_jwt = true
