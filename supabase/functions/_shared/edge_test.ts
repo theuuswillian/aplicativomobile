@@ -1,5 +1,5 @@
 import { deepStrictEqual, strictEqual } from "node:assert/strict";
-import { isAllowedOrigin, isJsonRequest, readJsonObject, jsonResponse, methodNotAllowed, handleOptions } from "./http.ts";
+import { isAllowedOrigin, isJsonRequest, readJsonObject, jsonResponse, methodNotAllowed, handleOptions, originNotAllowedResponse } from "./http.ts";
 import { validateDisplayName } from "./validation.ts";
 import { validateSettingsPatch } from "./settings-validation.ts";
 import { MAX_RECEIPT_BYTES, validateReceiptBase64 } from "./receipt-validation.ts";
@@ -151,6 +151,9 @@ Deno.test("CORS allowlist is exact and rejects unconfigured browser origins", ()
       headers: { Origin: "https://attacker.example" },
     }));
     strictEqual(denied.headers.get("Access-Control-Allow-Origin"), null);
+    const blocked = originNotAllowedResponse("https://attacker.example");
+    strictEqual(blocked.status, 403);
+    strictEqual(blocked.headers.get("Access-Control-Allow-Origin"), null);
   } finally {
     if (previous === undefined) Deno.env.delete("APP_ORIGIN");
     else Deno.env.set("APP_ORIGIN", previous);
