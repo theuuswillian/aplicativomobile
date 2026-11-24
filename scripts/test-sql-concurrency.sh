@@ -207,4 +207,76 @@ if [[ "$recurrence_count" != "3" || "$recurrence_state" != "$expected_recurrence
   exit 1
 fi
 
-echo "Concorrência PostgreSQL validada: quota de IA, rate limit, Radar, metas, WhatsApp e recorrências foram serializados."
+
+# Checkpoint durável do Radar: lease exclusivo, retomada do cursor e fencing.
+radar_worker_key="radar-alerts:CHECK1"
+radar_claim="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select reservation_status || '|' || fencing_token::text from public.radar_worker_claim('$radar_worker_key',180)")"
+radar_status="${radar_claim%%|*}"
+radar_token="${radar_claim#*|}"
+if [[ "$radar_status" != "reserved" || -z "$radar_token" ]]; then
+  echo "Falha: Radar não reservou checkpoint inicial: $radar_claim"; exit 1
+fi
+radar_busy="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select reservation_status from public.radar_worker_claim('$radar_worker_key',180)")"
+if [[ "$radar_busy" != "busy" ]]; then
+  echo "Falha: Radar permitiu duas reservas simultâneas: $radar_busy"; exit 1
+fi
+radar_cursor_id="60000000-0000-4000-8000-000000000001"
+radar_cursor_time="2026-11-24T12:00:00Z"
+radar_checkpoint="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select public.radar_worker_checkpoint('$radar_worker_key','$radar_token','$radar_cursor_time','$radar_cursor_id',false)")"
+if [[ "$radar_checkpoint" != "t" ]]; then
+  echo "Falha: Radar não persistiu cursor: $radar_checkpoint"; exit 1
+fi
+radar_claim2="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select reservation_status || '|' || coalesce(cursor_id::text,'') from public.radar_worker_claim('$radar_worker_key',180)")"
+if [[ "$radar_claim2" != "reserved|$radar_cursor_id" ]]; then
+  echo "Falha: Radar não retomou cursor persistido: $radar_claim2"; exit 1
+fi
+radar_token2="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select fencing_token::text from public.radar_worker_state where worker_key='$radar_worker_key'")"
+radar_stale="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select public.radar_worker_checkpoint('$radar_worker_key','$radar_token','$radar_cursor_time','$radar_cursor_id',false)")"
+if [[ "$radar_stale" != "f" ]]; then
+  echo "Falha: token antigo conseguiu alterar checkpoint Radar: $radar_stale"; exit 1
+fi
+radar_complete="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select public.radar_worker_checkpoint('$radar_worker_key','$radar_token2',null,null,true)")"
+if [[ "$radar_complete" != "t" ]]; then
+  echo "Falha: Radar não finalizou ciclo: $radar_complete"; exit 1
+fi
+
+# Resumo WhatsApp: payload persistido, lease exclusivo e finalização com fencing.
+week_start="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select current_date")"
+psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  insert into public.settings(user_id,whatsapp_weekly_summary)
+  values ('$user_id',true)
+  on conflict (user_id) do update set whatsapp_weekly_summary=true;
+  update public.whatsapp_links set weekly_summary_enabled=true,last_summary_week=null
+   where user_id='$user_id';
+"
+enqueue="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select public.whatsapp_summary_job_enqueue('$user_id','$week_start','+5511999999999','Resumo semanal de teste')")"
+if [[ "$enqueue" != "t" ]]; then
+  echo "Falha: não foi possível persistir o resumo WhatsApp: $enqueue"; exit 1
+fi
+summary_claim="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select reservation_status || '|' || fencing_token::text from public.whatsapp_summary_job_claim('$user_id','$week_start',180)")"
+summary_status="${summary_claim%%|*}"
+summary_token="${summary_claim#*|}"
+if [[ "$summary_status" != "reserved" || -z "$summary_token" ]]; then
+  echo "Falha: resumo WhatsApp não foi reservado: $summary_claim"; exit 1
+fi
+summary_busy="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select reservation_status from public.whatsapp_summary_job_claim('$user_id','$week_start',180)")"
+if [[ "$summary_busy" != "busy" ]]; then
+  echo "Falha: resumo WhatsApp permitiu duas reservas: $summary_busy"; exit 1
+fi
+summary_finalize="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select public.whatsapp_summary_job_finalize('$user_id','$week_start','$summary_token','pending','falha segura de teste')")"
+if [[ "$summary_finalize" != "t" ]]; then
+  echo "Falha: não foi possível liberar retry seguro do resumo: $summary_finalize"; exit 1
+fi
+summary_retry="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select reservation_status || '|' || fencing_token::text from public.whatsapp_summary_job_claim('$user_id','$week_start',180)")"
+summary_retry_status="${summary_retry%%|*}"
+summary_retry_token="${summary_retry#*|}"
+if [[ "$summary_retry_status" != "reserved" || -z "$summary_retry_token" ]]; then
+  echo "Falha: resumo WhatsApp não permitiu retry: $summary_retry"; exit 1
+fi
+summary_sent="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select public.whatsapp_summary_job_finalize('$user_id','$week_start','$summary_retry_token','sent',null)")"
+summary_week="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select last_summary_week::text from public.whatsapp_links where user_id='$user_id'")"
+if [[ "$summary_sent" != "t" || "$summary_week" != "$week_start" ]]; then
+  echo "Falha: resumo enviado não foi finalizado: sent=$summary_sent week=$summary_week"; exit 1
+fi
+
+echo "Concorrência PostgreSQL validada: quota de IA, rate limit, Radar, metas, WhatsApp e recorrências foram serializados e os novos checkpoints/resumos foram testados."
