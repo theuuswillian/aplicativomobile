@@ -6,6 +6,7 @@ import { generateOccurrences, type RecurrenceFrequency } from "./domain/recurren
 import { calculateInvestmentSummary, type InvestmentOperation } from "./domain/investments";
 import { parseCsvStatement, parseOfxStatement, planImportBatch, type ParsedStatementRow } from "./domain/imports";
 type PushSubscriptionRow = { id: string; endpoint: string; user_agent: string | null };
+type WhatsappLinkState = { phone: string; weekly_summary_enabled: boolean };
 
 type Theme = "dark" | "light";
 type RadarAlert = {
@@ -112,6 +113,9 @@ export default function App() {
   const [investmentOperations, setInvestmentOperations] = useState<InvestmentOperationRow[]>([]);
   const [incomeEvents, setIncomeEvents] = useState<IncomeEventRow[]>([]);
   const [pushSubscriptions, setPushSubscriptions] = useState<PushSubscriptionRow[]>([]);
+  const [whatsappLink, setWhatsappLink] = useState<WhatsappLinkState | null>(null);
+  const [whatsappLinkCode, setWhatsappLinkCode] = useState("");
+  const [whatsappSummaryEnabled, setWhatsappSummaryEnabled] = useState(false);
   const [incomeAssetId, setIncomeAssetId] = useState("");
   const [incomeEventType, setIncomeEventType] = useState<IncomeEventRow["event_type"]>("dividend");
   const [incomeAmount, setIncomeAmount] = useState("");
@@ -205,7 +209,7 @@ export default function App() {
       setSession(nextSession);
       setNotice("");
       if (!nextSession || event === "SIGNED_IN") {
-        setProfile(null); setAlerts([]); setAccounts([]); setCards([]); setCategories([]); setRecurrences([]); setBudgets([]); setGoals([]); setInvestmentAssets([]); setInvestmentOperations([]); setIncomeEvents([]); setPushSubscriptions([]); setIncomeAssetId(""); setIncomeAmount(""); setIncomeReferenceDate(todayInBrazil()); setIncomePaymentDate(""); setInvestmentSymbol(""); setInvestmentName(""); setInvestmentAssetId(""); setInvestmentQuantity(""); setInvestmentUnitPrice(""); setInvestmentFees("0,00"); setInvestmentDate(todayInBrazil()); setGoalName(""); setGoalTarget(""); setGoalMonthly("0,00"); setGoalTargetMonth(""); setGoalContributionAmounts({}); setImportFormat("CSV"); setImportDestinationType("account"); setImportDestinationId(""); setImportFileName(""); setImportPreview([]); setBudgetSpend([]); setTransactions([]); setTxCategoryId(""); setBudgetCategoryId(""); setBudgetLimit(""); setRecurrenceCategoryId(""); setRecurrenceAccountId(""); setRecurrenceCardId(""); setRecurrenceName(""); setRecurrenceAmount(""); setRecurrenceEnd(""); setRecurrenceStart(todayInBrazil());
+        setProfile(null); setAlerts([]); setAccounts([]); setCards([]); setCategories([]); setRecurrences([]); setBudgets([]); setGoals([]); setInvestmentAssets([]); setInvestmentOperations([]); setIncomeEvents([]); setPushSubscriptions([]); setWhatsappLink(null); setWhatsappLinkCode(""); setWhatsappSummaryEnabled(false); setIncomeAssetId(""); setIncomeAmount(""); setIncomeReferenceDate(todayInBrazil()); setIncomePaymentDate(""); setInvestmentSymbol(""); setInvestmentName(""); setInvestmentAssetId(""); setInvestmentQuantity(""); setInvestmentUnitPrice(""); setInvestmentFees("0,00"); setInvestmentDate(todayInBrazil()); setGoalName(""); setGoalTarget(""); setGoalMonthly("0,00"); setGoalTargetMonth(""); setGoalContributionAmounts({}); setImportFormat("CSV"); setImportDestinationType("account"); setImportDestinationId(""); setImportFileName(""); setImportPreview([]); setBudgetSpend([]); setTransactions([]); setTxCategoryId(""); setBudgetCategoryId(""); setBudgetLimit(""); setRecurrenceCategoryId(""); setRecurrenceAccountId(""); setRecurrenceCardId(""); setRecurrenceName(""); setRecurrenceAmount(""); setRecurrenceEnd(""); setRecurrenceStart(todayInBrazil());
         setTxAccountId(""); setTxCardId(""); setReceiptAccountId(""); setEditingTransactionId(null);
         setAssistantAnswer(""); setAssistantQuestion(""); setAssistantConsent(false);
         setReceiptDraft(null); setReceiptFile(null); setReceiptConsent(false);
@@ -220,11 +224,12 @@ export default function App() {
     let active = true;
     const load = async () => {
       try {
-        const [account, preferences, radar, pushRows, accountRows, transactionRows, cardRows, categoryRows, recurrenceRows, budgetRows, budgetSpendRows, goalRows, investmentAssetRows, investmentOperationRows, incomeEventRows] = await Promise.all([
+        const [account, preferences, radar, pushRows, whatsappRows, accountRows, transactionRows, cardRows, categoryRows, recurrenceRows, budgetRows, budgetSpendRows, goalRows, investmentAssetRows, investmentOperationRows, incomeEventRows] = await Promise.all([
           client.functions.invoke("minha-conta", { body: { action: "consultar" } }),
           client.functions.invoke("minhas-preferencias", { body: { action: "consultar" } }),
           client.functions.invoke("radar-alertas", { body: { action: "consultar" } }),
           client.functions.invoke("push-inscricoes", { body: { action: "consultar" } }),
+          client.functions.invoke("whatsapp-vincular", { body: { action: "consultar" } }),
           client.from("accounts").select("id,name,account_type,opening_balance,is_primary").eq("user_id", session.user.id).eq("is_archived", false).order("created_at", { ascending: true }),
           client.from("transactions").select("id,kind,status,amount,transaction_date,description,account_id").eq("user_id", session.user.id).order("transaction_date", { ascending: false }).limit(30),
           client.from("cards").select("id,name,institution_name,last_four,brand,credit_limit,closing_day,due_day,is_archived").eq("user_id", session.user.id).eq("is_archived", false).order("created_at", { ascending: true }),
@@ -241,6 +246,7 @@ export default function App() {
         if (preferences.error) throw preferences.error;
         if (radar.error) throw radar.error;
         if (pushRows.error) throw pushRows.error;
+        if (whatsappRows.error) throw whatsappRows.error;
         if (accountRows.error) throw accountRows.error;
         if (transactionRows.error) throw transactionRows.error;
         if (cardRows.error) throw cardRows.error;
@@ -268,6 +274,8 @@ export default function App() {
         setInvestmentOperations((investmentOperationRows.data ?? []) as InvestmentOperationRow[]);
         setIncomeEvents((incomeEventRows.data ?? []) as IncomeEventRow[]);
         setPushSubscriptions((pushRows.data?.data ?? []) as PushSubscriptionRow[]);
+        setWhatsappLink(whatsappRows.data?.data?.linked ? { phone: whatsappRows.data.data.phone, weekly_summary_enabled: whatsappRows.data.data.weekly_summary_enabled } : null);
+        setWhatsappSummaryEnabled(Boolean(whatsappRows.data?.data?.weekly_summary_enabled));
         if (investmentAssetRows.data?.[0]?.id) setIncomeAssetId((current) => current || investmentAssetRows.data[0].id);
         if (investmentAssetRows.data?.[0]?.id) setInvestmentAssetId((current) => current || investmentAssetRows.data[0].id);
         setTransactions((transactionRows.data ?? []) as TransactionRow[]);
@@ -438,6 +446,46 @@ export default function App() {
         .sort((a,b) => a.category_id.localeCompare(b.category_id)));
       setBudgetLimit("");
       setNotice("Limite mensal salvo. O acompanhamento considera apenas despesas realizadas.");
+    } catch (error) { setNotice(errorMessage(error)); }
+    finally { setBusy(false); }
+  }
+
+  async function generateWhatsappLinkCode() {
+    if (!supabase) return;
+    setBusy(true); setNotice("");
+    try {
+      const { data, error } = await supabase.functions.invoke("whatsapp-vincular", { body: { action: "gerar_codigo" } });
+      if (error) throw error;
+      if (typeof data?.data?.code !== "string") throw new Error("O backend não confirmou o código.");
+      setWhatsappLinkCode(data.data.code);
+      setWhatsappSummaryEnabled(false);
+      setNotice("Código gerado. A vinculação só será concluída quando o provedor e o número oficial estiverem configurados.");
+    } catch (error) { setNotice(errorMessage(error)); }
+    finally { setBusy(false); }
+  }
+
+  async function saveWhatsappSummaryPreference() {
+    if (!supabase || !whatsappLink) return;
+    setBusy(true); setNotice("");
+    try {
+      const { error } = await supabase.functions.invoke("whatsapp-vincular", {
+        body: { action: "resumo", enabled: whatsappSummaryEnabled },
+      });
+      if (error) throw error;
+      setWhatsappLink((current) => current ? { ...current, weekly_summary_enabled: whatsappSummaryEnabled } : current);
+      setNotice(whatsappSummaryEnabled ? "Consentimento para o resumo semanal ativado." : "Resumo semanal desativado.");
+    } catch (error) { setNotice(errorMessage(error)); }
+    finally { setBusy(false); }
+  }
+
+  async function unlinkWhatsapp() {
+    if (!supabase) return;
+    setBusy(true); setNotice("");
+    try {
+      const { error } = await supabase.functions.invoke("whatsapp-vincular", { body: { action: "desvincular" } });
+      if (error) throw error;
+      setWhatsappLink(null); setWhatsappLinkCode(""); setWhatsappSummaryEnabled(false);
+      setNotice("WhatsApp desvinculado e resumos desativados.");
     } catch (error) { setNotice(errorMessage(error)); }
     finally { setBusy(false); }
   }
@@ -1162,6 +1210,19 @@ export default function App() {
                   return <li key={budget.id}><strong>{category?.name ?? "Categoria"}</strong><span>{formatCents(spent)} de {formatCents(limit)}</span><progress className="budget-progress" max={100} value={Math.min(100, percent)} aria-label={`Uso do orçamento de ${category?.name ?? "categoria"}`} /><small>{percent}% utilizado{exceeded ? " · Limite ultrapassado" : " · Dentro do limite"}</small></li>;
                 })}</ul>}
                 <p className="helper-text">O gasto considera somente lançamentos de despesa com situação realizada e valor efetivamente liquidado no mês atual. Despesas previstas não entram no cálculo.</p>
+              </section>
+              <section className="subpanel" aria-labelledby="whatsapp-title">
+                <div className="transaction-heading"><strong id="whatsapp-title">WhatsApp</strong><span>{whatsappLink ? "Vinculado" : "Não vinculado"}</span></div>
+                {whatsappLink ? <>
+                  <p className="helper-text">Número vinculado: {whatsappLink.phone}</p>
+                  <label className="inline-checkbox"><input type="checkbox" checked={whatsappSummaryEnabled} onChange={(event) => setWhatsappSummaryEnabled(event.target.checked)} /> Aceito receber um resumo financeiro semanal por WhatsApp.</label>
+                  <div className="alert-actions"><button className="primary-button" type="button" onClick={() => void saveWhatsappSummaryPreference()} disabled={busy}>Salvar consentimento</button><button className="quiet-button danger-button" type="button" onClick={() => void unlinkWhatsapp()} disabled={busy}>Desvincular</button></div>
+                </> : <>
+                  <p className="helper-text">Gere um código temporário para vincular seu número quando o provedor oficial estiver configurado. Gerar o código não ativa resumos nem envia mensagens.</p>
+                  <button className="primary-button" type="button" onClick={() => void generateWhatsappLinkCode()} disabled={busy}>Gerar código de vinculação</button>
+                  {whatsappLinkCode && <p className="notice" aria-live="polite">Código temporário: <strong>{whatsappLinkCode}</strong>. Expira em 10 minutos.</p>}
+                </>}
+                <p className="helper-text">O envio e o recebimento reais ainda não estão ativos: falta escolher/configurar o provedor e o número oficial. Nenhuma mensagem foi enviada.</p>
               </section>
               <section className="subpanel" aria-labelledby="push-title">
                 <div className="transaction-heading"><strong id="push-title">Notificações neste dispositivo</strong><span>{pushSubscriptions.length} inscrições na conta</span></div>
