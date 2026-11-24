@@ -30,20 +30,27 @@ jobs:
       RADAR_WORKER_SECRET: ${{ secrets.RADAR_WORKER_SECRET }}
       WHATSAPP_WORKER_SECRET: ${{ secrets.WHATSAPP_WORKER_SECRET }}
       QUOTE_WORKER_SECRET: ${{ secrets.QUOTE_WORKER_SECRET }}
+      BRAPI_PUBLIC_DISPLAY_APPROVED: ${{ vars.BRAPI_PUBLIC_DISPLAY_APPROVED }}
     steps:
       - name: Validate worker configuration
         shell: bash
         run: |
           set -euo pipefail
-          for name in SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY RECURRENCE_WORKER_SECRET RADAR_WORKER_SECRET WHATSAPP_WORKER_SECRET QUOTE_WORKER_SECRET; do
+          for name in SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY RECURRENCE_WORKER_SECRET RADAR_WORKER_SECRET WHATSAPP_WORKER_SECRET; do
             if [[ -z "${!name}" ]]; then
               echo "Missing required repository secret: $name"
               exit 1
             fi
           done
-          if [[ "$RECURRENCE_WORKER_SECRET" == "$RADAR_WORKER_SECRET" || "$WHATSAPP_WORKER_SECRET" == "$RADAR_WORKER_SECRET" || "$WHATSAPP_WORKER_SECRET" == "$RECURRENCE_WORKER_SECRET" || "$QUOTE_WORKER_SECRET" == "$RADAR_WORKER_SECRET" || "$QUOTE_WORKER_SECRET" == "$RECURRENCE_WORKER_SECRET" || "$QUOTE_WORKER_SECRET" == "$WHATSAPP_WORKER_SECRET" ]]; then
+          if [[ "$RECURRENCE_WORKER_SECRET" == "$RADAR_WORKER_SECRET" || "$WHATSAPP_WORKER_SECRET" == "$RADAR_WORKER_SECRET" || "$WHATSAPP_WORKER_SECRET" == "$RECURRENCE_WORKER_SECRET" ]]; then
             echo "Worker secrets must be different."
             exit 1
+          fi
+          if [[ "$BRAPI_PUBLIC_DISPLAY_APPROVED" == "true" ]]; then
+            if [[ -z "$QUOTE_WORKER_SECRET" ]]; then echo "Missing QUOTE_WORKER_SECRET"; exit 1; fi
+            if [[ "$QUOTE_WORKER_SECRET" == "$RADAR_WORKER_SECRET" || "$QUOTE_WORKER_SECRET" == "$RECURRENCE_WORKER_SECRET" || "$QUOTE_WORKER_SECRET" == "$WHATSAPP_WORKER_SECRET" ]]; then
+              echo "Quote worker secret must be unique."; exit 1
+            fi
           fi
 
       - name: Generate planned recurring transactions
@@ -59,6 +66,7 @@ jobs:
             --data '{}'
 
       - name: Refresh delayed B3 quotes within the free-plan budget
+        if: ${{ vars.BRAPI_PUBLIC_DISPLAY_APPROVED == 'true' }}
         shell: bash
         run: |
           set -euo pipefail
