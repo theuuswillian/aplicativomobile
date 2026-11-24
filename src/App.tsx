@@ -5,6 +5,7 @@ import { supabase } from "./lib/supabase";
 import { generateOccurrences, type RecurrenceFrequency } from "./domain/recurrence";
 import { calculateInvestmentSummary, type InvestmentOperation } from "./domain/investments";
 import { importDedupeKey, parseCsvStatement, parseOfxStatement, planImportBatch, type ParsedStatementRow } from "./domain/imports";
+type PushSubscriptionRow = { id: string; endpoint: string; user_agent: string | null };
 
 type Theme = "dark" | "light";
 type RadarAlert = {
@@ -110,6 +111,7 @@ export default function App() {
   const [investmentAssets, setInvestmentAssets] = useState<InvestmentAssetRow[]>([]);
   const [investmentOperations, setInvestmentOperations] = useState<InvestmentOperationRow[]>([]);
   const [incomeEvents, setIncomeEvents] = useState<IncomeEventRow[]>([]);
+  const [pushSubscriptions, setPushSubscriptions] = useState<PushSubscriptionRow[]>([]);
   const [incomeAssetId, setIncomeAssetId] = useState("");
   const [incomeEventType, setIncomeEventType] = useState<IncomeEventRow["event_type"]>("dividend");
   const [incomeAmount, setIncomeAmount] = useState("");
@@ -203,7 +205,7 @@ export default function App() {
       setSession(nextSession);
       setNotice("");
       if (!nextSession || event === "SIGNED_IN") {
-        setProfile(null); setAlerts([]); setAccounts([]); setCards([]); setCategories([]); setRecurrences([]); setBudgets([]); setGoals([]); setInvestmentAssets([]); setInvestmentOperations([]); setIncomeEvents([]); setIncomeAssetId(""); setIncomeAmount(""); setIncomeReferenceDate(todayInBrazil()); setIncomePaymentDate(""); setInvestmentSymbol(""); setInvestmentName(""); setInvestmentAssetId(""); setInvestmentQuantity(""); setInvestmentUnitPrice(""); setInvestmentFees("0,00"); setInvestmentDate(todayInBrazil()); setGoalName(""); setGoalTarget(""); setGoalMonthly("0,00"); setGoalTargetMonth(""); setGoalContributionAmounts({}); setImportFormat("CSV"); setImportDestinationType("account"); setImportDestinationId(""); setImportFileName(""); setImportPreview([]); setBudgetSpend([]); setTransactions([]); setTxCategoryId(""); setBudgetCategoryId(""); setBudgetLimit(""); setRecurrenceCategoryId(""); setRecurrenceAccountId(""); setRecurrenceCardId(""); setRecurrenceName(""); setRecurrenceAmount(""); setRecurrenceEnd(""); setRecurrenceStart(todayInBrazil());
+        setProfile(null); setAlerts([]); setAccounts([]); setCards([]); setCategories([]); setRecurrences([]); setBudgets([]); setGoals([]); setInvestmentAssets([]); setInvestmentOperations([]); setIncomeEvents([]); setPushSubscriptions([]); setIncomeAssetId(""); setIncomeAmount(""); setIncomeReferenceDate(todayInBrazil()); setIncomePaymentDate(""); setInvestmentSymbol(""); setInvestmentName(""); setInvestmentAssetId(""); setInvestmentQuantity(""); setInvestmentUnitPrice(""); setInvestmentFees("0,00"); setInvestmentDate(todayInBrazil()); setGoalName(""); setGoalTarget(""); setGoalMonthly("0,00"); setGoalTargetMonth(""); setGoalContributionAmounts({}); setImportFormat("CSV"); setImportDestinationType("account"); setImportDestinationId(""); setImportFileName(""); setImportPreview([]); setBudgetSpend([]); setTransactions([]); setTxCategoryId(""); setBudgetCategoryId(""); setBudgetLimit(""); setRecurrenceCategoryId(""); setRecurrenceAccountId(""); setRecurrenceCardId(""); setRecurrenceName(""); setRecurrenceAmount(""); setRecurrenceEnd(""); setRecurrenceStart(todayInBrazil());
         setTxAccountId(""); setTxCardId(""); setReceiptAccountId(""); setEditingTransactionId(null);
         setAssistantAnswer(""); setAssistantQuestion(""); setAssistantConsent(false);
         setReceiptDraft(null); setReceiptFile(null); setReceiptConsent(false);
@@ -218,10 +220,11 @@ export default function App() {
     let active = true;
     const load = async () => {
       try {
-        const [account, preferences, radar, accountRows, transactionRows, cardRows, categoryRows, recurrenceRows, budgetRows, budgetSpendRows, goalRows, investmentAssetRows, investmentOperationRows, incomeEventRows] = await Promise.all([
+        const [account, preferences, radar, pushRows, accountRows, transactionRows, cardRows, categoryRows, recurrenceRows, budgetRows, budgetSpendRows, goalRows, investmentAssetRows, investmentOperationRows, incomeEventRows] = await Promise.all([
           client.functions.invoke("minha-conta", { body: { action: "consultar" } }),
           client.functions.invoke("minhas-preferencias", { body: { action: "consultar" } }),
           client.functions.invoke("radar-alertas", { body: { action: "consultar" } }),
+          client.functions.invoke("push-inscricoes", { body: { action: "consultar" } }),
           client.from("accounts").select("id,name,account_type,opening_balance,is_primary").eq("user_id", session.user.id).eq("is_archived", false).order("created_at", { ascending: true }),
           client.from("transactions").select("id,kind,status,amount,transaction_date,description,account_id").eq("user_id", session.user.id).order("transaction_date", { ascending: false }).limit(30),
           client.from("cards").select("id,name,institution_name,last_four,brand,credit_limit,closing_day,due_day,is_archived").eq("user_id", session.user.id).eq("is_archived", false).order("created_at", { ascending: true }),
@@ -237,6 +240,7 @@ export default function App() {
         if (account.error) throw account.error;
         if (preferences.error) throw preferences.error;
         if (radar.error) throw radar.error;
+        if (pushRows.error) throw pushRows.error;
         if (accountRows.error) throw accountRows.error;
         if (transactionRows.error) throw transactionRows.error;
         if (cardRows.error) throw cardRows.error;
@@ -263,6 +267,7 @@ export default function App() {
         setInvestmentAssets((investmentAssetRows.data ?? []) as InvestmentAssetRow[]);
         setInvestmentOperations((investmentOperationRows.data ?? []) as InvestmentOperationRow[]);
         setIncomeEvents((incomeEventRows.data ?? []) as IncomeEventRow[]);
+        setPushSubscriptions((pushRows.data?.data ?? []) as PushSubscriptionRow[]);
         if (investmentAssetRows.data?.[0]?.id) setIncomeAssetId((current) => current || investmentAssetRows.data[0].id);
         if (investmentAssetRows.data?.[0]?.id) setInvestmentAssetId((current) => current || investmentAssetRows.data[0].id);
         setTransactions((transactionRows.data ?? []) as TransactionRow[]);
@@ -433,6 +438,55 @@ export default function App() {
         .sort((a,b) => a.category_id.localeCompare(b.category_id)));
       setBudgetLimit("");
       setNotice("Limite mensal salvo. O acompanhamento considera apenas despesas realizadas.");
+    } catch (error) { setNotice(errorMessage(error)); }
+    finally { setBusy(false); }
+  }
+
+  async function togglePushNotifications() {
+    if (!supabase || !session) return;
+    if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+      setNotice("Este navegador não oferece suporte a notificações Push.");
+      return;
+    }
+    setBusy(true); setNotice("");
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const current = await registration.pushManager.getSubscription();
+      if (current) {
+        const stored = pushSubscriptions.find((item) => item.endpoint === current.endpoint);
+        if (stored) {
+          const { error } = await supabase.functions.invoke("push-inscricoes", { body: { action: "remover", id: stored.id } });
+          if (error) throw error;
+        }
+        await current.unsubscribe();
+        setPushSubscriptions((items) => items.filter((item) => item.endpoint !== current.endpoint));
+        setNotice("Notificações desativadas neste dispositivo.");
+        return;
+      }
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") throw new Error("Permissão de notificações não concedida.");
+      const vapid = import.meta.env.VITE_PUSH_VAPID_PUBLIC_KEY;
+      if (typeof vapid !== "string" || !/^[A-Za-z0-9_-]{80,100}$/.test(vapid)) {
+        throw new Error("A chave pública VAPID ainda não foi configurada neste ambiente.");
+      }
+      const normalized = vapid.replace(/-/g, "+").replace(/_/g, "/");
+      const decoded = atob(normalized + "=".repeat((4 - normalized.length % 4) % 4));
+      const key = Uint8Array.from(decoded, (character) => character.charCodeAt(0));
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true, applicationServerKey: key.buffer as ArrayBuffer,
+      });
+      const p256dh = subscription.getKey("p256dh");
+      const authKey = subscription.getKey("auth");
+      if (!p256dh || !authKey) { await subscription.unsubscribe(); throw new Error("O navegador não forneceu as chaves da inscrição Push."); }
+      const encode = (buffer: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(buffer)))
+        .replace(/\\+/g, "-").replace(/\\//g, "_").replace(/=+$/g, "");
+      const { data, error } = await supabase.functions.invoke("push-inscricoes", {
+        body: { action: "registrar", endpoint: subscription.endpoint,
+          p256dh: encode(p256dh), auth_key: encode(authKey), user_agent: navigator.userAgent },
+      });
+      if (error) { await subscription.unsubscribe(); throw error; }
+      setPushSubscriptions((items) => [...items.filter((item) => item.endpoint !== subscription.endpoint), data.data]);
+      setNotice("Notificações ativadas neste dispositivo.");
     } catch (error) { setNotice(errorMessage(error)); }
     finally { setBusy(false); }
   }
@@ -1090,6 +1144,13 @@ export default function App() {
                   return <li key={budget.id}><strong>{category?.name ?? "Categoria"}</strong><span>{formatCents(spent)} de {formatCents(limit)}</span><progress className="budget-progress" max={100} value={Math.min(100, percent)} aria-label={`Uso do orçamento de ${category?.name ?? "categoria"}`} /><small>{percent}% utilizado{exceeded ? " · Limite ultrapassado" : " · Dentro do limite"}</small></li>;
                 })}</ul>}
                 <p className="helper-text">O gasto considera somente lançamentos de despesa com situação realizada e valor efetivamente liquidado no mês atual. Despesas previstas não entram no cálculo.</p>
+              </section>
+              <section className="subpanel" aria-labelledby="push-title">
+                <div className="transaction-heading"><strong id="push-title">Notificações neste dispositivo</strong><span>{pushSubscriptions.length} inscrições na conta</span></div>
+                <p className="helper-text">Ative para receber avisos quando o serviço de envio Push estiver configurado no backend. A permissão é solicitada pelo navegador.</p>
+                <button className="primary-button" type="button" onClick={() => void togglePushNotifications()} disabled={busy}>
+                  {pushSubscriptions.length > 0 ? "Gerenciar notificações deste dispositivo" : "Ativar notificações"}
+                </button>
               </section>
               <section className="subpanel" aria-labelledby="imports-title">
                 <div className="transaction-heading"><strong id="imports-title">Importar extrato bancário</strong><span>CSV / OFX</span></div>
