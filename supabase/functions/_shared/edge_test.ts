@@ -7,6 +7,7 @@ import { validateAssistantInput, validateAssistantOutput } from "./assistant-val
 import { validateReceiptDraft } from "./receipt-ai-validation.ts";
 import { isRadarAlertId, validateRadarAlertInput, validateRadarAlertPatch } from "./radar-validation.ts";
 import { isPushSubscriptionId, validatePushSubscription } from "./push-validation.ts";
+import { base64UrlBytes, createVapidAuthorization, encryptWebPushPayload } from "./push-webpush.ts";
 
 Deno.test("display name trims whitespace and rejects non-text or oversized input", () => {
   deepStrictEqual(validateDisplayName("  Ana  "), { ok: true, value: "Ana" });
@@ -201,4 +202,82 @@ Deno.test("push subscriptions require HTTPS endpoints and valid browser keys", (
     p256dh: "A".repeat(10), auth_key: "B".repeat(22),
   }).ok, false);
   strictEqual(isPushSubscriptionId("20000000-0000-4000-8000-000000000001"), true);
+});
+\n
+Deno.test("VAPID authorization signs an ES256 JWT for the push origin", async () => {
+  const pair = await crypto.subtle.generateKey(
+    { name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"],
+  );
+  const publicKey = base64UrlBytes(new Uint8Array(await crypto.subtle.exportKey("raw", pair.publicKey)));
+  const privateKey = base64UrlBytes(new Uint8Array(await crypto.subtle.exportKey("pkcs8", pair.privateKey)));
+  const authorization = await createVapidAuthorization(
+    "https://fcm.googleapis.com/fcm/send/test", publicKey, privateKey, "mailto:security@example.test",
+  );
+  const token = authorization.match(/^vapid t=([^,]+), k=/)?.[1];
+  if (!token) throw new Error("VAPID token was not produced.");
+  const [header, payload, signature] = token.split(".");
+  const verifyKey = await crypto.subtle.importKey(
+    "raw", Uint8Array.from(atob(publicKey.replace(/-/g, "+").replace(/_/g, "/") + "=="), (c) => c.charCodeAt(0)),
+    { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"],
+  );
+  const decodedPayload = JSON.parse(new TextDecoder().decode(
+    Uint8Array.from(atob(payload.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - payload.length % 4) % 4)), (c) => c.charCodeAt(0)),
+  ));
+  strictEqual(decodedPayload.aud, "https://fcm.googleapis.com");
+  strictEqual(await crypto.subtle.verify(
+    { name: "ECDSA", hash: "SHA-256" }, verifyKey,
+    Uint8Array.from(atob(signature.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - signature.length % 4) % 4)), (c) => c.charCodeAt(0)),
+    new TextEncoder().encode(`${header}.${payload}`),
+  ), true);
+});
+
+Deno.test("Web Push payload encryption creates an aes128gcm record", async () => {
+  const client = await crypto.subtle.generateKey(
+    { name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"],
+  );
+  const clientPublic = base64UrlBytes(new Uint8Array(await crypto.subtle.exportKey("raw", client.publicKey)));
+  const authSecret = crypto.getRandomValues(new Uint8Array(16));
+  const auth = base64UrlBytes(authSecret);
+  const encrypted = await encryptWebPushPayload('{"title":"GranaViva"}', clientPublic, auth);
+  strictEqual(encrypted.length > 86, true);
+  strictEqual(encrypted[20], 65);
+  strictEqual(encrypted[16], 0);
+  strictEqual(encrypted[17], 0);
+  strictEqual(encrypted[18], 16);
+  strictEqual(encrypted[19], 0);
+
+  const salt = encrypted.slice(0, 16);
+  const serverPublic = encrypted.slice(21, 86);
+  const serverKey = await crypto.subtle.importKey(
+    "raw", serverPublic, { name: "ECDH", namedCurve: "P-256" }, false, [],
+  );
+  const shared = new Uint8Array(await crypto.subtle.deriveBits(
+    { name: "ECDH", public: serverKey }, client.privateKey, 256,
+  ));
+  const hmac = async (keyBytes: Uint8Array, data: Uint8Array) => {
+    const key = await crypto.subtle.importKey("raw", keyBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+    return new Uint8Array(await crypto.subtle.sign("HMAC", key, data));
+  };
+  const expand = async (prk: Uint8Array, info: Uint8Array, length: number) => {
+    let previous = new Uint8Array(), result = new Uint8Array();
+    for (let counter = 1; result.length < length; counter++) {
+      previous = await hmac(prk, new Uint8Array([...previous, ...info, counter]));
+      result = new Uint8Array([...result, ...previous]);
+    }
+    return result.slice(0, length);
+  };
+  const authPrk = await hmac(authSecret, shared);
+  const info = new Uint8Array([
+    ...new TextEncoder().encode("WebPush: info\\0"), ...clientPublic, ...serverPublic,
+  ]);
+  const inputKey = await expand(authPrk, info, 32);
+  const contentPrk = await hmac(salt, inputKey);
+  const cek = await expand(contentPrk, new TextEncoder().encode("Content-Encoding: aes128gcm\\0"), 16);
+  const nonce = await expand(contentPrk, new TextEncoder().encode("Content-Encoding: nonce\\0"), 12);
+  const aes = await crypto.subtle.importKey("raw", cek, { name: "AES-GCM" }, false, ["decrypt"]);
+  const plaintext = new Uint8Array(await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: nonce, tagLength: 128 }, aes, encrypted.slice(86),
+  ));
+  strictEqual(new TextDecoder().decode(plaintext.slice(0, -1)), '{"title":"GranaViva"}');
+  strictEqual(plaintext[plaintext.length - 1], 2);
 });
