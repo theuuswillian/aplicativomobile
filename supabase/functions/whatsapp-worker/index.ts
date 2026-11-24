@@ -28,8 +28,11 @@ Deno.serve(async (request: Request) => {
   const url = Deno.env.get("SUPABASE_URL"), serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!url || !serviceKey) return Response.json({ error: "configuration" }, { status: 503 });
   const db = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+  const expiredLease = new Date().toISOString();
   const { data: rows, error } = await db.from("whatsapp_inbox")
-    .select("message_id,payload").eq("status", "queued").order("created_at", { ascending: true }).limit(25);
+    .select("message_id,payload")
+    .or(`status.eq.queued,status.eq.failed,and(status.eq.processing,lease_until.lt.${expiredLease})`)
+    .order("created_at", { ascending: true }).limit(25);
   if (error) return Response.json({ error: "inbox_read_failed" }, { status: 503 });
   let processed = 0, failed = 0;
   for (const row of rows ?? []) {
@@ -50,18 +53,17 @@ Deno.serve(async (request: Request) => {
       const payload = row.payload as Record<string, unknown>;
       const message = payload?.message as Record<string, unknown> | undefined;
       if (payload?.provider !== "meta_whatsapp_cloud" || !message ||
-          typeof message.from !== "string" || !/^\\d{8,15}$/.test(message.from) ||
+          typeof message.from !== "string" || !/^\d{8,15}$/.test(message.from) ||
           typeof message.id !== "string" || message.id !== row.message_id) {
         await finish(false, "Envelope de mensagem inválido"); failed++; continue;
       }
       const phone = `+${message.from}`;
       const command = parseWhatsAppCommand(message.type === "text" ? message.text : null);
       let reply = "";
-      let userId: string | null = null;
       const { data: link, error: linkError } = await db.from("whatsapp_links")
         .select("user_id").eq("phone", phone).maybeSingle();
       if (linkError) throw new Error("link_lookup_failed");
-      userId = link?.user_id ?? null;
+      const userId: string | null = link?.user_id ?? null;
 
       if (!userId) {
         if (command.kind !== "link") {
@@ -70,8 +72,9 @@ Deno.serve(async (request: Request) => {
           const hash = await sha256Hex(command.code);
           const consumed = await db.rpc("whatsapp_link_consume", { p_code_hash: hash, p_phone: phone });
           if (consumed.error) throw new Error("link_consume_failed");
-          if (typeof consumed.data === "string") reply = "WhatsApp vinculado com sucesso! Envie AJUDA para ver os comandos.";
-          else reply = "Código inválido ou expirado. Gere outro código no aplicativo.";
+          reply = typeof consumed.data === "string"
+            ? "WhatsApp vinculado com sucesso! Envie AJUDA para ver os comandos."
+            : "Código inválido ou expirado. Gere outro código no aplicativo.";
         }
       } else if (command.kind === "help") {
         reply = "Comandos disponíveis:\nDESPESA 12,50 descrição\nRECEITA 20,00 descrição\nCONFIRMAR ID\nCANCELAR ID\nCada lançamento fica pendente até sua confirmação.";
@@ -106,16 +109,16 @@ Deno.serve(async (request: Request) => {
         }
       } else if (command.kind === "confirm") {
         const { data: pending, error: pendingError } = await db.from("whatsapp_pending_transactions")
-          .select("id").eq("id", command.pendingId).eq("user_id", userId).eq("phone", phone).maybeSingle();
+          .select("id,status").eq("id", command.pendingId).eq("user_id", userId).eq("phone", phone).maybeSingle();
         if (pendingError) throw new Error("pending_lookup_failed");
         if (!pending) reply = "Lançamento não encontrado ou não pertence a este número.";
+        else if (pending.status === "confirmed") reply = "Este lançamento já foi confirmado.";
         else {
           const { data: result, error: confirmError } = await db.rpc("whatsapp_pending_confirm", { p_pending_id: command.pendingId });
           if (confirmError) throw new Error("pending_confirm_failed");
           const outcome = Array.isArray(result) ? result[0]?.result : null;
           reply = outcome === "confirmed" ? "Lançamento confirmado e salvo no GranaViva."
             : outcome === "expired" ? "Este lançamento expirou. Envie um novo comando."
-            : outcome === "confirmed" ? "Lançamento já confirmado."
             : "Não foi possível confirmar. Confira o lançamento no aplicativo.";
         }
       } else if (command.kind === "cancel") {
