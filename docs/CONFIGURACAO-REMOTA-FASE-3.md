@@ -20,9 +20,10 @@ Depois de confirmar o projeto correto:
 2. Revisar o estado atual das migrations antes de aplicar qualquer DDL.
 3. Aplicar migrations versionadas `001` a `011` em ordem, sem reaplicar manualmente uma migration já registrada.
 4. Confirmar RLS, grants, bucket privado `receipt-files` e políticas de Storage.
-5. Implantar as Edge Functions desta branch após revisão e confirmação do projeto de destino.
-6. Configurar `APP_ORIGIN` com a origem HTTPS canônica exata do frontend. Não usar curingas.
-7. Configurar os secrets listados abaixo diretamente no Supabase.
+5. Em **Integrations → Data API**, confirmar que `public` está incluído nos schemas expostos. Projetos novos não expõem automaticamente tabelas novas à Data API por padrão; a inclusão do schema não substitui grants mínimos nem RLS.
+6. Implantar as Edge Functions desta branch após revisão e confirmação do projeto de destino.
+7. Configurar `APP_ORIGIN` com a origem HTTPS canônica exata do frontend. Não usar curingas.
+8. Configurar os secrets listados abaixo diretamente no Supabase.
 
 ### Secrets gerais
 
@@ -132,7 +133,7 @@ Depois de configurar, gerar um único Preview para validar o frontend com o proj
 
 ## 6. Critérios para habilitar operação
 
-Somente habilitar `WORKERS_ENABLED=true) depois que:
+Somente habilitar `WORKERS_ENABLED=true` depois que:
 - migrations 001–011 estiverem aplicadas e verificadas no projeto certo;
 - todas as Edge Functions estiverem implantadas;
 - secrets e origem CORS estiverem validados;
