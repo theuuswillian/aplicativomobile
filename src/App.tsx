@@ -7,6 +7,7 @@ import { calculateInvestmentSummary, type InvestmentOperation } from "./domain/i
 import { parseCsvStatement, parseOfxStatement, planImportBatch, type ImportRow } from "./domain/imports";
 type PushSubscriptionRow = { id: string; endpoint: string; user_agent: string | null };
 type WhatsappLinkState = { phone: string; weekly_summary_enabled: boolean };
+type RadarFireRow = { alert_key: string; fired_at: string; observed_price: string };
 
 type Theme = "dark" | "light";
 type RadarAlert = {
@@ -100,6 +101,7 @@ export default function App() {
   const [notice, setNotice] = useState("");
   const [profile, setProfile] = useState<Profile | null>(null);
   const [alerts, setAlerts] = useState<RadarAlert[]>([]);
+  const [radarFires, setRadarFires] = useState<RadarFireRow[]>([]);
   const [symbol, setSymbol] = useState("");
   const [assetClass, setAssetClass] = useState<RadarAlert["asset_class"]>("stock");
   const [condition, setCondition] = useState<RadarAlert["condition_type"]>("above");
@@ -211,7 +213,7 @@ export default function App() {
       setSession(nextSession);
       setNotice("");
       if (!nextSession || event === "SIGNED_IN") {
-        setProfile(null); setAlerts([]); setAccounts([]); setCards([]); setCategories([]); setRecurrences([]); setBudgets([]); setGoals([]); setInvestmentAssets([]); setInvestmentOperations([]); setIncomeEvents([]); setPushSubscriptions([]); setWhatsappLink(null); setWhatsappLinkCode(""); setWhatsappSummaryEnabled(false); setIncomeAssetId(""); setIncomeAmount(""); setIncomeReferenceDate(todayInBrazil()); setIncomePaymentDate(""); setInvestmentSymbol(""); setInvestmentName(""); setInvestmentAssetId(""); setInvestmentQuantity(""); setInvestmentUnitPrice(""); setInvestmentFees("0,00"); setInvestmentDate(todayInBrazil()); setGoalName(""); setGoalTarget(""); setGoalMonthly("0,00"); setGoalTargetMonth(""); setGoalContributionAmounts({}); setImportFormat("CSV"); setImportDestinationType("account"); setImportDestinationId(""); setImportFileName(""); setImportPreview([]); setBudgetSpend([]); setTransactions([]); setTxCategoryId(""); setBudgetCategoryId(""); setBudgetLimit(""); setRecurrenceCategoryId(""); setRecurrenceAccountId(""); setRecurrenceCardId(""); setRecurrenceName(""); setRecurrenceAmount(""); setRecurrenceEnd(""); setRecurrenceStart(todayInBrazil());
+        setProfile(null); setAlerts([]); setRadarFires([]); setAccounts([]); setCards([]); setCategories([]); setRecurrences([]); setBudgets([]); setGoals([]); setInvestmentAssets([]); setInvestmentOperations([]); setIncomeEvents([]); setPushSubscriptions([]); setWhatsappLink(null); setWhatsappLinkCode(""); setWhatsappSummaryEnabled(false); setIncomeAssetId(""); setIncomeAmount(""); setIncomeReferenceDate(todayInBrazil()); setIncomePaymentDate(""); setInvestmentSymbol(""); setInvestmentName(""); setInvestmentAssetId(""); setInvestmentQuantity(""); setInvestmentUnitPrice(""); setInvestmentFees("0,00"); setInvestmentDate(todayInBrazil()); setGoalName(""); setGoalTarget(""); setGoalMonthly("0,00"); setGoalTargetMonth(""); setGoalContributionAmounts({}); setImportFormat("CSV"); setImportDestinationType("account"); setImportDestinationId(""); setImportFileName(""); setImportPreview([]); setBudgetSpend([]); setTransactions([]); setTxCategoryId(""); setBudgetCategoryId(""); setBudgetLimit(""); setRecurrenceCategoryId(""); setRecurrenceAccountId(""); setRecurrenceCardId(""); setRecurrenceName(""); setRecurrenceAmount(""); setRecurrenceEnd(""); setRecurrenceStart(todayInBrazil());
         setTxAccountId(""); setTxCardId(""); setReceiptAccountId(""); setEditingTransactionId(null);
         setAssistantAnswer(""); setAssistantQuestion(""); setAssistantConsent(false);
         setReceiptDraft(null); setReceiptFile(null); setReceiptFiles([]); setReceiptConsent(false);
@@ -226,10 +228,11 @@ export default function App() {
     let active = true;
     const load = async () => {
       try {
-        const [account, preferences, radar, pushRows, whatsappRows, receiptFileRows, accountRows, transactionRows, cardRows, categoryRows, recurrenceRows, budgetRows, budgetSpendRows, goalRows, investmentAssetRows, investmentOperationRows, incomeEventRows] = await Promise.all([
+        const [account, preferences, radar, radarFireRows, pushRows, whatsappRows, receiptFileRows, accountRows, transactionRows, cardRows, categoryRows, recurrenceRows, budgetRows, budgetSpendRows, goalRows, investmentAssetRows, investmentOperationRows, incomeEventRows] = await Promise.all([
           client.functions.invoke("minha-conta", { body: { action: "consultar" } }),
           client.functions.invoke("minhas-preferencias", { body: { action: "consultar" } }),
           client.functions.invoke("radar-alertas", { body: { action: "consultar" } }),
+          client.functions.invoke("radar-alertas", { body: { action: "consultar_disparos" } }),
           client.functions.invoke("push-inscricoes", { body: { action: "consultar" } }),
           client.functions.invoke("whatsapp-vincular", { body: { action: "consultar" } }),
           client.from("receipt_files").select("id,transaction_id,storage_path,mime_type,byte_size,created_at").eq("user_id", session.user.id).order("created_at", { ascending: false }).limit(100),
@@ -248,6 +251,7 @@ export default function App() {
         if (account.error) throw account.error;
         if (preferences.error) throw preferences.error;
         if (radar.error) throw radar.error;
+        if (radarFireRows.error) throw radarFireRows.error;
         if (pushRows.error) throw pushRows.error;
         if (whatsappRows.error) throw whatsappRows.error;
         if (receiptFileRows.error) throw receiptFileRows.error;
@@ -267,6 +271,7 @@ export default function App() {
         const serverTheme = preferences.data?.data?.theme;
         if (serverTheme === "light" || serverTheme === "dark") setTheme(serverTheme);
         setAlerts(Array.isArray(radar.data?.data) ? radar.data.data as RadarAlert[] : []);
+        setRadarFires(Array.isArray(radarFireRows.data?.data) ? radarFireRows.data.data as RadarFireRow[] : []);
         setAccounts((accountRows.data ?? []) as AccountRow[]);
         setCards((cardRows.data ?? []) as CardRow[]);
         setCategories((categoryRows.data ?? []) as CategoryRow[]);
@@ -1245,6 +1250,14 @@ export default function App() {
                   </li>)}
                 </ul>
               )}
+              <div className="radar-fire-history">
+                <div className="transaction-heading"><strong>Últimos disparos</strong><span>{radarFires.length} registrados</span></div>
+                {radarFires.length === 0 ? <p className="empty-state">Nenhum alerta foi disparado ainda. Os eventos serão registrados quando houver cotações recentes e uma condição for atingida.</p> : <ul className="account-list">{radarFires.slice(0, 20).map((fire) => {
+                  const alertId = fire.alert_key.split(":")[0];
+                  const alert = alerts.find((item) => item.id === alertId);
+                  return <li key={fire.alert_key}><strong>{alert?.symbol ?? "Ativo"} · {alert?.condition_type === "daily_drop" ? "Queda diária" : alert?.condition_type === "above" ? "Preço acima" : "Preço abaixo"}</strong><span>Preço observado: {Number(fire.observed_price).toLocaleString("pt-BR", { maximumFractionDigits: 8 })}</span><small>{new Date(fire.fired_at).toLocaleString("pt-BR")}</small></li>;
+                })}</ul>}
+              </div>
             </section>
             <section className="panel" aria-labelledby="accounts-title">
               <div className="panel-heading"><div><span className="principles-label">BASE FINANCEIRA</span><h2 id="accounts-title">Contas e lançamentos</h2><p>Cadastre suas contas e registre receitas e despesas. Valores previstos permanecem separados dos realizados.</p></div></div>
