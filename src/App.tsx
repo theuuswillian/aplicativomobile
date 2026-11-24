@@ -6,6 +6,7 @@ import { clearFinancialRecordsForUser } from "./lib/secure-storage";
 import { generateOccurrences, type RecurrenceFrequency } from "./domain/recurrence";
 import { calculateInvestmentSummary, normalizeManualReferencePrice, type InvestmentOperation } from "./domain/investments";
 import { parseCsvStatement, parseOfxStatement, planImportBatch, type ImportRow } from "./domain/imports";
+import { calculateAccountBalance, calculateCardCommittedLimitCents, type LedgerEntry } from "./domain/finance";
 type PushSubscriptionRow = { id: string; endpoint: string; user_agent: string | null };
 type WhatsappLinkState = { phone: string; weekly_summary_enabled: boolean };
 type RadarFireRow = { alert_key: string; fired_at: string; observed_price: string; source: string | null; quote_observed_at: string | null };
@@ -21,7 +22,7 @@ type RadarAlert = {
   is_enabled: boolean;
 };
 type Profile = { display_name: string | null; email?: string };
-type AccountRow = { id: string; name: string; account_type: string; opening_balance: string; is_primary: boolean };
+type AccountRow = { id: string; name: string; account_type: string; opening_balance: string; opening_balance_date: string; is_primary: boolean };
 type CardRow = { id: string; name: string; institution_name: string; last_four: string; brand: string | null; credit_limit: string; closing_day: number; due_day: number; is_archived: boolean };
 type CategoryRow = { id: string; name: string; kind: "income" | "expense"; color: string | null; icon: string | null };
 type RecurrenceRow = { id: string; name: string; kind: "income" | "expense"; amount: string; frequency: RecurrenceFrequency; interval_count: number; weekday: number | null; month_day: number | null; month_of_year: number | null; starts_on: string; ends_on: string | null; next_occurrence_on: string; account_id: string | null; card_id: string | null; is_active: boolean };
@@ -32,7 +33,7 @@ type InvestmentAssetRow = { id: string; symbol: string; name: string; asset_clas
 type InvestmentOperationRow = { id: string; asset_id: string; operation_type: "opening" | "buy" | "sell"; operation_date: string; quantity: string; unit_price: string; gross_amount: string; fees: string };
 type IncomeEventRow = { id: string; asset_id: string; event_type: "dividend" | "jcp" | "distribution" | "coupon" | "interest" | "amortization" | "other"; reference_date: string; payment_date: string | null; announced_amount: string; received_amount: string; status: "announced" | "planned" | "received" | "cancelled" };
 type BudgetSpendRow = { category_id: string | null; settled_amount: string };
-type TransactionRow = { id: string; kind: "income" | "expense" | "transfer"; status: "paid" | "planned" | "cancelled"; amount: string; transaction_date: string; description: string; account_id: string | null };
+type TransactionRow = { id: string; kind: "income" | "expense" | "transfer"; status: "paid" | "planned" | "cancelled"; amount: string; transaction_date: string; description: string; account_id: string | null; card_id: string | null; transfer_from_account_id: string | null; transfer_to_account_id: string | null; category_id: string | null };
 type ImportPreviewRow = ImportRow & { dedupeKey: string; duplicate: boolean };
 type ReceiptFileRow = { id: string; transaction_id: string; storage_path: string; mime_type: string; byte_size: number; created_at: string };
 type ReceiptDraft = { sufficient: boolean; kind: "income" | "expense" | null; amount: string | null; date: string | null; description: string | null; category: string | null; payment_method: string | null; installment_count: number | null; card_last_four: string | null; confidence: number; warnings: string[] };
@@ -241,8 +242,8 @@ export default function App() {
           client.functions.invoke("push-inscricoes", { body: { action: "consultar" } }),
           client.functions.invoke("whatsapp-vincular", { body: { action: "consultar" } }),
           client.from("receipt_files").select("id,transaction_id,storage_path,mime_type,byte_size,created_at").eq("user_id", session.user.id).order("created_at", { ascending: false }).limit(100),
-          client.from("accounts").select("id,name,account_type,opening_balance,is_primary").eq("user_id", session.user.id).eq("is_archived", false).order("created_at", { ascending: true }),
-          client.from("transactions").select("id,kind,status,amount,transaction_date,description,account_id").eq("user_id", session.user.id).order("transaction_date", { ascending: false }).limit(30),
+          client.from("accounts").select("id,name,account_type,opening_balance,opening_balance_date,is_primary").eq("user_id", session.user.id).eq("is_archived", false).order("created_at", { ascending: true }),
+          client.from("transactions").select("id,kind,status,amount,transaction_date,description,account_id,card_id,transfer_from_account_id,transfer_to_account_id,category_id").eq("user_id", session.user.id).order("transaction_date", { ascending: false }).limit(10000),
           client.from("cards").select("id,name,institution_name,last_four,brand,credit_limit,closing_day,due_day,is_archived").eq("user_id", session.user.id).eq("is_archived", false).order("created_at", { ascending: true }),
           client.from("categories").select("id,name,kind,color,icon").eq("user_id", session.user.id).order("kind", { ascending: true }).order("name", { ascending: true }),
           client.from("recurrence_rules").select("id,name,kind,amount,frequency,interval_count,weekday,month_day,month_of_year,starts_on,ends_on,next_occurrence_on,account_id,card_id,is_active").eq("user_id", session.user.id).order("next_occurrence_on", { ascending: true }),
@@ -309,6 +310,31 @@ export default function App() {
   }, [session]);
 
   const signedIn = Boolean(session?.user);
+  const ledgerEntries = useMemo<LedgerEntry[]>(() => transactions.map((item) => ({
+    id: item.id,
+    kind: item.card_id ? "card_expense" : item.kind,
+    status: item.status,
+    amountCents: Math.round(Number(item.amount) * 100),
+    date: item.transaction_date,
+    accountId: item.account_id,
+    cardId: item.card_id,
+    transferFromAccountId: item.transfer_from_account_id,
+    transferToAccountId: item.transfer_to_account_id,
+    categoryId: item.category_id,
+  })), [transactions]);
+  const accountBalances = useMemo(() => Object.fromEntries(accounts.map((account) => [
+    account.id,
+    calculateAccountBalance(
+      Math.round(Number(account.opening_balance) * 100),
+      account.id,
+      ledgerEntries.filter((entry) => entry.date >= account.opening_balance_date),
+      todayInBrazil()
+    ) / 100,
+  ])), [accounts, ledgerEntries]);
+  const cardCommittedAmounts = useMemo(() => Object.fromEntries(cards.map((card) => [
+    card.id,
+    calculateCardCommittedLimitCents(card.id, card.closing_day, card.due_day, ledgerEntries, new Map(), todayInBrazil()) / 100,
+  ])), [cards, ledgerEntries]);
   const enabledAlerts = useMemo(() => alerts.filter((alert) => alert.is_enabled).length, [alerts]);
 
   async function handleAuth(event: FormEvent<HTMLFormElement>) {
@@ -405,7 +431,7 @@ export default function App() {
         user_id: session.user.id, name: accountName.trim(), account_type: accountType,
         opening_balance: amount, opening_balance_date: todayInBrazil(),
         is_primary: accounts.length === 0,
-      }).select("id,name,account_type,opening_balance,is_primary").single();
+      }).select("id,name,account_type,opening_balance,opening_balance_date,is_primary").single();
       if (error) throw error;
       const created = data as AccountRow;
       setAccounts((current) => [...current, created]);
@@ -704,7 +730,7 @@ export default function App() {
           source: "import", external_reference: row.sourceId,
         };
         const { data: transaction, error: transactionError } = await supabase.from("transactions")
-          .insert(transactionInput).select("id,kind,status,amount,transaction_date,description,account_id").single();
+          .insert(transactionInput).select("id,kind,status,amount,transaction_date,description,account_id,card_id,transfer_from_account_id,transfer_to_account_id,category_id").single();
         if (transactionError || !transaction) throw transactionError ?? new Error("Não foi possível criar um lançamento importado.");
         createdTransactionIds.push(transaction.id);
         createdTransactionRows.push(transaction as TransactionRow);
@@ -1007,7 +1033,7 @@ export default function App() {
         transaction_date: txDate, description: txDescription.trim(),
         account_id: txCardId ? null : txAccountId, card_id: txCardId || null, category_id: txCategoryId || null, settled_amount: txStatus === "paid" ? amount : "0.00",
         settled_at: txStatus === "paid" ? txDate : null, source: "manual",
-      }).select("id,kind,status,amount,transaction_date,description,account_id").single();
+      }).select("id,kind,status,amount,transaction_date,description,account_id,card_id,transfer_from_account_id,transfer_to_account_id,category_id").single();
       if (error) throw error;
       setTransactions((current) => [data as TransactionRow, ...current].slice(0, 30));
       setTxDescription(""); setTxAmount(""); setTxCategoryId("");
@@ -1362,7 +1388,7 @@ export default function App() {
                 <label>Saldo inicial (R$)<input inputMode="decimal" value={openingBalance} onChange={(event) => setOpeningBalance(event.target.value)} placeholder="0,00" required /></label>
                 <button className="primary-button" type="submit" disabled={busy}>Adicionar conta</button>
               </form>
-              {accounts.length > 0 ? <ul className="account-list">{accounts.map((account) => <li key={account.id}><strong>{account.name}{account.is_primary ? " · Principal" : ""}</strong><span>{account.account_type}</span><small>Saldo inicial: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(account.opening_balance))}</small></li>)}</ul> : <p className="empty-state">Cadastre sua primeira conta para começar.</p>}
+              {accounts.length > 0 ? <ul className="account-list">{accounts.map((account) => <li key={account.id}><strong>{account.name}{account.is_primary ? " · Principal" : ""}</strong><span>{account.account_type}</span><small>Saldo atual: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(accountBalances[account.id] ?? Number(account.opening_balance))} · Saldo inicial: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(account.opening_balance))}</small></li>)}</ul> : <p className="empty-state">Cadastre sua primeira conta para começar.</p>}
               <section className="subpanel" aria-labelledby="cards-title">
                 <div className="transaction-heading"><strong id="cards-title">Cartões</strong><span>{cards.length} ativos</span></div>
                 <form className="finance-form" onSubmit={(event) => void createCard(event)}>
@@ -1374,7 +1400,7 @@ export default function App() {
                   <label>Vencimento<input type="number" min="1" max="31" value={cardDueDay} onChange={(event) => setCardDueDay(event.target.value)} required /></label>
                   <button className="primary-button" type="submit" disabled={busy}>Adicionar cartão</button>
                 </form>
-                {cards.length === 0 ? <p className="empty-state">Nenhum cartão cadastrado.</p> : <ul className="account-list">{cards.map((card) => <li key={card.id}><strong>{card.name} · final {card.last_four}</strong><span>{card.institution_name}</span><small>Limite: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(card.credit_limit))} · Fecha dia {card.closing_day} · Vence dia {card.due_day}<button className="quiet-button danger-button" type="button" disabled={busy} onClick={() => void archiveCard(card)}>Arquivar</button></small></li>)}</ul>}
+                {cards.length === 0 ? <p className="empty-state">Nenhum cartão cadastrado.</p> : <ul className="account-list">{cards.map((card) => <li key={card.id}><strong>{card.name} · final {card.last_four}</strong><span>{card.institution_name}</span><small>Limite total: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(card.credit_limit))} · Utilizado: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cardCommittedAmounts[card.id] ?? 0)} · Disponível: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(card.credit_limit) - (cardCommittedAmounts[card.id] ?? 0))} · Fecha dia {card.closing_day} · Vence dia {card.due_day}<button className="quiet-button danger-button" type="button" disabled={busy} onClick={() => void archiveCard(card)}>Arquivar</button></small></li>)}</ul>}
               </section>
               <section className="subpanel" aria-labelledby="categories-title">
                 <div className="transaction-heading"><strong id="categories-title">Categorias</strong><span>{categories.length} cadastradas</span></div>
