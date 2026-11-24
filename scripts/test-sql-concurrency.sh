@@ -174,4 +174,36 @@ if [[ "$whatsapp_count" != "1" || "$whatsapp_status" != "confirmed" ]]; then
   exit 1
 fi
 
-echo "Concorrência PostgreSQL validada: quota de IA, rate limit, geração Radar, metas e confirmação WhatsApp foram serializados."
+# Recorrências concorrentes devem gerar cada ocorrência planejada uma única vez.
+recurrence_id="70000000-0000-4000-8000-000000000001"
+psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  insert into public.recurrence_rules(
+    id,user_id,name,kind,amount,frequency,interval_count,starts_on,ends_on,
+    next_occurrence_on,account_id,payment_method,is_active
+  ) values (
+    '$recurrence_id','$user_id','Recorrência concorrente','expense',5.00,
+    'daily',1,current_date,current_date+2,current_date,'$account_id','cash',true
+  );
+"
+for suffix in a b; do
+  psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 >"$tmp_dir/recurrence-$suffix.out" <<SQL &
+begin;
+set local role service_role;
+select * from public.recurrence_generate_due(current_date+2,100);
+select pg_sleep(1);
+commit;
+SQL
+  eval "recurrence_pid_$suffix=$!"
+done
+wait "$recurrence_pid_a"
+wait "$recurrence_pid_b"
+recurrence_count="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select count(*) from public.transactions where user_id='$user_id' and recurrence_id='$recurrence_id' and source='recurrence' and status='planned'")"
+recurrence_state="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select is_active::text || ':' || next_occurrence_on::text from public.recurrence_rules where id='$recurrence_id' and user_id='$user_id'")"
+expected_recurrence_state="false:$(date -u -d '+3 days' +%Y-%m-%d)"
+if [[ "$recurrence_count" != "3" || "$recurrence_state" != "$expected_recurrence_state" ]]; then
+  echo "Falha: recorrência concorrente gerou $recurrence_count itens e estado=$recurrence_state; esperado 3 e $expected_recurrence_state."
+  cat "$tmp_dir"/recurrence-*.out
+  exit 1
+fi
+
+echo "Concorrência PostgreSQL validada: quota de IA, rate limit, Radar, metas, WhatsApp e recorrências foram serializados."
