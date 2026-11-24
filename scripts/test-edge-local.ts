@@ -198,6 +198,12 @@ try {
   const radarWorkerWithoutSecret = await invoke("radar-worker", serviceRoleKey, {});
   assert(radarWorkerWithoutSecret.response.status === 401,
     "Worker Radar deve rejeitar JWT válido sem o segredo interno.");
+  const recurrenceWorkerWithoutJwt = await invoke("recurrence-worker", null, {});
+  assert(recurrenceWorkerWithoutJwt.response.status === 401,
+    "Worker de recorrências deve exigir JWT de serviço.");
+  const recurrenceWorkerWithoutSecret = await invoke("recurrence-worker", serviceRoleKey, {});
+  assert(recurrenceWorkerWithoutSecret.response.status === 401,
+    "Worker de recorrências deve rejeitar JWT válido sem o segredo interno.");
 
   const radarCreated = await invoke("radar-alertas", tokenA, {
     action: "criar",
