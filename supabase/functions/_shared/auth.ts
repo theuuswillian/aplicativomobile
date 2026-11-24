@@ -104,6 +104,23 @@ export type Database = {
         };
         Relationships: [];
       };
+      radar_alerts: {
+        Row: {
+          id: string; user_id: string; asset_class: "stock" | "fii" | "etf" | "bdr" | "crypto";
+          symbol: string; provider_asset_id: string | null; condition_type: "above" | "below" | "daily_drop";
+          threshold: number; generation: number; is_enabled: boolean; created_at: string; updated_at: string;
+        };
+        Insert: {
+          id?: string; user_id: string; asset_class: "stock" | "fii" | "etf" | "bdr" | "crypto";
+          symbol: string; provider_asset_id?: string | null; condition_type: "above" | "below" | "daily_drop";
+          threshold: number; generation?: number; is_enabled?: boolean; created_at?: string; updated_at?: string;
+        };
+        Update: {
+          symbol?: string; provider_asset_id?: string | null; condition_type?: "above" | "below" | "daily_drop";
+          threshold?: number; is_enabled?: boolean; updated_at?: string;
+        };
+        Relationships: [];
+      };
       cards: {
         Row: {
           id: string;
@@ -160,7 +177,7 @@ export type Database = {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: { radar_alert_set_enabled: { Args: { p_alert_id: string; p_enabled: boolean }; Returns: { id: string; generation: number; is_enabled: boolean }[] } };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };
