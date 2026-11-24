@@ -4,7 +4,7 @@ import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
 import { clearFinancialRecordsForUser } from "./lib/secure-storage";
 import { generateOccurrences, type RecurrenceFrequency } from "./domain/recurrence";
-import { calculateInvestmentSummary, type InvestmentOperation } from "./domain/investments";
+import { calculateInvestmentSummary, normalizeManualReferencePrice, type InvestmentOperation } from "./domain/investments";
 import { parseCsvStatement, parseOfxStatement, planImportBatch, type ImportRow } from "./domain/imports";
 type PushSubscriptionRow = { id: string; endpoint: string; user_agent: string | null };
 type WhatsappLinkState = { phone: string; weekly_summary_enabled: boolean };
@@ -799,8 +799,8 @@ export default function App() {
   async function updateManualInvestmentPrice(event: FormEvent<HTMLFormElement>, asset: InvestmentAssetRow) {
     event.preventDefault();
     if (!supabase || !session) return;
-    const raw = (manualPriceInputs[asset.id] ?? "").trim().replace(",", ".");
-    if (!/^[0-9]{1,10}(?:[.][0-9]{1,8})?$/.test(raw) || !Number.isFinite(Number(raw)) || Number(raw) <= 0) {
+    const raw = normalizeManualReferencePrice(manualPriceInputs[asset.id] ?? "");
+    if (raw === null) {
       setNotice("Informe um preço positivo com até 8 casas decimais.");
       return;
     }
