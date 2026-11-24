@@ -736,35 +736,45 @@ export default function App() {
   async function createInvestmentOperation(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!supabase || !session) return;
-    const quantity = Number(investmentQuantity.replace(",", "."));
+    const quantityInput = investmentQuantity.trim().replace(",", ".");
+    const quantityValid = /^\\d{1,10}(?:\\.\\d{1,8})?$/.test(quantityInput);
+    const [quantityWhole = "0", quantityFraction = ""] = quantityInput.split(".");
+    const quantityAtoms = quantityValid
+      ? BigInt(quantityWhole) * 100_000_000n + BigInt(quantityFraction.padEnd(8, "0"))
+      : 0n;
+    const quantity = Number(quantityAtoms) / 100_000_000;
+    const quantityNormalized = `${quantityWhole}.${quantityFraction.padEnd(8, "0")}`;
     const unitPrice = normalizeBrlAmount(investmentUnitPrice);
     const fees = normalizeBrlAmount(investmentFees, true);
     const asset = investmentAssets.find((item) => item.id === investmentAssetId);
-    if (!asset || !Number.isFinite(quantity) || Number(quantity.toFixed(8)) <= 0 || quantity > 1000000000 ||
-        !/^\\d{1,10}(?:[.,]\\d{1,8})?$/.test(investmentQuantity.trim()) || !unitPrice || !fees || !investmentDate) {
+    if (!asset || quantityAtoms <= 0n || quantityAtoms > 1000000000n * 100_000_000n ||
+        !unitPrice || !fees || !investmentDate) {
       setNotice("Confira ativo, quantidade, preço, taxas e data da operação.");
       return;
     }
-    const gross = (quantity * Number(unitPrice)).toFixed(2);
-    const grossCents = decimalToCents(gross);
+    const unitPriceCents = decimalToCents(unitPrice);
+    const grossCents = (quantityAtoms * unitPriceCents + 50_000_000n) / 100_000_000n;
     const feeCents = decimalToCents(fees);
     if (grossCents <= 0n || grossCents > 99999999999999n || feeCents > 99999999999999n || (investmentOperationType === "sell" && grossCents < feeCents)) {
       setNotice("O valor bruto deve caber no limite financeiro e cobrir as taxas da operação.");
       return;
     }
+    const gross = `${grossCents / 100n}.${String(grossCents % 100n).padStart(2, "0")}`;
     const currentSummary = investmentSummary(asset.id);
     if (currentSummary.error || (investmentOperationType === "sell" && quantity > currentSummary.quantity + 1e-9)) {
       setNotice(currentSummary.error ?? "A venda não pode superar a quantidade disponível na carteira.");
       return;
     }
     const net = investmentOperationType === "sell" ? grossCents - feeCents : grossCents + feeCents;
+    if (net > 99999999999999n) { setNotice("O valor líquido excede o limite financeiro permitido."); return; }
+    const netAmount = `${net / 100n}.${String(net % 100n).padStart(2, "0")}`;
     setBusy(true); setNotice("");
     try {
       const { data, error } = await supabase.from("investment_operations").insert({
         user_id: session.user.id, asset_id: asset.id, operation_type: investmentOperationType,
-        operation_date: investmentDate, quantity: quantity.toFixed(8),
+        operation_date: investmentDate, quantity: quantityNormalized,
         unit_price: unitPrice, gross_amount: gross, fees,
-        net_amount: (Number(net) / 100).toFixed(2),
+        net_amount: netAmount,
       }).select("id,asset_id,operation_type,operation_date,quantity,unit_price,gross_amount,fees").single();
       if (error) throw error;
       setInvestmentOperations((current) => [...current, data as InvestmentOperationRow]);
