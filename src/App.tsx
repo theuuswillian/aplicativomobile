@@ -1348,7 +1348,6 @@ export default function App() {
                 <div className="overview-label">Saldo disponível <span aria-hidden="true">◉</span></div>
                 <strong>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Object.values(accountBalances).reduce((sum, value) => sum + value, 0))}</strong>
                 <small>{accounts.length} {accounts.length === 1 ? "conta conectada" : "contas cadastradas"}</small>
-                <div className="overview-sparkline" aria-hidden="true"><span/><span/><span/><span/><span/><span/><span/></div>
               </article>
               <article className="overview-stat"><span>Cartões utilizados</span><strong>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Object.values(cardCommittedAmounts).reduce((sum, value) => sum + value, 0))}</strong><small>Limite comprometido</small></article>
               <article className="overview-stat"><span>Cartões cadastrados</span><strong>{cards.length}</strong><small>{enabledAlerts} alertas ativos no Radar</small></article>
