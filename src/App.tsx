@@ -813,8 +813,8 @@ export default function App() {
     const amount = normalizeBrlAmount(incomeAmount);
     if (!investmentAssets.some((asset) => asset.id === incomeAssetId) || !amount || !incomeReferenceDate ||
         (incomePaymentDate && incomePaymentDate < incomeReferenceDate) ||
-        (incomeStatus === "received" && !incomePaymentDate)) {
-      setNotice("Confira o ativo, valor e datas. Proventos recebidos precisam ter data de pagamento.");
+        (["announced", "planned", "received"].includes(incomeStatus) && !incomePaymentDate)) {
+      setNotice("Confira o ativo, valor e datas. Proventos anunciados, previstos ou recebidos precisam ter data de pagamento.");
       return;
     }
     setBusy(true); setNotice("");
