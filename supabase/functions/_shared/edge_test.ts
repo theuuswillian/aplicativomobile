@@ -5,6 +5,7 @@ import { validateSettingsPatch } from "./settings-validation.ts";
 import { MAX_RECEIPT_BYTES, validateReceiptBase64 } from "./receipt-validation.ts";
 import { validateAssistantInput, validateAssistantOutput } from "./assistant-validation.ts";
 import { validateReceiptDraft } from "./receipt-ai-validation.ts";
+import { isRadarAlertId, validateRadarAlertInput, validateRadarAlertPatch } from "./radar-validation.ts";
 
 Deno.test("display name trims whitespace and rejects non-text or oversized input", () => {
   deepStrictEqual(validateDisplayName("  Ana  "), { ok: true, value: "Ana" });
@@ -153,4 +154,24 @@ Deno.test("CORS allowlist is exact and rejects unconfigured browser origins", ()
     if (previous === undefined) Deno.env.delete("APP_ORIGIN");
     else Deno.env.set("APP_ORIGIN", previous);
   }
+});
+
+Deno.test("Radar validates symbols, thresholds, conditions and rejects privileged fields", () => {
+  const valid = validateRadarAlertInput({
+    asset_class: "stock", symbol: "PETR4", condition_type: "above", threshold: 38.5,
+  });
+  strictEqual(valid.ok, true);
+  strictEqual(validateRadarAlertInput({
+    asset_class: "stock", symbol: "petr4", condition_type: "above", threshold: 38,
+  }).ok, false);
+  strictEqual(validateRadarAlertInput({
+    asset_class: "crypto", symbol: "BTC-USD", condition_type: "daily_drop", threshold: 101,
+  }).ok, false);
+  strictEqual(validateRadarAlertInput({
+    asset_class: "stock", symbol: "PETR4", condition_type: "above", threshold: 38, generation: 99,
+  }).ok, false);
+  strictEqual(validateRadarAlertPatch({ threshold: 10, is_enabled: true }).ok, false);
+  strictEqual(validateRadarAlertPatch({ condition_type: "daily_drop", threshold: 4 }).ok, true);
+  strictEqual(isRadarAlertId("20000000-0000-4000-8000-000000000001"), true);
+  strictEqual(isRadarAlertId("not-a-uuid"), false);
 });
