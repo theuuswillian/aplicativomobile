@@ -56,7 +56,22 @@ const INVESTMENT_CATALOG: Record<string, { name: string; assetClass: InvestmentA
   DIVO11:{name:"Itaú Dividendos",assetClass:"etf"},AAPL34:{name:"Apple (BDR)",assetClass:"bdr"},
   MSFT34:{name:"Microsoft (BDR)",assetClass:"bdr"},AMZO34:{name:"Amazon (BDR)",assetClass:"bdr"},
   GOGL34:{name:"Alphabet (BDR)",assetClass:"bdr"},NVDC34:{name:"NVIDIA (BDR)",assetClass:"bdr"},
-  TSLA34:{name:"Tesla (BDR)",assetClass:"bdr"},MELI34:{name:"MercadoLibre (BDR)",assetClass:"bdr"}
+  TSLA34:{name:"Tesla (BDR)",assetClass:"bdr"},MELI34:{name:"MercadoLibre (BDR)",assetClass:"bdr"},
+  BBSE3:{name:"BB Seguridade",assetClass:"stock"},BPAC11:{name:"BTG Pactual",assetClass:"stock"},SANB11:{name:"Santander Brasil",assetClass:"stock"},
+  CMIG4:{name:"Cemig",assetClass:"stock"},CPLE6:{name:"Copel",assetClass:"stock"},EGIE3:{name:"Engie Brasil",assetClass:"stock"},
+  EQTL3:{name:"Equatorial Energia",assetClass:"stock"},SUZB3:{name:"Suzano",assetClass:"stock"},KLBN11:{name:"Klabin",assetClass:"stock"},
+  VIVT3:{name:"Telefônica Brasil",assetClass:"stock"},TIMS3:{name:"TIM",assetClass:"stock"},TOTS3:{name:"Totvs",assetClass:"stock"},
+  RADL3:{name:"Raia Drogasil",assetClass:"stock"},FLRY3:{name:"Fleury",assetClass:"stock"},GGBR4:{name:"Gerdau",assetClass:"stock"},
+  CSNA3:{name:"CSN",assetClass:"stock"},CYRE3:{name:"Cyrela",assetClass:"stock"},MULT3:{name:"Multiplan",assetClass:"stock"},
+  CCRO3:{name:"CCR",assetClass:"stock"},SBSP3:{name:"Sabesp",assetClass:"stock"},
+  KNCR11:{name:"Kinea Rendimentos Imobiliários",assetClass:"fii"},KNIP11:{name:"Kinea Índices de Preços",assetClass:"fii"},
+  KNSC11:{name:"Kinea Securities",assetClass:"fii"},VGIR11:{name:"Valora RE III",assetClass:"fii"},VGHF11:{name:"Valora Hedge Fund",assetClass:"fii"},
+  GARE11:{name:"Guardian Real Estate",assetClass:"fii"},TRXF11:{name:"TRX Real Estate",assetClass:"fii"},PVBI11:{name:"VBI Prime Properties",assetClass:"fii"},
+  RBRF11:{name:"RBR Alpha Fundo de Fundos",assetClass:"fii"},HGRE11:{name:"Pátria Escritórios",assetClass:"fii"},
+  HSML11:{name:"Hedge Shopping Parque Dom Pedro",assetClass:"fii"},MALL11:{name:"Malls Brasil Plural",assetClass:"fii"},
+  ALZR11:{name:"Alianza Trust Renda Imobiliária",assetClass:"fii"},LVBI11:{name:"VBI Logístico",assetClass:"fii"},
+  GGRC11:{name:"GGR Covepi Renda",assetClass:"fii"},RZTR11:{name:"Riza Terrax",assetClass:"fii"},
+  JSRE11:{name:"JS Real Estate Multigestão",assetClass:"fii"},RECT11:{name:"REC Renda Imobiliária",assetClass:"fii"}
 };
 
 const THEME_STORAGE_KEY = "granaviva:theme:v1";
