@@ -110,15 +110,15 @@ A leitura do comprovante é atualmente efêmera: o arquivo é enviado para extra
 
 ## Validação pendente
 
-A última execução integral concluída com sucesso foi a PR workflow [#45304953668](https://github.com/theuuswillian/aplicativomobile/actions/runs/45304953668), no commit `44b2a24b77e073642a494a4a44567931aee287b8`. Todos os jobs passaram:
+O HEAD atual `bd53ebfc18aedeadf992aeaa5c75de7802291dd4` passou integralmente na execução [PR #45305286705](https://github.com/theuuswillian/aplicativomobile/actions/runs/45305286705). Todos os jobs concluíram com sucesso:
 - `validate`: lint, política arquitetural, verificação de segredos, shell, TypeScript, testes, build, Playwright, responsividade, offline e acessibilidade.
 - `edge-runtime`: type-check Deno e testes unitários.
 - `sql`: migrations, RLS, grants, isolamento e concorrência no PostgreSQL 17.
 - `edge-integration`: Auth local, perfil, preferências, CORS, Radar, Push e isolamento entre dois usuários.
 
-Depois dessa execução foi enviado um ajuste de UX no commit `6dbee6ab0eed95f522beb30d8c99778430562e35` para limitar consentimento a cada solicitação e limpar dados ao sair. Esse novo HEAD precisa concluir seu próprio CI; não se presume que o run anterior valide commits posteriores.
+O CI verde não significa que a Fase 3 esteja concluída. Permanecem integrações de cotação, envio Push, WhatsApp, módulos financeiros adicionais, armazenamento privado de comprovantes, configuração remota autorizada e validação manual no dispositivo.
 
-- HEAD consultado ao atualizar este documento: `6dbee6ab0eed95f522beb30d8c99778430562e35`.
+- HEAD consultado: `bd53ebfc18aedeadf992aeaa5c75de7802291dd4`.
 - [Branch Fase 3](https://github.com/theuuswillian/aplicativomobile/tree/fase-3-backend).
 - [PR #2](https://github.com/theuuswillian/aplicativomobile/pull/2), ainda draft e sem merge.
 - O teste local de integração cobre perfil, preferências, Radar e inscrições Push entre dois usuários.
