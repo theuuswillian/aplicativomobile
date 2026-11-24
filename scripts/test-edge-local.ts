@@ -213,7 +213,7 @@ try {
 
   const pushRegistered = await invoke("push-inscricoes", tokenA, {
     action: "registrar",
-    endpoint: "https://push.example.test/send/local-test-token",
+    endpoint: "https://fcm.googleapis.com/fcm/send/local-test-token",
     p256dh: "A".repeat(87),
     auth_key: "B".repeat(22),
     user_agent: "GranaViva Integration Test",
