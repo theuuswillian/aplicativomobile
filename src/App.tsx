@@ -513,6 +513,9 @@ export default function App() {
     }
     setBusy(true); setNotice("");
     try {
+      const permissionRequest = Notification.permission === "default"
+        ? Notification.requestPermission()
+        : Promise.resolve(Notification.permission);
       const registration = await navigator.serviceWorker.ready;
       const current = await registration.pushManager.getSubscription();
       if (current) {
@@ -533,7 +536,7 @@ export default function App() {
         setNotice("Notificações desativadas neste dispositivo.");
         return;
       }
-      const permission = await Notification.requestPermission();
+      const permission = await permissionRequest;
       if (permission !== "granted") throw new Error("Permissão de notificações não concedida.");
       const vapid = import.meta.env.VITE_PUSH_VAPID_PUBLIC_KEY;
       if (typeof vapid !== "string" || !/^[A-Za-z0-9_-]{80,100}$/.test(vapid)) {
