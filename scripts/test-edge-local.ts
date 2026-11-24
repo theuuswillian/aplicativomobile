@@ -118,7 +118,7 @@ try {
   );
 
   const profile = await invoke("minha-conta", tokenA, { action: "consultar" });
-  assert(profile.response.ok, "Usuário autenticado deve consultar seu perfil.");
+  assert(profile.response.ok, `Usuário autenticado deve consultar seu perfil (status=${profile.response.status}; body=${JSON.stringify(profile.body)}).`);
   assert(
     profile.response.headers.get("Access-Control-Allow-Origin") === allowedOrigin,
     `Resposta da função deve liberar somente a origem configurada (status=${profile.response.status}; allow-origin=${profile.response.headers.get("Access-Control-Allow-Origin") ?? "ausente"}; vary=${profile.response.headers.get("Vary") ?? "ausente"}; body=${JSON.stringify(profile.body)}).`,
