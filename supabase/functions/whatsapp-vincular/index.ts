@@ -60,15 +60,21 @@ Deno.serve(async (request: Request) => {
       if (rateError) return internalError(origin);
       if (!allowed) return jsonResponse({ error: { code: "RATE_LIMIT", message: "Você já gerou vários códigos. Tente novamente mais tarde." } }, 429, origin);
 
-      const code = generateCode();
-      const codeHash = await sha256Hex(code);
       const { error: clearError } = await admin.from("whatsapp_link_codes").delete().eq("user_id", userId);
       if (clearError) return internalError(origin);
       const expiresAt = new Date(Date.now() + 10 * 60_000).toISOString();
-      const { error: insertError } = await admin.from("whatsapp_link_codes").insert({
-        code_hash: codeHash, user_id: userId, expires_at: expiresAt,
-      });
-      if (insertError) return internalError(origin);
+      let code = "";
+      let inserted = false;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        code = generateCode();
+        const codeHash = await sha256Hex(code);
+        const { error: insertError } = await admin.from("whatsapp_link_codes").insert({
+          code_hash: codeHash, user_id: userId, expires_at: expiresAt,
+        });
+        if (!insertError) { inserted = true; break; }
+        if (insertError.code !== "23505") return internalError(origin);
+      }
+      if (!inserted) return internalError(origin);
 
       // Gerar um código não concede consentimento para resumos semanais.
       const { error: settingsError } = await auth.context.supabase.from("settings")
