@@ -55,7 +55,7 @@ returns text[]
 language sql
 immutable
 as $$
-  select string_to_array(p_name, '/')[1:2]
+  select (string_to_array(p_name, '/'))[1:2]
 $$;
 grant usage on schema storage to authenticated, service_role;
 grant select, insert, delete on storage.objects to authenticated;
