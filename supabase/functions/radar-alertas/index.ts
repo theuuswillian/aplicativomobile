@@ -38,7 +38,7 @@ Deno.serve(async (request: Request) => {
     }
 
     if (body.action === "criar") {
-      const { action: _action, ...input } = body;
+      const input = Object.fromEntries(Object.entries(body).filter(([key]) => key !== "action"));
       const validated = validateRadarAlertInput(input);
       if (!validated.ok) {
         return jsonResponse({ error: { code: "INVALID_ALERT", message: "Dados do alerta inválidos." } }, 400, origin);
@@ -54,7 +54,7 @@ Deno.serve(async (request: Request) => {
       if (!isRadarAlertId(body.id)) {
         return jsonResponse({ error: { code: "INVALID_ALERT_ID", message: "Identificador do alerta inválido." } }, 400, origin);
       }
-      const { action: _action, id: _id, ...input } = body;
+      const input = Object.fromEntries(Object.entries(body).filter(([key]) => key !== "action" && key !== "id"));
       const current = await db.from("radar_alerts").select("condition_type, threshold")
         .eq("id", body.id).eq("user_id", userId).maybeSingle();
       if (current.error) return internalError(origin);
