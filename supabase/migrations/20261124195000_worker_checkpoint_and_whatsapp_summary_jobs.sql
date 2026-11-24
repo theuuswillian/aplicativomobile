@@ -105,7 +105,7 @@ grant execute on function public.radar_worker_checkpoint(text,uuid,timestamptz,u
 create table public.whatsapp_weekly_summary_jobs (
   user_id uuid not null references auth.users(id) on delete cascade,
   week_start date not null,
-  phone text not null check (phone ~ '^\\+[1-9][0-9]{7,14}$'),
+  phone text not null check (phone ~ '^\+[1-9][0-9]{7,14}$'),
   message text not null check (length(message) between 1 and 4096),
   status text not null default 'pending'
     check (status in ('pending','processing','sent','uncertain','failed','skipped')),
@@ -154,7 +154,7 @@ set search_path = pg_catalog, public
 as $$
 begin
   if p_user_id is null or p_week is null
-     or p_phone is null or p_phone !~ '^\\+[1-9][0-9]{7,14}$'
+     or p_phone is null or p_phone !~ '^\+[1-9][0-9]{7,14}$'
      or p_message is null or length(p_message) not between 1 and 4096 then
     raise exception 'Parâmetros inválidos para resumo semanal';
   end if;
