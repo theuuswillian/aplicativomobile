@@ -39,6 +39,17 @@ type TransactionRow = { id: string; kind: "income" | "expense" | "transfer"; sta
 type ImportPreviewRow = ImportRow & { dedupeKey: string; duplicate: boolean };
 type ReceiptFileRow = { id: string; transaction_id: string; storage_path: string; mime_type: string; byte_size: number; created_at: string };
 type ReceiptDraft = { sufficient: boolean; kind: "income" | "expense" | null; amount: string | null; date: string | null; description: string | null; category: string | null; payment_method: string | null; installment_count: number | null; card_last_four: string | null; confidence: number; warnings: string[] };
+const INVESTMENT_CATALOG: Record<string, { name: string; assetClass: InvestmentAssetRow["asset_class"] }> = {
+  PETR3:{name:"Petrobras",assetClass:"stock"},PETR4:{name:"Petrobras",assetClass:"stock"},VALE3:{name:"Vale",assetClass:"stock"},
+  ITUB4:{name:"Itaú Unibanco",assetClass:"stock"},BBDC4:{name:"Bradesco",assetClass:"stock"},BBAS3:{name:"Banco do Brasil",assetClass:"stock"},
+  WEGE3:{name:"WEG",assetClass:"stock"},ABEV3:{name:"Ambev",assetClass:"stock"},B3SA3:{name:"B3",assetClass:"stock"},
+  RENT3:{name:"Localiza",assetClass:"stock"},MGLU3:{name:"Magazine Luiza",assetClass:"stock"},LREN3:{name:"Lojas Renner",assetClass:"stock"},
+  HGLG11:{name:"Pátria Logística",assetClass:"fii"},MXRF11:{name:"Maxi Renda",assetClass:"fii"},KNRI11:{name:"Kinea Renda Imobiliária",assetClass:"fii"},
+  XPLG11:{name:"XP Log",assetClass:"fii"},VISC11:{name:"Vinci Shopping Centers",assetClass:"fii"},CPTS11:{name:"Capitânia Securities II",assetClass:"fii"},
+  IVVB11:{name:"iShares S&P 500",assetClass:"etf"},BOVA11:{name:"iShares Ibovespa",assetClass:"etf"},SMAL11:{name:"iShares Small Cap",assetClass:"etf"},
+  HASH11:{name:"Hashdex Nasdaq Crypto",assetClass:"etf"}
+};
+
 const THEME_STORAGE_KEY = "granaviva:theme:v1";
 
 function getInitialTheme(): Theme {
@@ -1404,8 +1415,27 @@ export default function App() {
             
               <section className="subpanel" id="patrimonio-investimentos" aria-labelledby="investments-title">
                 <div className="transaction-heading"><strong id="investments-title">Carteira de investimentos</strong><span>{investmentAssets.length} ativos</span></div>
+                {investmentAssets.length > 0 && <div className="investment-allocation" aria-label="Distribuição da carteira">
+                  <div className="transaction-heading"><strong>Alocação da carteira</strong><span>Por ativo</span></div>
+                  {(() => {
+                    const rows = investmentAssets.map((asset) => {
+                      const summary = investmentSummary(asset.id);
+                      const manualValue = asset.current_price != null ? Math.max(0, Number(asset.current_price) * summary.quantity) : 0;
+                      const amount = summary.quantity > 0 ? (manualValue > 0 ? manualValue : summary.costBasisCents / 100) : 0;
+                      return { asset, amount, estimated: asset.current_price == null };
+                    }).filter((item) => Number.isFinite(item.amount) && item.amount > 0);
+                    const total = rows.reduce((sum, item) => sum + item.amount, 0);
+                    const colors = ["#36e38b","#64a6ff","#c28cff","#f5bd5c","#ff8c8c","#55d6c2","#a6b7c7","#d6dc72"];
+                    let cursor = 0;
+                    const gradient = rows.map((item, index) => {
+                      const start = cursor; cursor += item.amount / total * 100;
+                      return `${colors[index % colors.length]} ${start}% ${cursor}%`;
+                    }).join(", ");
+                    return total > 0 ? <><div className="allocation-chart-row"><div className="allocation-donut" role="img" aria-label={`Gráfico de alocação total de ${new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(total)}`} style={{ background: `conic-gradient(${gradient})` }}><span>{new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL",notation:"compact",maximumFractionDigits:1}).format(total)}</span></div><ul className="allocation-legend">{rows.sort((a,b)=>b.amount-a.amount).map(({asset,amount,estimated},index)=><li key={asset.id}><span className="allocation-dot" style={{background:colors[investmentAssets.findIndex((entry)=>entry.id===asset.id)%colors.length]}}/><span><strong>{asset.symbol}</strong><small>{estimated ? "Custo investido (sem cotação)" : "Preço de referência manual"}</small></span><b>{(amount/total*100).toLocaleString("pt-BR",{maximumFractionDigits:1})}%</b></li>)}</ul></div><p className="helper-text">A distribuição usa preço de referência manual quando disponível; nos demais ativos, usa o custo investido. Não representa cotação de mercado nem rentabilidade atual.</p></> : <p className="empty-state">Registre operações para visualizar a distribuição da carteira.</p>;
+                  })()}
+                </div>}
                 <form className="finance-form" onSubmit={(event) => void createInvestmentAsset(event)}>
-                  <label>Ticker<input value={investmentSymbol} onChange={(event) => setInvestmentSymbol(event.target.value.toUpperCase())} maxLength={32} placeholder="Ex.: PETR4" required /></label>
+                  <label>Ticker ou nome<input list="investment-symbol-suggestions" value={investmentSymbol} onChange={(event) => { const value = event.target.value.toUpperCase(); setInvestmentSymbol(value); const match = INVESTMENT_CATALOG[value.trim()]; if (match) { setInvestmentName(match.name); setInvestmentClass(match.assetClass); setInvestmentCurrency("BRL"); } }} maxLength={32} placeholder="Digite PETR4, MXRF11..." required /><datalist id="investment-symbol-suggestions">{Object.entries(INVESTMENT_CATALOG).filter(([ticker]) => investmentSymbol.length < 2 || ticker.includes(investmentSymbol.toUpperCase())).map(([ticker, item]) => <option key={ticker} value={ticker}>{item.name}</option>)}</datalist></label>
                   <label>Nome do ativo<input value={investmentName} onChange={(event) => setInvestmentName(event.target.value)} maxLength={120} placeholder="Nome ou descrição" required /></label>
                   <label>Classe<select value={investmentClass} onChange={(event) => setInvestmentClass(event.target.value as InvestmentAssetRow["asset_class"])}><option value="stock">Ação</option><option value="fii">FII</option><option value="etf">ETF</option><option value="bdr">BDR</option><option value="fixed_income">Renda fixa</option><option value="crypto">Cripto</option></select></label>
                   <label>Moeda<select value={investmentCurrency} onChange={(event) => setInvestmentCurrency(event.target.value as "BRL" | "USD")}><option value="BRL">BRL</option><option value="USD">USD</option></select></label>
@@ -1415,10 +1445,10 @@ export default function App() {
                   <label>Ativo<select value={investmentAssetId} onChange={(event) => setInvestmentAssetId(event.target.value)} required>{investmentAssets.map((asset) => <option key={asset.id} value={asset.id}>{asset.symbol} · {asset.name}</option>)}</select></label>
                   <label>Operação<select value={investmentOperationType} onChange={(event) => setInvestmentOperationType(event.target.value as "opening" | "buy" | "sell")}><option value="buy">Compra</option><option value="sell">Venda</option><option value="opening">Posição inicial</option></select></label>
                   <label>Quantidade<input inputMode="decimal" value={investmentQuantity} onChange={(event) => setInvestmentQuantity(event.target.value)} placeholder="Ex.: 10" required /></label>
-                  <label>Preço unitário ({investmentAssets.find((item) => item.id === investmentAssetId)?.currency ?? "BRL"})<input inputMode="decimal" value={investmentUnitPrice} onChange={(event) => setInvestmentUnitPrice(event.target.value)} placeholder="0,00" required /></label>
+                  <label>Preço unitário ({investmentAssets.find((item) => item.id === investmentAssetId)?.currency ?? "BRL"})<input inputMode="decimal" value={investmentUnitPrice} onChange={(event) => setInvestmentUnitPrice(event.target.value)} placeholder="Informe o preço de referência" required /></label>
                   <label>Taxas ({investmentAssets.find((item) => item.id === investmentAssetId)?.currency ?? "BRL"})<input inputMode="decimal" value={investmentFees} onChange={(event) => setInvestmentFees(event.target.value)} required /></label>
                   <label>Data<input type="date" value={investmentDate} onChange={(event) => setInvestmentDate(event.target.value)} required /></label>
-                  <button className="primary-button" type="submit" disabled={busy}>Registrar operação</button>
+                  <p className="investment-total-preview" aria-live="polite">Total estimado da operação: <strong>{(() => { const q = Number(investmentQuantity.trim().replace(",", ".")); const p = Number(investmentUnitPrice.trim().replace(",", ".")); const f = Number(investmentFees.trim().replace(",", ".")); const total = q * p + (investmentOperationType === "sell" ? -f : f); return Number.isFinite(total) && q > 0 && p > 0 ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: investmentAssets.find((item) => item.id === investmentAssetId)?.currency ?? "BRL" }).format(total) : "—"; })()}</strong></p>\n                  <button className="primary-button" type="submit" disabled={busy}>Registrar operação</button>
                 </form>}
                 {investmentAssets.length === 0 ? <p className="empty-state">Adicione seus ativos e registre posições iniciais, compras e vendas.</p> : <ul className="account-list">{investmentAssets.map((asset) => {
                   const summary = investmentSummary(asset.id);
