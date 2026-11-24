@@ -834,13 +834,23 @@ export default function App() {
       setNotice("Informe um ticker válido e o nome do ativo.");
       return;
     }
-    setBusy(true); setNotice("");
-    try {
-      const fixedRate = fixedIncomeRate.trim().replace(",", ".");
-    if (investmentClass === "fixed_income" && (!fixedIncomeProduct.trim() || !fixedIncomeStart || !/^\\d{4}-\\d{2}-\\d{2}$/.test(fixedIncomeStart) || !/^\\d{4}-\\d{2}-\\d{2}$/.test(fixedIncomeMaturity) || fixedIncomeMaturity <= fixedIncomeStart || !/^\\d{4}-\\d{2}-\\d{2}$/.test(fixedIncomeNextYieldDate) || fixedIncomeNextYieldDate < fixedIncomeStart || fixedIncomeNextYieldDate > fixedIncomeMaturity || !/^[0-9]{1,3}(?:[.][0-9]{1,4})?$/.test(fixedRate) || Number(fixedRate) <= 0 || Number(fixedRate) > 1000)) {
-      setNotice("Confira o produto, indexador, taxa e datas da renda fixa."); return;
+    const fixedRate = fixedIncomeRate.trim().replace(",", ".");
+    if (investmentClass === "fixed_income" && (!fixedIncomeProduct.trim() || !fixedIncomeStart ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(fixedIncomeStart) ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(fixedIncomeMaturity) || fixedIncomeMaturity <= fixedIncomeStart ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(fixedIncomeNextYieldDate) ||
+        fixedIncomeNextYieldDate < fixedIncomeStart || fixedIncomeNextYieldDate > fixedIncomeMaturity ||
+        !/^[0-9]{1,3}(?:[.][0-9]{1,4})?$/.test(fixedRate) || Number(fixedRate) <= 0 || Number(fixedRate) > 1000)) {
+      setNotice("Confira o produto, indexador, taxa e datas da renda fixa.");
+      return;
     }
-    const metadata = investmentClass === "fixed_income" ? { fixed_income: { product: fixedIncomeProduct, issuer: fixedIncomeIssuer.trim(), indexer: fixedIncomeIndexer, annual_rate_percent: fixedRate, start_date: fixedIncomeStart, maturity_date: fixedIncomeMaturity, next_yield_date: fixedIncomeNextYieldDate, yield_frequency: fixedIncomeFrequency } } : {};
+    const metadata = investmentClass === "fixed_income" ? {
+      fixed_income: {
+        product: fixedIncomeProduct, issuer: fixedIncomeIssuer.trim(), indexer: fixedIncomeIndexer,
+        annual_rate_percent: fixedRate, start_date: fixedIncomeStart, maturity_date: fixedIncomeMaturity,
+        next_yield_date: fixedIncomeNextYieldDate, yield_frequency: fixedIncomeFrequency,
+      },
+    } : {};
     setBusy(true); setNotice("");
     try {
       const { data, error } = await supabase.from("investment_assets").insert({
@@ -852,7 +862,8 @@ export default function App() {
       setInvestmentAssets((current) => [...current, created].sort((a,b) => a.symbol.localeCompare(b.symbol)));
       setInvestmentAssetId(created.id);
       setInvestmentSymbol(""); setInvestmentName("");
-      setFixedIncomeIssuer(""); setFixedIncomeRate(""); setFixedIncomeMaturity(""); setFixedIncomeNextYieldDate(""); setFixedIncomeStart(todayInBrazil());
+      setFixedIncomeIssuer(""); setFixedIncomeRate(""); setFixedIncomeMaturity("");
+      setFixedIncomeNextYieldDate(""); setFixedIncomeStart(todayInBrazil());
       setNotice("Ativo adicionado à carteira. A cotação ainda não está conectada.");
     } catch (error) { setNotice(errorMessage(error)); }
     finally { setBusy(false); }
