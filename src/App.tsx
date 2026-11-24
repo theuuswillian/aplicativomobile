@@ -20,6 +20,7 @@ type CardRow = { id: string; name: string; institution_name: string; last_four: 
 type CategoryRow = { id: string; name: string; kind: "income" | "expense"; color: string | null; icon: string | null };
 type RecurrenceRow = { id: string; name: string; kind: "income" | "expense"; amount: string; frequency: RecurrenceFrequency; interval_count: number; weekday: number | null; month_day: number | null; month_of_year: number | null; starts_on: string; ends_on: string | null; next_occurrence_on: string; account_id: string | null; card_id: string | null; is_active: boolean };
 type BudgetRow = { id: string; category_id: string; year: number; month: number; limit_amount: string };
+type GoalRow = { id: string; name: string; target_amount: string; current_amount: string; monthly_contribution: string; target_month: string | null };
 type BudgetSpendRow = { category_id: string | null; settled_amount: string };
 type TransactionRow = { id: string; kind: "income" | "expense" | "transfer"; status: "paid" | "planned" | "cancelled"; amount: string; transaction_date: string; description: string; account_id: string | null };
 type ReceiptDraft = { sufficient: boolean; kind: "income" | "expense" | null; amount: string | null; date: string | null; description: string | null; category: string | null; payment_method: string | null; installment_count: number | null; card_last_four: string | null; confidence: number; warnings: string[] };
@@ -90,6 +91,12 @@ export default function App() {
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [recurrences, setRecurrences] = useState<RecurrenceRow[]>([]);
   const [budgets, setBudgets] = useState<BudgetRow[]>([]);
+  const [goals, setGoals] = useState<GoalRow[]>([]);
+  const [goalName, setGoalName] = useState("");
+  const [goalTarget, setGoalTarget] = useState("");
+  const [goalMonthly, setGoalMonthly] = useState("0,00");
+  const [goalTargetMonth, setGoalTargetMonth] = useState("");
+  const [goalContributionAmounts, setGoalContributionAmounts] = useState<Record<string, string>>({});
   const [budgetSpend, setBudgetSpend] = useState<BudgetSpendRow[]>([]);
   const [transactions, setTransactions] = useState<TransactionRow[]>([]);
   const [cardName, setCardName] = useState("");
@@ -157,7 +164,7 @@ export default function App() {
       setSession(nextSession);
       setNotice("");
       if (!nextSession || event === "SIGNED_IN") {
-        setProfile(null); setAlerts([]); setAccounts([]); setCards([]); setCategories([]); setRecurrences([]); setBudgets([]); setBudgetSpend([]); setTransactions([]); setTxCategoryId(""); setBudgetCategoryId(""); setBudgetLimit(""); setRecurrenceCategoryId(""); setRecurrenceAccountId(""); setRecurrenceCardId(""); setRecurrenceName(""); setRecurrenceAmount(""); setRecurrenceEnd(""); setRecurrenceStart(todayInBrazil());
+        setProfile(null); setAlerts([]); setAccounts([]); setCards([]); setCategories([]); setRecurrences([]); setBudgets([]); setGoals([]); setGoalName(""); setGoalTarget(""); setGoalMonthly("0,00"); setGoalTargetMonth(""); setGoalContributionAmounts({}); setBudgetSpend([]); setTransactions([]); setTxCategoryId(""); setBudgetCategoryId(""); setBudgetLimit(""); setRecurrenceCategoryId(""); setRecurrenceAccountId(""); setRecurrenceCardId(""); setRecurrenceName(""); setRecurrenceAmount(""); setRecurrenceEnd(""); setRecurrenceStart(todayInBrazil());
         setTxAccountId(""); setTxCardId(""); setReceiptAccountId(""); setEditingTransactionId(null);
         setAssistantAnswer(""); setAssistantQuestion(""); setAssistantConsent(false);
         setReceiptDraft(null); setReceiptFile(null); setReceiptConsent(false);
@@ -172,7 +179,7 @@ export default function App() {
     let active = true;
     const load = async () => {
       try {
-        const [account, preferences, radar, accountRows, transactionRows, cardRows, categoryRows, recurrenceRows, budgetRows, budgetSpendRows] = await Promise.all([
+        const [account, preferences, radar, accountRows, transactionRows, cardRows, categoryRows, recurrenceRows, budgetRows, budgetSpendRows, goalRows] = await Promise.all([
           client.functions.invoke("minha-conta", { body: { action: "consultar" } }),
           client.functions.invoke("minhas-preferencias", { body: { action: "consultar" } }),
           client.functions.invoke("radar-alertas", { body: { action: "consultar" } }),
@@ -183,6 +190,7 @@ export default function App() {
           client.from("recurrence_rules").select("id,name,kind,amount,frequency,interval_count,weekday,month_day,month_of_year,starts_on,ends_on,next_occurrence_on,account_id,card_id,is_active").eq("user_id", session.user.id).order("next_occurrence_on", { ascending: true }),
           client.from("budgets").select("id,category_id,year,month,limit_amount").eq("user_id", session.user.id).eq("year", currentBudgetYear).eq("month", currentBudgetMonth).order("created_at", { ascending: true }),
           client.from("transactions").select("category_id,settled_amount").eq("user_id", session.user.id).eq("kind", "expense").eq("status", "paid").gte("transaction_date", currentBudgetMonthStart).lt("transaction_date", nextBudgetMonthStart).limit(10000),
+          client.from("goals").select("id,name,target_amount,current_amount,monthly_contribution,target_month").eq("user_id", session.user.id).order("created_at", { ascending: true }),
         ]);
         if (account.error) throw account.error;
         if (preferences.error) throw preferences.error;
@@ -194,6 +202,7 @@ export default function App() {
         if (recurrenceRows.error) throw recurrenceRows.error;
         if (budgetRows.error) throw budgetRows.error;
         if (budgetSpendRows.error) throw budgetSpendRows.error;
+        if (goalRows.error) throw goalRows.error;
         if (!active) return;
         setProfile(account.data?.data?.profile ?? null);
         const serverTheme = preferences.data?.data?.theme;
@@ -205,6 +214,7 @@ export default function App() {
         setRecurrences((recurrenceRows.data ?? []) as RecurrenceRow[]);
         setBudgets((budgetRows.data ?? []) as BudgetRow[]);
         setBudgetSpend((budgetSpendRows.data ?? []) as BudgetSpendRow[]);
+        setGoals((goalRows.data ?? []) as GoalRow[]);
         setTransactions((transactionRows.data ?? []) as TransactionRow[]);
         if (accountRows.data?.[0]?.id) setTxAccountId((current) => current || accountRows.data[0].id);
         if (accountRows.data?.[0]?.id) setReceiptAccountId((current) => current || accountRows.data[0].id);
@@ -372,6 +382,50 @@ export default function App() {
         .sort((a,b) => a.category_id.localeCompare(b.category_id)));
       setBudgetLimit("");
       setNotice("Limite mensal salvo. O acompanhamento considera apenas despesas realizadas.");
+    } catch (error) { setNotice(errorMessage(error)); }
+    finally { setBusy(false); }
+  }
+
+  async function createGoal(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase || !session) return;
+    const target = normalizeBrlAmount(goalTarget);
+    const monthly = normalizeBrlAmount(goalMonthly, true);
+    if (!goalName.trim() || goalName.trim().length > 100 || !target || !monthly ||
+        (goalTargetMonth && !/^\\d{4}-\\d{2}$/.test(goalTargetMonth))) {
+      setNotice("Confira o nome, o valor da meta, a contribuição mensal e o mês desejado.");
+      return;
+    }
+    setBusy(true); setNotice("");
+    try {
+      const { data, error } = await supabase.from("goals").insert({
+        user_id: session.user.id, name: goalName.trim(), target_amount: target,
+        monthly_contribution: monthly, target_month: goalTargetMonth ? `${goalTargetMonth}-01` : null,
+      }).select("id,name,target_amount,current_amount,monthly_contribution,target_month").single();
+      if (error) throw error;
+      setGoals((current) => [...current, data as GoalRow]);
+      setGoalName(""); setGoalTarget(""); setGoalMonthly("0,00"); setGoalTargetMonth("");
+      setNotice("Meta criada. Registre contribuições para acompanhar o progresso.");
+    } catch (error) { setNotice(errorMessage(error)); }
+    finally { setBusy(false); }
+  }
+
+  async function contributeToGoal(goal: GoalRow) {
+    if (!supabase || !session) return;
+    const amount = normalizeBrlAmount(goalContributionAmounts[goal.id] ?? "");
+    if (!amount) { setNotice("Informe um valor válido para a contribuição."); return; }
+    setBusy(true); setNotice("");
+    try {
+      const { data, error } = await supabase.rpc("add_goal_contribution", {
+        p_goal_id: goal.id, p_amount: amount, p_contribution_date: todayInBrazil(),
+      });
+      if (error) throw error;
+      const result = Array.isArray(data) ? data[0] : data;
+      if (!result || typeof result.current_amount !== "string") throw new Error("Não foi possível confirmar o saldo atualizado da meta.");
+      setGoals((current) => current.map((item) => item.id === goal.id
+        ? { ...item, current_amount: result.current_amount } : item));
+      setGoalContributionAmounts((current) => ({ ...current, [goal.id]: "" }));
+      setNotice("Contribuição registrada no histórico da meta.");
     } catch (error) { setNotice(errorMessage(error)); }
     finally { setBusy(false); }
   }
@@ -764,6 +818,33 @@ export default function App() {
                 })}</ul>}
                 <p className="helper-text">O gasto considera somente lançamentos de despesa com situação realizada e valor efetivamente liquidado no mês atual. Despesas previstas não entram no cálculo.</p>
               </section>
+              <section className="subpanel" aria-labelledby="goals-title">
+                <div className="transaction-heading"><strong id="goals-title">Metas financeiras</strong><span>{goals.length} cadastradas</span></div>
+                <form className="finance-form" onSubmit={(event) => void createGoal(event)}>
+                  <label>Nome da meta<input value={goalName} onChange={(event) => setGoalName(event.target.value)} maxLength={100} placeholder="Ex.: Reserva de emergência" required /></label>
+                  <label>Valor desejado (R$)<input inputMode="decimal" value={goalTarget} onChange={(event) => setGoalTarget(event.target.value)} placeholder="0,00" required /></label>
+                  <label>Contribuição mensal planejada (R$)<input inputMode="decimal" value={goalMonthly} onChange={(event) => setGoalMonthly(event.target.value)} placeholder="0,00" required /></label>
+                  <label>Mês desejado (opcional)<input type="month" value={goalTargetMonth} onChange={(event) => setGoalTargetMonth(event.target.value)} /></label>
+                  <button className="primary-button" type="submit" disabled={busy}>Criar meta</button>
+                </form>
+                {goals.length === 0 ? <p className="empty-state">Crie uma meta e registre contribuições para acompanhar sua evolução.</p> : <ul className="account-list">{goals.map((goal) => {
+                  const current = decimalToCents(goal.current_amount);
+                  const target = decimalToCents(goal.target_amount);
+                  const percent = target > 0n ? Number((current * 100n) / target) : 0;
+                  const reached = current >= target;
+                  return <li key={goal.id}>
+                    <strong>{goal.name}</strong>
+                    <span>{formatCents(current)} de {formatCents(target)}</span>
+                    <progress className="budget-progress" max={100} value={Math.min(100, percent)} aria-label={`Progresso da meta ${goal.name}`} />
+                    <small>{Math.min(100, percent)}% concluído{reached ? " · Meta alcançada" : goal.target_month ? ` · Prazo: ${new Date(`${goal.target_month}T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}` : ""} · Planejado por mês: {formatCents(decimalToCents(goal.monthly_contribution))}</small>
+                    <form className="finance-form" onSubmit={(event) => { event.preventDefault(); void contributeToGoal(goal); }}>
+                      <label>Adicionar contribuição (R$)<input inputMode="decimal" value={goalContributionAmounts[goal.id] ?? ""} onChange={(event) => setGoalContributionAmounts((currentAmounts) => ({ ...currentAmounts, [goal.id]: event.target.value }))} placeholder="0,00" required /></label>
+                      <button className="primary-button" type="submit" disabled={busy}>Registrar contribuição</button>
+                    </form>
+                  </li>;
+                })}</ul>}
+                <p className="helper-text">As contribuições são registradas em histórico e atualizam o total de forma atômica. O valor planejado mensal não é contabilizado como dinheiro guardado.</p>
+              </section>
               <section className="subpanel" aria-labelledby="recurrences-title">
                 <div className="transaction-heading"><strong id="recurrences-title">Recorrências</strong><span>{recurrences.filter((rule) => rule.is_active).length} ativas</span></div>
                 <form className="finance-form" onSubmit={(event) => void createRecurrence(event)}>
@@ -837,7 +918,7 @@ export default function App() {
               <p className="muted-copy">A confirmação cria somente o lançamento. O armazenamento privado do arquivo e o vínculo do anexo ainda serão implementados separadamente.</p>
             </section>
 
-            <section className="panel coming-panel"><span className="principles-label">PRÓXIMAS CONEXÕES</span><h2>Seu financeiro em expansão</h2><p>Investimentos, importações, metas, recorrências, notificações e automações serão conectados em etapas testadas, preservando a separação entre valores realizados e previstos.</p></section>
+            <section className="panel coming-panel"><span className="principles-label">PRÓXIMAS CONEXÕES</span><h2>Seu financeiro em expansão</h2><p>Investimentos, importações, notificações e automações serão conectados em etapas testadas, preservando a separação entre valores realizados e previstos.</p></section>
             {notice && <p className="notice" role="status">{notice}</p>}
           </section>
         )}
