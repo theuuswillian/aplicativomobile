@@ -6,6 +6,7 @@ import { MAX_RECEIPT_BYTES, validateReceiptBase64 } from "./receipt-validation.t
 import { validateAssistantInput, validateAssistantOutput } from "./assistant-validation.ts";
 import { validateReceiptDraft } from "./receipt-ai-validation.ts";
 import { isRadarAlertId, validateRadarAlertInput, validateRadarAlertPatch } from "./radar-validation.ts";
+import { isPushSubscriptionId, validatePushSubscription } from "./push-validation.ts";
 
 Deno.test("display name trims whitespace and rejects non-text or oversized input", () => {
   deepStrictEqual(validateDisplayName("  Ana  "), { ok: true, value: "Ana" });
@@ -174,4 +175,27 @@ Deno.test("Radar validates symbols, thresholds, conditions and rejects privilege
   strictEqual(validateRadarAlertPatch({ condition_type: "daily_drop", threshold: 4 }).ok, true);
   strictEqual(isRadarAlertId("20000000-0000-4000-8000-000000000001"), true);
   strictEqual(isRadarAlertId("not-a-uuid"), false);
+});
+
+Deno.test("push subscriptions require HTTPS endpoints and valid browser keys", () => {
+  const valid = validatePushSubscription({
+    endpoint: "https://push.example.test/send/opaque-token",
+    p256dh: "A".repeat(87),
+    auth_key: "B".repeat(22),
+    user_agent: "Test Browser",
+  });
+  strictEqual(valid.ok, true);
+  strictEqual(validatePushSubscription({
+    endpoint: "http://push.example.test/send/token",
+    p256dh: "A".repeat(87), auth_key: "B".repeat(22),
+  }).ok, false);
+  strictEqual(validatePushSubscription({
+    endpoint: "https://user:pass@push.example.test/send/token",
+    p256dh: "A".repeat(87), auth_key: "B".repeat(22),
+  }).ok, false);
+  strictEqual(validatePushSubscription({
+    endpoint: "https://push.example.test/send/token",
+    p256dh: "A".repeat(10), auth_key: "B".repeat(22),
+  }).ok, false);
+  strictEqual(isPushSubscriptionId("20000000-0000-4000-8000-000000000001"), true);
 });
