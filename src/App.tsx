@@ -37,7 +37,7 @@ function todayInBrazil(): string {
 
 function normalizeBrlAmount(value: string, allowZero = false, allowNegative = false): string | null {
   const input = value.trim();
-  if (!/^ -?\d{1,10}(?:,\d{1,2})?$/.test(input.replace(/^/, " "))) return null;
+  if (!/^-?\d{1,10}(?:,\d{1,2})?$/.test(input)) return null;
   const negative = input.startsWith("-");
   if (negative && !allowNegative) return null;
   const unsigned = negative ? input.slice(1) : input;
@@ -423,6 +423,58 @@ export default function App() {
                 </ul>
               )}
             </section>
+            <section className="panel" aria-labelledby="accounts-title">
+              <div className="panel-heading"><div><span className="principles-label">BASE FINANCEIRA</span><h2 id="accounts-title">Contas e lançamentos</h2><p>Cadastre suas contas e registre receitas e despesas. Valores previstos permanecem separados dos realizados.</p></div></div>
+              <form className="finance-form" onSubmit={(event) => void createAccount(event)}>
+                <label>Nome da conta<input value={accountName} onChange={(event) => setAccountName(event.target.value)} maxLength={100} placeholder="Ex.: Conta principal" required /></label>
+                <label>Tipo<select value={accountType} onChange={(event) => setAccountType(event.target.value)}><option value="checking">Conta corrente</option><option value="savings">Poupança</option><option value="cash">Dinheiro</option><option value="investment">Investimentos</option><option value="other">Outra</option></select></label>
+                <label>Saldo inicial (R$)<input inputMode="decimal" value={openingBalance} onChange={(event) => setOpeningBalance(event.target.value)} placeholder="0,00" required /></label>
+                <button className="primary-button" type="submit" disabled={busy}>Adicionar conta</button>
+              </form>
+              {accounts.length > 0 ? <ul className="account-list">{accounts.map((account) => <li key={account.id}><strong>{account.name}{account.is_primary ? " · Principal" : ""}</strong><span>{account.account_type}</span><small>Saldo inicial: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(account.opening_balance))}</small></li>)}</ul> : <p className="empty-state">Cadastre sua primeira conta para começar.</p>}
+              <form className="finance-form transaction-form" onSubmit={(event) => void createTransaction(event)}>
+                <label>Tipo de lançamento<select value={txKind} onChange={(event) => setTxKind(event.target.value as "income" | "expense")}><option value="expense">Despesa</option><option value="income">Receita</option></select></label>
+                <label>Situação<select value={txStatus} onChange={(event) => setTxStatus(event.target.value as "paid" | "planned")}><option value="paid">Realizado</option><option value="planned">Previsto</option></select></label>
+                <label>Valor (R$)<input inputMode="decimal" value={txAmount} onChange={(event) => setTxAmount(event.target.value)} placeholder="0,00" required /></label>
+                <label>Data<input type="date" value={txDate} onChange={(event) => setTxDate(event.target.value)} required /></label>
+                <label>Conta<select value={txAccountId} onChange={(event) => setTxAccountId(event.target.value)} required><option value="">Selecione</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
+                <label className="wide-field">Descrição<input value={txDescription} onChange={(event) => setTxDescription(event.target.value)} maxLength={240} placeholder="Ex.: Mercado" required /></label>
+                <button className="primary-button" type="submit" disabled={busy || accounts.length === 0}>Salvar lançamento</button>
+              </form>
+              <div className="transaction-heading"><strong>Últimos lançamentos</strong><span>Até 30 registros</span></div>
+              {transactions.length === 0 ? <p className="empty-state">Seus lançamentos aparecerão aqui.</p> : <ul className="transaction-list">{transactions.map((item) => <li key={item.id}><div><strong>{item.description}</strong><span>{item.kind === "income" ? "Receita" : item.kind === "expense" ? "Despesa" : "Transferência"} · {item.status === "paid" ? "Realizado" : item.status === "planned" ? "Previsto" : "Cancelado"}</span><small>{new Date(item.transaction_date + "T12:00:00").toLocaleDateString("pt-BR")}</small></div><strong className={item.kind === "income" ? "income-value" : "expense-value"}>{item.kind === "income" ? "+" : item.kind === "expense" ? "−" : ""}{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(item.amount))}</strong></li>)}</ul>}
+            </section>
+
+            <section className="panel" aria-labelledby="assistant-title">
+              <span className="principles-label">INTELIGÊNCIA ARTIFICIAL COM CONTROLE</span>
+              <h2 id="assistant-title">Assistente financeiro</h2>
+              <p>Faça uma pergunta sobre seus lançamentos recentes. Nenhum dado é enviado sem sua confirmação explícita nesta solicitação.</p>
+              <form className="assistant-form" onSubmit={(event) => void askAssistant(event)}>
+                <label>Pergunta<textarea value={assistantQuestion} onChange={(event) => setAssistantQuestion(event.target.value)} maxLength={1000} rows={3} placeholder="Ex.: Quais despesas recentes devo revisar?" required /></label>
+                <label className="consent-row"><input type="checkbox" checked={assistantConsent} onChange={(event) => setAssistantConsent(event.target.checked)} /> Li e autorizo o envio da pergunta e dos até 20 lançamentos recentes à IA para gerar esta resposta. O envio ocorre somente ao tocar em Perguntar.</label>
+                <button className="primary-button" type="submit" disabled={busy || !assistantConsent || assistantQuestion.trim().length < 2}>Perguntar</button>
+              </form>
+              {assistantAnswer && <p className="assistant-answer" role="status">{assistantAnswer}</p>}
+            </section>
+
+            <section className="panel" aria-labelledby="receipt-title">
+              <span className="principles-label">LEITURA ASSISTIDA</span>
+              <h2 id="receipt-title">Ler comprovante</h2>
+              <p>Envie um PDF ou imagem para extrair uma prévia. O arquivo é processado em memória; esta etapa não armazena o anexo.</p>
+              <form className="assistant-form" onSubmit={(event) => void readReceipt(event)}>
+                <label>Arquivo<input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(event) => { setReceiptFile(event.target.files?.[0] ?? null); setReceiptDraft(null); }} /></label>
+                <label className="consent-row"><input type="checkbox" checked={receiptConsent} onChange={(event) => setReceiptConsent(event.target.checked)} /> Autorizo o envio deste arquivo à IA para leitura e extração de uma prévia.</label>
+                <button className="primary-button" type="submit" disabled={busy || !receiptFile || !receiptConsent}>Analisar comprovante</button>
+              </form>
+              {receiptDraft && <div className="receipt-preview">
+                <strong>{receiptDraft.sufficient ? "Revise os dados extraídos" : "Não foi possível extrair um lançamento único"}</strong>
+                {receiptDraft.sufficient && <dl><dt>Descrição</dt><dd>{receiptDraft.description}</dd><dt>Tipo e valor</dt><dd>{receiptDraft.kind === "income" ? "Receita" : "Despesa"} · R$ {receiptDraft.amount}</dd><dt>Data</dt><dd>{receiptDraft.date}</dd><dt>Categoria</dt><dd>{receiptDraft.category ?? "Não identificada"}</dd><dt>Pagamento</dt><dd>{receiptDraft.payment_method ?? "Não identificado"}</dd></dl>}
+                {receiptDraft.warnings.length > 0 && <ul>{receiptDraft.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul>}
+                {receiptDraft.sufficient && <><label>Conta para registrar<select value={receiptAccountId} onChange={(event) => setReceiptAccountId(event.target.value)}><option value="">Selecione</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>{receiptDraft.installment_count && receiptDraft.installment_count > 1 && <p>Parcelamento identificado ({receiptDraft.installment_count} vezes). O registro parcelado ainda não está habilitado neste fluxo.</p>}<button className="primary-button" type="button" disabled={busy || !receiptAccountId || Boolean(receiptDraft.installment_count && receiptDraft.installment_count > 1)} onClick={() => void confirmReceiptDraft()}>Confirmar e criar lançamento</button></>}
+              </div>}
+              <p className="muted-copy">A confirmação cria somente o lançamento. O armazenamento privado do arquivo e o vínculo do anexo ainda serão implementados separadamente.</p>
+            </section>
+
             <section className="panel coming-panel"><span className="principles-label">PRÓXIMAS CONEXÕES</span><h2>Seu financeiro em expansão</h2><p>Contas, lançamentos, investimentos, comprovantes, notificações e automações serão conectados em etapas testadas, preservando a separação entre valores realizados e previstos.</p></section>
             {notice && <p className="notice" role="status">{notice}</p>}
           </section>
