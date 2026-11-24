@@ -135,19 +135,15 @@ A extração do comprovante é efêmera durante a chamada de IA. Após confirma�
 
 ## Validação pendente
 
-O commit `bd53ebfc18aedeadf992aeaa5c75de7802291dd4` passou integralmente na execução [PR #45305286705](https://github.com/theuuswillian/aplicativomobile/actions/runs/45305286705). Os commits seguintes ampliaram os módulos; a validação integral do HEAD atual está em andamento:
-- `validate`: lint, política arquitetural, verificação de segredos, shell, TypeScript, testes, build, Playwright, responsividade, offline e acessibilidade.
-- `edge-runtime`: type-check Deno e testes unitários.
-- `sql`: migrations, RLS, grants, isolamento e concorrência no PostgreSQL 17.
-- `edge-integration`: Auth local, perfil, preferências, CORS, Radar, Push e isolamento entre dois usuários.
+O HEAD `462fda114c0a9bc089ce9d76e234d20aea805ad7` passou integralmente na execução [#45375652553](https://github.com/theuuswillian/aplicativomobile/actions/runs/45375652553): `validate`, `edge-runtime`, `sql` e `edge-integration` concluídos com sucesso; `lockfile` foi ignorado por não haver alteração de lockfile. A validação incluiu lint, política arquitetural, verificação de segredos, shell, TypeScript, testes, build, Playwright, responsividade, offline, acessibilidade, PostgreSQL 17 e integração Supabase local.
 
 O CI verde não significa que a Fase 3 esteja concluída. Permanecem credenciais/configuração Meta, secrets remotos, testes reais de integrações externas e validação manual no Safari e no app instalado no iPhone. A fonte automática de cotações segue bloqueada por licença; preço manual está disponível. O workflow `Scheduled workers` já está preparado, mas começa desativado até a variável `WORKERS_ENABLED=true` e os secrets necessários serem configurados no GitHub.
 
-- Última validação integral concluída: HEAD `824bd9d059555a667b91002d987d2c8e673f45c7`; GitHub Actions [#45366029779](https://github.com/theuuswillian/aplicativomobile/actions/runs/45366029779) passou em todos os jobs: Edge Runtime/Deno, PostgreSQL 17 com migrations 001–010, integração local Supabase, lint, policy, secrets, TypeScript, testes, build, Playwright, responsividade, offline e acessibilidade.
+- Última validação integral concluída: HEAD `462fda114c0a9bc089ce9d76e234d20aea805ad7`; GitHub Actions [#45375652553](https://github.com/theuuswillian/aplicativomobile/actions/runs/45375652553) passou em todos os jobs: Edge Runtime/Deno, PostgreSQL 17 com migrations 001–011, integração local Supabase, lint, policy, secrets, TypeScript, testes, build, Playwright, responsividade, offline e acessibilidade.
 - [Branch Fase 3](https://github.com/theuuswillian/aplicativomobile/tree/fase-3-backend).
 - [PR #2](https://github.com/theuuswillian/aplicativomobile/pull/2), ainda draft e sem merge.
 - O teste local de integração cobre perfil, preferências, CORS, Radar, Push, geração de código WhatsApp, bloqueio de workers sem JWT/segredo interno (incluindo quote-feed-worker) e isolamento entre dois usuários.
-- O teste PostgreSQL aplica migrations 001–010 e verifica RLS, grants, Storage privado, consentimento WhatsApp, concorrência de metas, confirmação WhatsApp, datas de recorrência, geração concorrente e reativação Radar. A integração local verifica exportação autenticada e bloqueios da exclusão sem confirmação.
+- O teste PostgreSQL aplica migrations 001–011 e verifica RLS, grants, Storage privado, consentimento WhatsApp, concorrência de metas, confirmação WhatsApp, datas de recorrência, geração concorrente e reativação Radar. A integração local verifica exportação autenticada e bloqueios da exclusão sem confirmação.
 
 A aprovação final exige CI integral verde no HEAD final, auditoria, configuração remota somente autorizada e validação manual do aplicativo pelo usuário. Não relaxar asserts para obter CI verde.
 
