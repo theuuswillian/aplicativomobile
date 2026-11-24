@@ -93,8 +93,8 @@ Implementar backend e integração gradual da interface do GranaViva conforme `d
 - [x] Endpoint autenticado de geração de código temporário, hash SHA-256, expiração de 10 minutos e rate limit de 3 códigos por hora.
 - [x] UI de vínculo, desvinculação e consentimento explícito do resumo semanal; gerar código não ativa o resumo.
 - [x] RPC `whatsapp_pending_confirm` valida vínculo, referências e payload e cria o lançamento uma única vez sob lock transacional.
-- [ ] Adaptador de provedor, webhook HMAC, worker de inbox/parser e worker de outbox ainda pendentes.
-- [ ] Resumo semanal com consentimento e opt-out no worker.
+- [x] Adaptador Meta, webhook HMAC, worker de inbox/parser, sender outbox e resumo semanal com consentimento/opt-out implementados.
+- [ ] Testar envio/recebimento com credenciais Meta reais e configurar webhook HTTPS.
 - Nenhum provedor, segredo, número ou envio real foi configurado.
 
 ### Frontend e validação
@@ -145,7 +145,7 @@ O CI verde não significa que a Fase 3 esteja concluída. Permanecem escolha/con
 - [Branch Fase 3](https://github.com/theuuswillian/aplicativomobile/tree/fase-3-backend).
 - [PR #2](https://github.com/theuuswillian/aplicativomobile/pull/2), ainda draft e sem merge.
 - O teste local de integração cobre perfil, preferências, CORS, Radar, Push, geração de código WhatsApp e bloqueio de workers sem JWT, além do isolamento entre dois usuários.
-- O teste PostgreSQL aplica migrations 001–009 e verifica RLS, grants, Storage privado, consentimento WhatsApp, concorrência de metas, confirmação WhatsApp, datas de recorrência, geração concorrente e reativação Radar. A integração local verifica exportação autenticada e bloqueios da exclusão sem confirmação.
+- O teste PostgreSQL aplica migrations 001–010 e verifica RLS, grants, Storage privado, consentimento WhatsApp, concorrência de metas, confirmação WhatsApp, datas de recorrência, geração concorrente e reativação Radar. A integração local verifica exportação autenticada e bloqueios da exclusão sem confirmação.
 
 A aprovação final exige CI integral verde no HEAD final, auditoria, configuração remota somente autorizada e validação manual do aplicativo pelo usuário. Não relaxar asserts para obter CI verde.
 
@@ -165,7 +165,7 @@ A Fase 2 continua preservada como base e a PR #1 não será mesclada por esta et
 - `WHATSAPP_META_VERIFY_TOKEN`, `WHATSAPP_META_APP_SECRET`, `WHATSAPP_META_ACCESS_TOKEN`, `WHATSAPP_META_PHONE_NUMBER_ID`, `WHATSAPP_META_GRAPH_VERSION` e `WHATSAPP_WORKER_SECRET` são secrets/variáveis obrigatórios do Supabase; nenhum valor real deve ser commitado.
 - O webhook tem `verify_jwt = false` porque a autenticação de origem é a assinatura HMAC da Meta. O endpoint de envio continua protegido por JWT de serviço e segredo interno.
 - Testes automatizados cobrem assinatura HMAC, challenge e extração/validação de mensagens.
-- Ainda depende de criar/configurar o app Meta, obter credenciais permanentes, configurar callback HTTPS e assinar o campo `messages`. A inbox ainda requer worker de processamento semântico para conversas, confirmações de lançamentos e resumo semanal antes de operação completa com usuários.
+- Ainda depende de criar/configurar o app Meta, obter credenciais permanentes, configurar callback HTTPS e assinar o campo `messages`. A inbox possui worker semântico para comandos, vinculação, pendências e resumo semanal; ainda depende de teste com credenciais reais e configuração da conta Meta.
 
 
 ### Atualização — worker Meta Cloud API
@@ -184,7 +184,7 @@ A Fase 2 continua preservada como base e a PR #1 não será mesclada por esta et
 
 O workflow agendado requer também o secret GitHub `WHATSAPP_WORKER_SECRET`, diferente dos secrets de recorrência e Radar. No Supabase, o mesmo valor deve existir como Edge Function secret. O worker de WhatsApp usa o mesmo segredo para a chamada interna do endpoint `whatsapp-meta-send`. O cron de 15 minutos processa a inbox; o resumo semanal é tentado às segundas-feiras e a RPC impede repetição da mesma semana.
 
-A fonte de cotações do Radar continua bloqueada por contrato: não foi aprovada revisão da arquitetura para integrar provedor financeiro externo. Não apresentar preços como atuais sem fonte e timestamp.
+A fonte de cotações está detalhada no aditivo aprovado abaixo. A ativação permanece bloqueada até confirmação escrita de licença para exibição pública limitada.
 
 
 ### Atualização — fonte externa de cotações aprovada (24/11/2026)
@@ -198,3 +198,17 @@ A fonte de cotações do Radar continua bloqueada por contrato: não foi aprovad
 - **Bloqueio jurídico deliberado:** termos brapi proíbem redistribuição; FAQ admite aplicativos, mas ressalva licenças adicionais para redistribuição. Não habilitar o flag até obter confirmação escrita para exibição limitada no GranaViva gratuito.
 - Cripto permanece sem feed automático: endpoint brapi exige Startup/Pro; CoinPaprika Free é pessoal e a licença de redistribuição exige Enterprise; CoinGecko Demo não concede direitos comerciais. Nenhuma despesa foi autorizada.
 - Nenhuma migration foi aplicada no Supabase remoto, nenhum secret foi configurado e nenhum deploy foi realizado.
+
+
+### Secrets e variáveis adicionais — cotação B3
+
+Somente depois de obter confirmação escrita da brapi.dev para exibição limitada no GranaViva:
+- Supabase Edge Function secrets: `BRAPI_API_KEY`, `QUOTE_WORKER_SECRET` e `BRAPI_PUBLIC_DISPLAY_APPROVED=true`.
+- GitHub Actions secret: `QUOTE_WORKER_SECRET` (mesmo valor do Supabase, diferente de todos os outros secrets de workers).
+- GitHub Actions repository variable: `BRAPI_PUBLIC_DISPLAY_APPROVED=true`.
+- A API key da brapi nunca vai ao GitHub Actions, frontend ou repositório.
+- Para manter a integração desligada, não configure o flag acima. O cron continua processando recorrências, Radar com cache existente e WhatsApp.
+
+O plano Gratuito divulgado pela brapi tem 15.000 chamadas/mês e um ticker por chamada. O worker aplica teto próprio de 12.000/mês, no máximo quatro consultas por execução a cada 15 minutos, cache de 30 minutos e cursor rotativo. O plano Gratuito não habilita o endpoint de cripto documentado; cripto permanece sem feed.
+
+A migration 010 ainda está apenas na branch; precisa ser aplicada ao Supabase remoto somente após autorização específica e validação do ambiente.
