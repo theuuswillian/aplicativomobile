@@ -14,6 +14,9 @@ type RadarAlert = {
   is_enabled: boolean;
 };
 type Profile = { display_name: string | null; email?: string };
+type AccountRow = { id: string; name: string; account_type: string; opening_balance: string; is_primary: boolean };
+type TransactionRow = { id: string; kind: "income" | "expense" | "transfer"; status: "paid" | "planned" | "cancelled"; amount: string; transaction_date: string; description: string; account_id: string | null };
+type ReceiptDraft = { sufficient: boolean; kind: "income" | "expense" | null; amount: string | null; date: string | null; description: string | null; category: string | null; payment_method: string | null; installment_count: number | null; card_last_four: string | null; confidence: number; warnings: string[] };
 const THEME_STORAGE_KEY = "granaviva:theme:v1";
 
 function getInitialTheme(): Theme {
@@ -24,6 +27,24 @@ function getInitialTheme(): Theme {
 function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   return "Não foi possível concluir a operação.";
+}
+
+function todayInBrazil(): string {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function normalizeBrlAmount(value: string, allowZero = false, allowNegative = false): string | null {
+  const input = value.trim();
+  if (!/^ -?\d{1,10}(?:,\d{1,2})?$/.test(input.replace(/^/, " "))) return null;
+  const negative = input.startsWith("-");
+  if (negative && !allowNegative) return null;
+  const unsigned = negative ? input.slice(1) : input;
+  const [whole, fraction = ""] = unsigned.split(",");
+  const cents = BigInt(whole) * 100n + BigInt(fraction.padEnd(2, "0"));
+  if (!allowZero && cents === 0n) return null;
+  return `${negative ? "-" : ""}${whole}.${fraction.padEnd(2, "0")}`;
 }
 
 export default function App() {
@@ -42,6 +63,24 @@ export default function App() {
   const [assetClass, setAssetClass] = useState<RadarAlert["asset_class"]>("stock");
   const [condition, setCondition] = useState<RadarAlert["condition_type"]>("above");
   const [threshold, setThreshold] = useState("");
+  const [accounts, setAccounts] = useState<AccountRow[]>([]);
+  const [transactions, setTransactions] = useState<TransactionRow[]>([]);
+  const [accountName, setAccountName] = useState("");
+  const [accountType, setAccountType] = useState("checking");
+  const [openingBalance, setOpeningBalance] = useState("0,00");
+  const [txDescription, setTxDescription] = useState("");
+  const [txAmount, setTxAmount] = useState("");
+  const [txKind, setTxKind] = useState<"income" | "expense">("expense");
+  const [txStatus, setTxStatus] = useState<"paid" | "planned">("paid");
+  const [txDate, setTxDate] = useState(todayInBrazil);
+  const [txAccountId, setTxAccountId] = useState("");
+  const [assistantQuestion, setAssistantQuestion] = useState("");
+  const [assistantConsent, setAssistantConsent] = useState(false);
+  const [assistantAnswer, setAssistantAnswer] = useState("");
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptConsent, setReceiptConsent] = useState(false);
+  const [receiptDraft, setReceiptDraft] = useState<ReceiptDraft | null>(null);
+  const [receiptAccountId, setReceiptAccountId] = useState("");
 
   useEffect(() => {
     try { window.localStorage.setItem(THEME_STORAGE_KEY, theme); } catch { /* sessão continua funcional */ }
@@ -56,7 +95,7 @@ export default function App() {
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
       setNotice("");
-      if (!nextSession) { setProfile(null); setAlerts([]); }
+      if (!nextSession) { setProfile(null); setAlerts([]); setAccounts([]); setTransactions([]); setAssistantAnswer(""); setReceiptDraft(null); }
     });
     return () => { active = false; listener.subscription.unsubscribe(); };
   }, []);
@@ -67,19 +106,27 @@ export default function App() {
     let active = true;
     const load = async () => {
       try {
-        const [account, preferences, radar] = await Promise.all([
+        const [account, preferences, radar, accountRows, transactionRows] = await Promise.all([
           client.functions.invoke("minha-conta", { body: { action: "consultar" } }),
           client.functions.invoke("minhas-preferencias", { body: { action: "consultar" } }),
           client.functions.invoke("radar-alertas", { body: { action: "consultar" } }),
+          client.from("accounts").select("id,name,account_type,opening_balance,is_primary").eq("user_id", session.user.id).eq("is_archived", false).order("created_at", { ascending: true }),
+          client.from("transactions").select("id,kind,status,amount,transaction_date,description,account_id").eq("user_id", session.user.id).order("transaction_date", { ascending: false }).limit(30),
         ]);
         if (account.error) throw account.error;
         if (preferences.error) throw preferences.error;
         if (radar.error) throw radar.error;
+        if (accountRows.error) throw accountRows.error;
+        if (transactionRows.error) throw transactionRows.error;
         if (!active) return;
         setProfile(account.data?.data?.profile ?? null);
         const serverTheme = preferences.data?.data?.theme;
         if (serverTheme === "light" || serverTheme === "dark") setTheme(serverTheme);
         setAlerts(Array.isArray(radar.data?.data) ? radar.data.data as RadarAlert[] : []);
+        setAccounts((accountRows.data ?? []) as AccountRow[]);
+        setTransactions((transactionRows.data ?? []) as TransactionRow[]);
+        if (!txAccountId && accountRows.data?.[0]?.id) setTxAccountId(accountRows.data[0].id);
+        if (!receiptAccountId && accountRows.data?.[0]?.id) setReceiptAccountId(accountRows.data[0].id);
       } catch (error) {
         if (active) setNotice(errorMessage(error));
       }
@@ -128,6 +175,144 @@ export default function App() {
       });
       if (error) setNotice("Tema alterado neste dispositivo, mas não foi possível sincronizar com sua conta.");
     }
+  }
+
+  async function createAccount(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase || !session) return;
+    const amount = normalizeBrlAmount(openingBalance, true, true);
+    if (!amount || !accountName.trim()) { setNotice("Confira o nome e o saldo inicial da conta."); return; }
+    setBusy(true); setNotice("");
+    try {
+      const { data, error } = await supabase.from("accounts").insert({
+        user_id: session.user.id, name: accountName.trim(), account_type: accountType,
+        opening_balance: amount, opening_balance_date: todayInBrazil(),
+        is_primary: accounts.length === 0,
+      }).select("id,name,account_type,opening_balance,is_primary").single();
+      if (error) throw error;
+      const created = data as AccountRow;
+      setAccounts((current) => [...current, created]);
+      setTxAccountId((current) => current || created.id);
+      setReceiptAccountId((current) => current || created.id);
+      setAccountName("");
+      setOpeningBalance("0,00");
+      setNotice("Conta criada.");
+    } catch (error) { setNotice(errorMessage(error)); }
+    finally { setBusy(false); }
+  }
+
+  async function createTransaction(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase || !session) return;
+    const amount = normalizeBrlAmount(txAmount);
+    if (!amount || !txDescription.trim() || !txAccountId || !txDate) {
+      setNotice("Preencha descrição, valor, data e conta. Use vírgula nos centavos."); return;
+    }
+    setBusy(true); setNotice("");
+    try {
+      const { data, error } = await supabase.from("transactions").insert({
+        user_id: session.user.id, kind: txKind, status: txStatus, amount,
+        transaction_date: txDate, description: txDescription.trim(),
+        account_id: txAccountId, settled_amount: txStatus === "paid" ? amount : "0.00",
+        settled_at: txStatus === "paid" ? txDate : null, source: "manual",
+      }).select("id,kind,status,amount,transaction_date,description,account_id").single();
+      if (error) throw error;
+      setTransactions((current) => [data as TransactionRow, ...current].slice(0, 30));
+      setTxDescription(""); setTxAmount("");
+      setNotice(txStatus === "paid" ? "Lançamento realizado criado." : "Lançamento previsto criado.");
+    } catch (error) { setNotice(errorMessage(error)); }
+    finally { setBusy(false); }
+  }
+
+  async function askAssistant(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase || !assistantConsent || assistantQuestion.trim().length < 2) {
+      setNotice("Leia e aceite o envio dos dados à IA antes de continuar."); return;
+    }
+    setBusy(true); setAssistantAnswer(""); setNotice("");
+    try {
+      const facts = {
+        "lancamentos recentes": transactions.slice(0, 20).map((item) => ({
+          tipo: item.kind, situacao: item.status, valor: item.amount,
+          data: item.transaction_date, descricao: item.description,
+        })),
+      };
+      const { data, error } = await supabase.functions.invoke("assistente", {
+        body: { consent: true, question: assistantQuestion.trim(), facts, history: [] },
+      });
+      if (error) throw error;
+      setAssistantAnswer(data?.data?.answer ?? "Não foi possível obter uma resposta.");
+    } catch (error) { setNotice(errorMessage(error)); }
+    finally { setBusy(false); }
+  }
+
+  async function readReceipt(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase || !receiptFile || !receiptConsent) {
+      setNotice("Selecione um comprovante e confirme o envio à IA."); return;
+    }
+    const supported = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
+    if (!supported.includes(receiptFile.type) || receiptFile.size > 5 * 1024 * 1024) {
+      setNotice("Envie PDF, JPEG, PNG ou WEBP de até 5 MB."); return;
+    }
+    setBusy(true); setReceiptDraft(null); setNotice("");
+    try {
+      const bytes = new Uint8Array(await receiptFile.arrayBuffer());
+      let binary = "";
+      for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+        binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+      }
+      const { data, error } = await supabase.functions.invoke("ler-comprovante", {
+        body: { consent: true, file_base64: btoa(binary), mime_type: receiptFile.type },
+      });
+      if (error) throw error;
+      const draft = data?.data?.draft as ReceiptDraft | null;
+      if (draft) setReceiptDraft(draft);
+      else setNotice(data?.data?.message ?? "Não foi possível extrair os dados. Faça o lançamento manualmente.");
+    } catch (error) { setNotice(errorMessage(error)); }
+    finally { setBusy(false); }
+  }
+
+  async function confirmReceiptDraft() {
+    if (!supabase || !session || !receiptDraft?.sufficient || !receiptDraft.amount ||
+        !receiptDraft.date || !receiptDraft.kind || !receiptDraft.description || !receiptAccountId) return;
+    if (receiptDraft.installment_count && receiptDraft.installment_count > 1) {
+      setNotice("Este comprovante indica compra parcelada. O lançamento parcelado precisa ser cadastrado manualmente nesta versão.");
+      return;
+    }
+    const amount = normalizeBrlAmount(receiptDraft.amount.replace(".", ","));
+    if (!amount) { setNotice("O valor extraído precisa ser revisado."); return; }
+    setBusy(true); setNotice("");
+    try {
+      let categoryId: string | null = null;
+      if (receiptDraft.category) {
+        const { data: category, error: categoryError } = await supabase.from("categories")
+          .select("id").eq("user_id", session.user.id).eq("kind", receiptDraft.kind)
+          .ilike("name", receiptDraft.category).maybeSingle();
+        if (categoryError) throw categoryError;
+        categoryId = category?.id ?? null;
+      }
+      let cardId: string | null = null;
+      if (receiptDraft.card_last_four) {
+        const { data: cards, error: cardError } = await supabase.from("cards")
+          .select("id").eq("user_id", session.user.id).eq("is_archived", false)
+          .eq("last_four", receiptDraft.card_last_four);
+        if (cardError) throw cardError;
+        if (cards?.length === 1) cardId = cards[0].id;
+      }
+      const { data, error } = await supabase.from("transactions").insert({
+        user_id: session.user.id, kind: receiptDraft.kind, status: "paid",
+        amount, transaction_date: receiptDraft.date, description: receiptDraft.description,
+        category_id: categoryId, account_id: cardId ? null : receiptAccountId,
+        card_id: cardId, payment_method: receiptDraft.payment_method,
+        settled_amount: amount, settled_at: receiptDraft.date, source: "receipt",
+      }).select("id,kind,status,amount,transaction_date,description,account_id").single();
+      if (error) throw error;
+      setTransactions((current) => [data as TransactionRow, ...current].slice(0, 30));
+      setReceiptDraft(null); setReceiptFile(null); setReceiptConsent(false);
+      setNotice("Lançamento confirmado e criado. O arquivo do comprovante não foi armazenado.");
+    } catch (error) { setNotice(errorMessage(error)); }
+    finally { setBusy(false); }
   }
 
   async function createAlert(event: FormEvent<HTMLFormElement>) {
