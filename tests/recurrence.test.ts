@@ -36,6 +36,12 @@ describe("recurrence rules", () => {
     }, "2026-11-01", "2026-11-15")).toEqual(["2026-11-01", "2026-11-15"]);
   });
 
+  it("anchors biweekly occurrences to the start date", () => {
+    expect(generateOccurrences({
+      id: "biweekly", frequency: "biweekly", startsOn: "2026-11-01"
+    }, "2026-11-01", "2026-11-30")).toEqual(["2026-11-01", "2026-11-15", "2026-11-29"]);
+  });
+
   it("respects start and end boundaries", () => {
     expect(generateOccurrences({
       id: "limited", frequency: "daily", startsOn: "2026-11-01", endsOn: "2026-11-03"
