@@ -42,7 +42,7 @@ Deno.serve(async (request: Request) => {
   try {
     if (body.action === "consultar" && Object.keys(body).length === 1) {
       const [{ data: link, error: linkError }, { data: settings, error: settingsError }] = await Promise.all([
-        auth.context.supabase.from("whatsapp_links").select("phone,weekly_summary_enabled").eq("user_id", userId).maybeSingle(),
+        admin.from("whatsapp_links").select("phone,weekly_summary_enabled").eq("user_id", userId).maybeSingle(),
         auth.context.supabase.from("settings").select("whatsapp_weekly_summary").eq("user_id", userId).maybeSingle(),
       ]);
       if (linkError || settingsError) return internalError(origin);
@@ -80,7 +80,7 @@ Deno.serve(async (request: Request) => {
     }
 
     if (body.action === "resumo" && typeof body.enabled === "boolean" && Object.keys(body).length === 2) {
-      const { data: link, error: linkError } = await auth.context.supabase.from("whatsapp_links")
+      const { data: link, error: linkError } = await admin.from("whatsapp_links")
         .update({ weekly_summary_enabled: body.enabled }).eq("user_id", userId)
         .select("phone").maybeSingle();
       if (linkError) return internalError(origin);
