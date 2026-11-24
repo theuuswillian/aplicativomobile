@@ -138,6 +138,22 @@ try {
   assert(profile.body?.data?.profile?.id === userA.id, "Perfil retornado deve pertencer ao usuário A.");
   assert(profile.body?.data?.settings, "Preferências iniciais devem ser criadas pelo trigger.");
 
+  const exportA = await invoke("exportar-dados", tokenA, { action: "exportar" });
+  assert(exportA.response.ok && exportA.body?.data?.user?.id === userA.id &&
+    Array.isArray(exportA.body?.data?.tables?.transactions) &&
+    Array.isArray(exportA.body?.data?.tables?.receipt_files),
+    "Exportação deve retornar os dados próprios sob RLS e metadados de comprovantes.");
+  const exportB = await invoke("exportar-dados", tokenB, { action: "exportar" });
+  assert(exportB.response.ok && exportB.body?.data?.user?.id === userB.id,
+    "Exportação deve permanecer isolada por usuário.");
+  const exportWithoutJwt = await invoke("exportar-dados", null, { action: "exportar" });
+  assert(exportWithoutJwt.response.status === 401, "Exportação deve exigir autenticação.");
+  const deleteWithoutConfirmation = await invoke("excluir-conta", tokenA, {});
+  assert(deleteWithoutConfirmation.response.status === 400,
+    "Exclusão de conta deve exigir confirmação explícita.");
+  const deleteWithoutJwt = await invoke("excluir-conta", null, { confirmation: "EXCLUIR_CONTA" });
+  assert(deleteWithoutJwt.response.status === 401, "Exclusão de conta deve exigir autenticação.");
+
   const updatedProfile = await invoke("minha-conta", tokenA, {
     action: "atualizar",
     display_name: "Nome Atualizado",
