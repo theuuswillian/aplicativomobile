@@ -109,7 +109,9 @@ begin
     'public.whatsapp_outbox_reserve(text,text,jsonb,integer)'::regprocedure,
     'public.whatsapp_outbox_finalize(text,uuid,text,text,text)'::regprocedure,
     'public.whatsapp_summary_reserve(uuid,date)'::regprocedure,
-    'public.whatsapp_pending_confirm(text)'::regprocedure
+    'public.whatsapp_pending_confirm(text)'::regprocedure,
+    'public.recurrence_next_date(text,integer,date,smallint,smallint)'::regprocedure,
+    'public.recurrence_generate_due(date,integer)'::regprocedure
   ] loop
     if not (select p.prosecdef and p.proconfig @> array['search_path=pg_catalog, public']
             from pg_proc p where p.oid = v_fn) then
@@ -393,6 +395,12 @@ begin
   if not public.whatsapp_summary_reserve(v_user, date '2026-11-23')
      or public.whatsapp_summary_reserve(v_user, date '2026-11-23') then
     raise exception 'Resumo semanal não preservou reserva idempotente';
+  end if;
+  if public.recurrence_next_date('monthly', 1, date '2026-01-31', 31, null) <> date '2026-02-28' then
+    raise exception 'Recorrência mensal não preservou o último dia em fevereiro';
+  end if;
+  if public.recurrence_next_date('yearly', 1, date '2024-02-29', 29, 2) <> date '2025-02-28' then
+    raise exception 'Recorrência anual não tratou ano bissexto';
   end if;
 end $assert_usage$;
 
