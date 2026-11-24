@@ -177,7 +177,7 @@ try {
     whatsappState.body?.data?.weekly_summary_enabled === false,
     "WhatsApp deve iniciar sem vínculo e sem consentimento de resumo.");
   const whatsappCode = await invoke("whatsapp-vincular", tokenA, { action: "gerar_codigo" });
-  assert(whatsappCode.response.status === 201 && /^\\d{6}$/.test(whatsappCode.body?.data?.code ?? "") &&
+  assert(whatsappCode.response.status === 201 && /^\d{6}$/.test(whatsappCode.body?.data?.code ?? "") &&
     whatsappCode.body?.data?.provider_ready === false,
     "Geração de código WhatsApp deve criar código temporário sem ativar provedor.");
   const whatsappConsentWithoutLink = await invoke("whatsapp-vincular", tokenA, {
