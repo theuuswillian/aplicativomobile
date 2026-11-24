@@ -243,3 +243,13 @@ A migration 010 ainda está apenas na branch; precisa ser aplicada ao Supabase r
 - [ ] Manter `WORKERS_ENABLED` ausente/falso e cotações Brapi desativadas até concluir aceite e licença.
 
 O CI verde valida o código e as migrações em ambiente local; não comprova chamadas reais de Edge Functions, integrações Meta/OpenAI/Push, Preview atual ou experiência no iPhone. PR #2 permanece draft e sem merge; produção permanece intacta.
+
+
+## Bloqueio final de implantação — 24/11/2026
+
+- [x] As duas execuções de CI após a atualização da documentação terminaram com sucesso: [#45386408380](https://github.com/theuuswillian/aplicativomobile/actions/runs/45386408380) e [#45386401152](https://github.com/theuuswillian/aplicativomobile/actions/runs/45386401152). Jobs `validate`, `sql`, `edge-runtime` e `edge-integration` passaram; `lockfile` foi ignorado por não haver alteração relevante.
+- [ ] Novo Preview Vercel pendente: a tentativa de criar deployment para o HEAD `589c544b4a8697e4c402f972eb3267ab2eb366db` retornou HTTP 402 `api-deployments-free-per-day`, com `retryAfter=86400` (24 horas). Não mudar plano ou habilitar cobrança automaticamente.
+- [ ] O Preview READY atual `dpl_EN9mGpbFyre3jzwr3fyMeWosEcMa` aponta para commit anterior `b35ef5e5adab48c9f3b085118ccd4d43fd1daf55`; não é evidência de build do HEAD atual.
+- [ ] Supabase Edge Functions: nenhuma implantada no projeto brasileiro. O deploy deve ocorrer após conferir os secrets obrigatórios; não publicar endpoints que dependam de credenciais ausentes.
+- [ ] Secrets e integrações que dependem de contas/credenciais do proprietário: chave OpenAI, credenciais Meta WhatsApp, chaves VAPID e segredos internos distintos para workers. Configurar diretamente nos painéis oficiais; nunca enviar no chat.
+- [ ] Aceite final no Safari e no app instalado (PWA) depende do Preview atualizado e das credenciais acima. Workers e Brapi continuam desligados.
