@@ -1,4 +1,4 @@
--- Assertions de segurança para executar após as cinco migrations em Supabase/PostgreSQL isolado.
+-- Assertions de segurança para executar após as seis migrations em Supabase/PostgreSQL isolado.
 -- Executar como postgres/superuser. Tudo é revertido ao final.
 begin;
 
@@ -105,6 +105,21 @@ begin
     end if;
   end loop;
 end $$;
+
+do $assert_radar_rpc_grants$
+declare
+  v_fn regprocedure := 'public.radar_alert_set_enabled(uuid,boolean)'::regprocedure;
+begin
+  if has_function_privilege('anon', v_fn, 'EXECUTE')
+     or not has_function_privilege('authenticated', v_fn, 'EXECUTE')
+     or has_function_privilege('service_role', v_fn, 'EXECUTE') then
+    raise exception 'Grants incorretos para RPC de geração do Radar';
+  end if;
+  if (select p.prosecdef from pg_proc p where p.oid = v_fn) then
+    raise exception 'RPC de Radar deve respeitar RLS como SECURITY INVOKER';
+  end if;
+end
+$assert_radar_rpc_grants$;
 
 do $assert_grants$
 declare
