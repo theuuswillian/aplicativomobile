@@ -15,7 +15,7 @@ async function ownRows(db: ReturnType<typeof createClient>, table: string, userI
       .eq("user_id", userId).range(offset, offset + PAGE_SIZE - 1);
     if (error) throw error;
     rows.push(...(data ?? []));
-    if (rows.length > MAX_ROWS_PER_TABLE) throw new Error("Exportação excede o limite de linhas por tabela.");
+    if (rows.length > MAX_ROWS_PER_TABLE) throw new RangeError("Exportação excede o limite de linhas por tabela.");
     if ((data?.length ?? 0) < PAGE_SIZE) return rows;
   }
   throw new Error("Exportação excede o limite de linhas por tabela.");
@@ -75,5 +75,8 @@ Deno.serve(async (request: Request) => {
         excluded_sensitive_data: ["push_subscriptions", "whatsapp_link_codes", "whatsapp_inbox", "whatsapp_outbox"],
       },
     }, 200, origin);
-  } catch { return internalError(origin); }
+  } catch (error) {
+    if (error instanceof RangeError) return jsonResponse({ error: { code: "EXPORT_TOO_LARGE", message: "A exportação excede o limite seguro. Solicite um arquivo por período." } }, 413, origin);
+    return internalError(origin);
+  }
 });
