@@ -127,6 +127,36 @@ export type Database = {
         };
         Relationships: [];
       };
+      accounts: {
+        Row: { id: string; user_id: string; name: string; is_primary: boolean; is_archived: boolean };
+        Insert: { id?: string; user_id: string; name: string; is_primary?: boolean; is_archived?: boolean };
+        Update: { name?: string; is_primary?: boolean; is_archived?: boolean };
+        Relationships: [];
+      };
+      transactions: {
+        Row: { id: string; user_id: string; kind: "income" | "expense" | "transfer"; status: "paid" | "planned" | "cancelled"; amount: number; transaction_date: string };
+        Insert: { id?: string; user_id: string; kind: "income" | "expense" | "transfer"; status?: "paid" | "planned" | "cancelled"; amount: number; transaction_date: string };
+        Update: { status?: "paid" | "planned" | "cancelled"; amount?: number; transaction_date?: string };
+        Relationships: [];
+      };
+      whatsapp_links: {
+        Row: { user_id: string; phone: string; weekly_summary_enabled: boolean; last_summary_week: string | null };
+        Insert: { user_id: string; phone: string; weekly_summary_enabled?: boolean; last_summary_week?: string | null };
+        Update: { phone?: string; weekly_summary_enabled?: boolean; last_summary_week?: string | null };
+        Relationships: [];
+      };
+      whatsapp_inbox: {
+        Row: { message_id: string; payload: Json; status: "queued" | "processing" | "completed" | "failed" | "exhausted"; lease_token: string | null; lease_until: string | null; attempts: number; created_at: string };
+        Insert: { message_id: string; payload: Json; status?: "queued" | "processing" | "completed" | "failed" | "exhausted" };
+        Update: { status?: "queued" | "processing" | "completed" | "failed" | "exhausted"; lease_token?: string | null; lease_until?: string | null; attempts?: number };
+        Relationships: [];
+      };
+      whatsapp_pending_transactions: {
+        Row: { id: string; user_id: string; phone: string; payload: Json; source_message_id: string; status: "pending" | "confirmed" | "cancelled" | "expired"; expires_at: string };
+        Insert: { id: string; user_id: string; phone: string; payload: Json; source_message_id: string; status?: "pending" | "confirmed" | "cancelled" | "expired"; expires_at: string };
+        Update: { status?: "pending" | "confirmed" | "cancelled" | "expired" };
+        Relationships: [];
+      };
       cards: {
         Row: {
           id: string;
@@ -183,7 +213,14 @@ export type Database = {
       };
     };
     Views: Record<string, never>;
-    Functions: { radar_alert_set_enabled: { Args: { p_alert_id: string; p_enabled: boolean }; Returns: { id: string; generation: number; is_enabled: boolean }[] } };
+    Functions: {
+      radar_alert_set_enabled: { Args: { p_alert_id: string; p_enabled: boolean }; Returns: { id: string; generation: number; is_enabled: boolean }[] };
+      whatsapp_link_consume: { Args: { p_code_hash: string; p_phone: string }; Returns: string | null };
+      whatsapp_inbox_reserve: { Args: { p_message_id: string; p_payload: Json; p_lease_seconds?: number }; Returns: { reservation_status: string; fencing_token: string | null; attempt_number: number }[] };
+      whatsapp_inbox_finalize: { Args: { p_message_id: string; p_fencing_token: string; p_success: boolean; p_error?: string | null }; Returns: boolean };
+      whatsapp_pending_confirm: { Args: { p_pending_id: string }; Returns: { result: string; transaction_id: string | null }[] };
+      whatsapp_summary_reserve: { Args: { p_user_id: string; p_week: string }; Returns: boolean };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };
