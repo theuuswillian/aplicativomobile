@@ -74,6 +74,11 @@ export default function App() {
   const [txStatus, setTxStatus] = useState<"paid" | "planned">("paid");
   const [txDate, setTxDate] = useState(todayInBrazil);
   const [txAccountId, setTxAccountId] = useState("");
+  const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
+  const [editDescription, setEditDescription] = useState("");
+  const [editAmount, setEditAmount] = useState("");
+  const [editDate, setEditDate] = useState("");
+  const [editStatus, setEditStatus] = useState<"paid" | "planned">("paid");
   const [assistantQuestion, setAssistantQuestion] = useState("");
   const [assistantConsent, setAssistantConsent] = useState(false);
   const [assistantAnswer, setAssistantAnswer] = useState("");
@@ -224,12 +229,60 @@ export default function App() {
     finally { setBusy(false); }
   }
 
+  function beginTransactionEdit(item: TransactionRow) {
+    setEditingTransactionId(item.id);
+    setEditDescription(item.description);
+    setEditAmount(item.amount.replace(".", ","));
+    setEditDate(item.transaction_date);
+    setEditStatus(item.status === "planned" ? "planned" : "paid");
+  }
+
+  async function saveTransactionEdit(item: TransactionRow) {
+    if (!supabase || !session) return;
+    const amount = normalizeBrlAmount(editAmount);
+    if (!amount || !editDescription.trim() || !editDate) {
+      setNotice("Confira a descrição, o valor e a data do lançamento."); return;
+    }
+    setBusy(true); setNotice("");
+    try {
+      const { data, error } = await supabase.from("transactions").update({
+        description: editDescription.trim(), amount, transaction_date: editDate,
+        status: editStatus, settled_amount: editStatus === "paid" ? amount : "0.00",
+        settled_at: editStatus === "paid" ? editDate : null,
+      }).eq("id", item.id).eq("user_id", session.user.id)
+        .select("id,kind,status,amount,transaction_date,description,account_id").single();
+      if (error) throw error;
+      setTransactions((current) => current.map((row) => row.id === item.id ? data as TransactionRow : row));
+      setEditingTransactionId(null);
+      setNotice("Lançamento atualizado.");
+    } catch (error) { setNotice(errorMessage(error)); }
+    finally { setBusy(false); }
+  }
+
+  async function deleteTransaction(item: TransactionRow) {
+    if (!supabase || !session || !window.confirm(`Excluir o lançamento "${item.description}"?`)) return;
+    setBusy(true); setNotice("");
+    try {
+      const { error } = await supabase.from("transactions").delete()
+        .eq("id", item.id).eq("user_id", session.user.id);
+      if (error) throw error;
+      setTransactions((current) => current.filter((row) => row.id !== item.id));
+      if (editingTransactionId === item.id) setEditingTransactionId(null);
+      setNotice("Lançamento excluído.");
+    } catch (error) { setNotice(errorMessage(error)); }
+    finally { setBusy(false); }
+  }
+
+  function patchReceiptDraft<K extends keyof ReceiptDraft>(key: K, value: ReceiptDraft[K]) {
+    setReceiptDraft((current) => current ? { ...current, [key]: value } : current);
+  }
+
   async function askAssistant(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!supabase || !assistantConsent || assistantQuestion.trim().length < 2) {
       setNotice("Leia e aceite o envio dos dados à IA antes de continuar."); return;
     }
-    setBusy(true); setAssistantAnswer(""); setNotice("");
+    setBusy(true); setAssistantAnswer(""); setAssistantConsent(false); setNotice("");
     try {
       const facts = {
         "lancamentos recentes": transactions.slice(0, 20).map((item) => ({
@@ -255,7 +308,7 @@ export default function App() {
     if (!supported.includes(receiptFile.type) || receiptFile.size > 5 * 1024 * 1024) {
       setNotice("Envie PDF, JPEG, PNG ou WEBP de até 5 MB."); return;
     }
-    setBusy(true); setReceiptDraft(null); setNotice("");
+    setBusy(true); setReceiptDraft(null); setReceiptConsent(false); setNotice("");
     try {
       const bytes = new Uint8Array(await receiptFile.arrayBuffer());
       let binary = "";
@@ -442,7 +495,7 @@ export default function App() {
                 <button className="primary-button" type="submit" disabled={busy || accounts.length === 0}>Salvar lançamento</button>
               </form>
               <div className="transaction-heading"><strong>Últimos lançamentos</strong><span>Até 30 registros</span></div>
-              {transactions.length === 0 ? <p className="empty-state">Seus lançamentos aparecerão aqui.</p> : <ul className="transaction-list">{transactions.map((item) => <li key={item.id}><div><strong>{item.description}</strong><span>{item.kind === "income" ? "Receita" : item.kind === "expense" ? "Despesa" : "Transferência"} · {item.status === "paid" ? "Realizado" : item.status === "planned" ? "Previsto" : "Cancelado"}</span><small>{new Date(item.transaction_date + "T12:00:00").toLocaleDateString("pt-BR")}</small></div><strong className={item.kind === "income" ? "income-value" : "expense-value"}>{item.kind === "income" ? "+" : item.kind === "expense" ? "−" : ""}{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(item.amount))}</strong></li>)}</ul>}
+              {transactions.length === 0 ? <p className="empty-state">Seus lançamentos aparecerão aqui.</p> : <ul className="transaction-list">{transactions.map((item) => <li key={item.id}><div className="transaction-main"><div><strong>{item.description}</strong><span>{item.kind === "income" ? "Receita" : item.kind === "expense" ? "Despesa" : "Transferência"} · {item.status === "paid" ? "Realizado" : item.status === "planned" ? "Previsto" : "Cancelado"}</span><small>{new Date(item.transaction_date + "T12:00:00").toLocaleDateString("pt-BR")}</small></div><strong className={item.kind === "income" ? "income-value" : "expense-value"}>{item.kind === "income" ? "+" : item.kind === "expense" ? "−" : ""}{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(item.amount))}</strong></div><div className="transaction-row-actions"><button className="quiet-button" type="button" disabled={busy} onClick={() => beginTransactionEdit(item)}>Editar</button><button className="quiet-button danger-button" type="button" disabled={busy} onClick={() => void deleteTransaction(item)}>Excluir</button></div>{editingTransactionId === item.id && <form className="transaction-edit-form" onSubmit={(event) => { event.preventDefault(); void saveTransactionEdit(item); }}><label>Descrição<input value={editDescription} onChange={(event) => setEditDescription(event.target.value)} maxLength={240} required /></label><label>Valor (R$)<input inputMode="decimal" value={editAmount} onChange={(event) => setEditAmount(event.target.value)} required /></label><label>Data<input type="date" value={editDate} onChange={(event) => setEditDate(event.target.value)} required /></label><label>Situação<select value={editStatus} onChange={(event) => setEditStatus(event.target.value as "paid" | "planned")}><option value="paid">Realizado</option><option value="planned">Previsto</option></select></label><button className="primary-button" type="submit" disabled={busy}>Salvar alterações</button><button className="quiet-button" type="button" disabled={busy} onClick={() => setEditingTransactionId(null)}>Cancelar</button></form>}</li>)}</ul>}
             </section>
 
             <section className="panel" aria-labelledby="assistant-title">
@@ -462,13 +515,20 @@ export default function App() {
               <h2 id="receipt-title">Ler comprovante</h2>
               <p>Envie um PDF ou imagem para extrair uma prévia. O arquivo é processado em memória; esta etapa não armazena o anexo.</p>
               <form className="assistant-form" onSubmit={(event) => void readReceipt(event)}>
-                <label>Arquivo<input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(event) => { setReceiptFile(event.target.files?.[0] ?? null); setReceiptDraft(null); }} /></label>
+                <label>Arquivo<input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(event) => { setReceiptFile(event.target.files?.[0] ?? null); setReceiptDraft(null); setReceiptConsent(false); }} /></label>
                 <label className="consent-row"><input type="checkbox" checked={receiptConsent} onChange={(event) => setReceiptConsent(event.target.checked)} /> Autorizo o envio deste arquivo à IA para leitura e extração de uma prévia.</label>
                 <button className="primary-button" type="submit" disabled={busy || !receiptFile || !receiptConsent}>Analisar comprovante</button>
               </form>
               {receiptDraft && <div className="receipt-preview">
                 <strong>{receiptDraft.sufficient ? "Revise os dados extraídos" : "Não foi possível extrair um lançamento único"}</strong>
-                {receiptDraft.sufficient && <dl><dt>Descrição</dt><dd>{receiptDraft.description}</dd><dt>Tipo e valor</dt><dd>{receiptDraft.kind === "income" ? "Receita" : "Despesa"} · R$ {receiptDraft.amount}</dd><dt>Data</dt><dd>{receiptDraft.date}</dd><dt>Categoria</dt><dd>{receiptDraft.category ?? "Não identificada"}</dd><dt>Pagamento</dt><dd>{receiptDraft.payment_method ?? "Não identificado"}</dd></dl>}
+                {receiptDraft.sufficient && <div className="receipt-edit-grid">
+                  <label>Descrição<input value={receiptDraft.description ?? ""} onChange={(event) => patchReceiptDraft("description", event.target.value)} maxLength={80} required /></label>
+                  <label>Tipo<select value={receiptDraft.kind ?? "expense"} onChange={(event) => patchReceiptDraft("kind", event.target.value as "income" | "expense")}><option value="expense">Despesa</option><option value="income">Receita</option></select></label>
+                  <label>Valor (R$)<input inputMode="decimal" value={receiptDraft.amount ?? ""} onChange={(event) => patchReceiptDraft("amount", event.target.value.replace(",", "."))} required /></label>
+                  <label>Data<input type="date" value={receiptDraft.date ?? ""} onChange={(event) => patchReceiptDraft("date", event.target.value)} required /></label>
+                  <label>Categoria<input value={receiptDraft.category ?? ""} onChange={(event) => patchReceiptDraft("category", event.target.value || null)} maxLength={80} placeholder="Opcional" /></label>
+                  <label>Forma de pagamento<input value={receiptDraft.payment_method ?? ""} onChange={(event) => patchReceiptDraft("payment_method", event.target.value || null)} maxLength={40} placeholder="Opcional" /></label>
+                </div>}
                 {receiptDraft.warnings.length > 0 && <ul>{receiptDraft.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul>}
                 {receiptDraft.sufficient && <><label>Conta para registrar<select value={receiptAccountId} onChange={(event) => setReceiptAccountId(event.target.value)}><option value="">Selecione</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>{receiptDraft.installment_count && receiptDraft.installment_count > 1 && <p>Parcelamento identificado ({receiptDraft.installment_count} vezes). O registro parcelado ainda não está habilitado neste fluxo.</p>}<button className="primary-button" type="button" disabled={busy || !receiptAccountId || Boolean(receiptDraft.installment_count && receiptDraft.installment_count > 1)} onClick={() => void confirmReceiptDraft()}>Confirmar e criar lançamento</button></>}
               </div>}
