@@ -59,7 +59,7 @@ Deno.serve(async (request: Request) => {
     for (const alert of alerts) {
       const quote = quoteMap.get(alert.symbol) ?? null;
       const evaluation = evaluateRadarAlert(alert as RadarEvaluationAlert, quote);
-      if (!evaluation.shouldFire || evaluation.price === null) continue;
+      if (!quote || !evaluation.shouldFire || evaluation.price === null) continue;
       const alertKey = `${alert.id}:${alert.generation}`;
       const { error: fireError } = await db.from("radar_fires").insert({
         user_id: alert.user_id, alert_key: alertKey, observed_price: evaluation.price,
