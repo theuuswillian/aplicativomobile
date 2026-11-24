@@ -330,3 +330,11 @@ O CI verde valida o código e as migrações em ambiente local; não comprova ch
 - [x] O workflow permite até 130 segundos para a chamada WhatsApp, sem retries automáticos de POST que poderiam ocorrer após resultado ambíguo.
 - [ ] CI do HEAD final precisa validar os ajustes de worker e workflow antes de qualquer publicação.
 - Workers continuam desativados; nenhuma Edge Function foi publicada.
+
+## Retry seguro de respostas WhatsApp — 24/11/2026
+
+- [x] Corrigido o worker de inbox: respostas recusadas com HTTP 429 (failed_safe) e reservas ainda ocupadas (busy) retornam à fila para nova tentativa com a mesma chave idempotente.
+- [x] Estados sent, failed e uncertain encerram a mensagem recebida; uncertain permanece terminal para evitar duplicação quando o provedor pode ter aceitado o envio.
+- [x] Política isolada em supabase/functions/_shared/whatsapp-delivery.ts e coberta por testes Vitest em tests/whatsapp-delivery.test.ts.
+- [ ] CI do HEAD atualizado ainda precisa concluir integralmente; o status Vercel atual reporta bloqueio de quota de Preview e não substitui os jobs do GitHub Actions.
+- Nenhuma Edge Function publicada, nenhum envio real feito, workers desligados e Production intacta.
