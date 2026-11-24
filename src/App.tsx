@@ -56,16 +56,13 @@ export default function App() {
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
       setNotice("");
+      if (!nextSession) { setProfile(null); setAlerts([]); }
     });
     return () => { active = false; listener.subscription.unsubscribe(); };
   }, []);
 
   useEffect(() => {
-    if (!supabase || !session) {
-      setProfile(null);
-      setAlerts([]);
-      return;
-    }
+    if (!supabase || !session) return;
     let active = true;
     const load = async () => {
       try {
