@@ -89,7 +89,10 @@ Implementar backend e integração gradual da interface do GranaViva conforme `d
 
 ### Frontend e validação
 - [x] Autenticação, preferências de tema e CRUD do Radar conectados.
-- [x] Frontend permite criar/listar contas e criar/listar/editar/excluir lançamentos sob RLS. Cartões, recorrências e demais módulos ainda pendentes.
+- [x] Frontend permite criar/listar contas e criar/listar/editar/excluir lançamentos sob RLS.
+- [x] Cartões, categorias, recorrências e orçamentos mensais conectados à interface.
+- [x] Metas financeiras conectadas: cadastro, progresso e contribuições com histórico; RPC invoker transacional bloqueia a meta, insere o evento e atualiza o acumulado atomicamente.
+- [ ] Investimentos e importação CSV/OFX ainda pendentes.
 - [x] Consentimento por uso da IA e prévia editável de comprovante no frontend; arquivo não persistido.
 - [ ] Push e WhatsApp no frontend.
 - [ ] Auditoria de acessibilidade e testes reais do usuário após a integração dos módulos.
@@ -110,15 +113,15 @@ A leitura do comprovante é atualmente efêmera: o arquivo é enviado para extra
 
 ## Validação pendente
 
-O HEAD atual `bd53ebfc18aedeadf992aeaa5c75de7802291dd4` passou integralmente na execução [PR #45305286705](https://github.com/theuuswillian/aplicativomobile/actions/runs/45305286705). Todos os jobs concluíram com sucesso:
+O commit `bd53ebfc18aedeadf992aeaa5c75de7802291dd4` passou integralmente na execução [PR #45305286705](https://github.com/theuuswillian/aplicativomobile/actions/runs/45305286705). Todos os jobs concluíram com sucesso:
 - `validate`: lint, política arquitetural, verificação de segredos, shell, TypeScript, testes, build, Playwright, responsividade, offline e acessibilidade.
 - `edge-runtime`: type-check Deno e testes unitários.
 - `sql`: migrations, RLS, grants, isolamento e concorrência no PostgreSQL 17.
 - `edge-integration`: Auth local, perfil, preferências, CORS, Radar, Push e isolamento entre dois usuários.
 
-O CI verde não significa que a Fase 3 esteja concluída. Permanecem integrações de cotação, envio Push, WhatsApp, módulos financeiros adicionais, armazenamento privado de comprovantes, configuração remota autorizada e validação manual no dispositivo.
+O CI verde não significa que a Fase 3 esteja concluída. Permanecem integrações de cotação, envio Push, WhatsApp, investimentos, importação CSV/OFX, armazenamento privado de comprovantes, configuração remota autorizada e validação manual no dispositivo.
 
-- HEAD consultado: `bd53ebfc18aedeadf992aeaa5c75de7802291dd4`.
+- HEAD consultado anteriormente: `bd53ebfc18aedeadf992aeaa5c75de7802291dd4`. A implementação de metas e a migration `007_goal_contribution_atomic.sql` foram adicionadas depois; a CI desse novo HEAD ainda precisa concluir.
 - [Branch Fase 3](https://github.com/theuuswillian/aplicativomobile/tree/fase-3-backend).
 - [PR #2](https://github.com/theuuswillian/aplicativomobile/pull/2), ainda draft e sem merge.
 - O teste local de integração cobre perfil, preferências, Radar e inscrições Push entre dois usuários.
