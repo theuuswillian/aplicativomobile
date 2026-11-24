@@ -38,61 +38,75 @@ Deno.serve(async (request: Request) => {
   const db = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
 
   try {
-    let alertsQuery = db.from("radar_alerts")
-      .select("id,user_id,asset_class,symbol,condition_type,threshold,generation")
-      .eq("is_enabled", true).order("created_at", { ascending: true }).limit(1000);
-    if (typeof body.symbol === "string") alertsQuery = alertsQuery.eq("symbol", body.symbol);
-    const { data: alerts, error: alertsError } = await alertsQuery;
-    if (alertsError) return internalError(origin);
-    if (!alerts?.length) return jsonResponse({ data: { checked: 0, fired: 0, duplicates: 0, notifications: 0, notification_failures: 0 } }, 200, origin);
-
-    const symbols = [...new Set(alerts.map((item) => item.symbol))];
-    const { data: quotes, error: quotesError } = await db.from("quote_cache")
-      .select("symbol,payload,saved_at").in("symbol", symbols);
-    if (quotesError) return internalError(origin);
-    const quoteMap = new Map((quotes ?? []).map((item) => [item.symbol, {
-      ...(item.payload as Record<string, unknown>), symbol: item.symbol, saved_at: item.saved_at,
-    } as RadarQuote]));
-
-    let fired = 0, duplicates = 0, notifications = 0, notificationFailures = 0;
+    const pageSize = 200;
+    let offset = 0;
+    let checked = 0, fired = 0, duplicates = 0, notifications = 0, notificationFailures = 0;
     const pushSecret = Deno.env.get("PUSH_WORKER_SECRET");
-    for (const alert of alerts) {
-      const quote = quoteMap.get(alert.symbol) ?? null;
-      const evaluation = evaluateRadarAlert(alert as RadarEvaluationAlert, quote);
-      if (!quote || !evaluation.shouldFire || evaluation.price === null) continue;
-      const alertKey = `${alert.id}:${alert.generation}`;
-      const { error: fireError } = await db.from("radar_fires").insert({
-        user_id: alert.user_id, alert_key: alertKey, observed_price: evaluation.price,
-        source: quote.source, quote_observed_at: quote.observed_at ?? quote.saved_at,
-      });
-      if (fireError?.code === "23505") { duplicates++; continue; }
-      if (fireError) return internalError(origin);
-      fired++;
 
-      if (!pushSecret || pushSecret.length < 32) { notificationFailures++; continue; }
-      try {
-        const response = await fetch(`${url}/functions/v1/push-worker`, {
-          method: "POST", redirect: "error", signal: AbortSignal.timeout(12_000),
-          headers: {
-            Authorization: `Bearer ${serviceKey}`,
-            "Content-Type": "application/json",
-            "x-worker-secret": pushSecret,
-          },
-          body: JSON.stringify({
-            user_id: alert.user_id, delivery_key: `radar:${alertKey}`,
-            title: "Alerta do Radar",
-            body: `${alert.symbol}: condição ${alert.condition_type} atingida. Preço observado: ${evaluation.price}. Fonte: ${quote.source}; cotação de ${new Date(quote.observed_at ?? quote.saved_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}.`,
-            url: "/",
-            tag: `radar-${alertKey}`,
-          }),
+    // PostgREST limita o tamanho de cada resposta. Percorrer páginas explícitas
+    // impede que alertas habilitados após o primeiro lote fiquem invisíveis.
+    while (true) {
+      let alertsQuery = db.from("radar_alerts")
+        .select("id,user_id,asset_class,symbol,condition_type,threshold,generation")
+        .eq("is_enabled", true)
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(offset, offset + pageSize - 1);
+      if (typeof body.symbol === "string") alertsQuery = alertsQuery.eq("symbol", body.symbol);
+      const { data: alerts, error: alertsError } = await alertsQuery;
+      if (alertsError) return internalError(origin);
+      if (!alerts?.length) break;
+      checked += alerts.length;
+
+      const symbols = [...new Set(alerts.map((item) => item.symbol))];
+      const { data: quotes, error: quotesError } = await db.from("quote_cache")
+        .select("symbol,payload,saved_at").in("symbol", symbols);
+      if (quotesError) return internalError(origin);
+      const quoteMap = new Map((quotes ?? []).map((item) => [item.symbol, {
+        ...(item.payload as Record<string, unknown>), symbol: item.symbol, saved_at: item.saved_at,
+      } as RadarQuote]));
+
+      for (const alert of alerts) {
+        const quote = quoteMap.get(alert.symbol) ?? null;
+        const evaluation = evaluateRadarAlert(alert as RadarEvaluationAlert, quote);
+        if (!quote || !evaluation.shouldFire || evaluation.price === null) continue;
+        const alertKey = `${alert.id}:${alert.generation}`;
+        const { error: fireError } = await db.from("radar_fires").insert({
+          user_id: alert.user_id, alert_key: alertKey, observed_price: evaluation.price,
+          source: quote.source, quote_observed_at: quote.observed_at ?? quote.saved_at,
         });
-        if (response.ok) notifications++;
-        else notificationFailures++;
-      } catch { notificationFailures++; }
+        if (fireError?.code === "23505") { duplicates++; continue; }
+        if (fireError) return internalError(origin);
+        fired++;
+
+        if (!pushSecret || pushSecret.length < 32) { notificationFailures++; continue; }
+        try {
+          const response = await fetch(`${url}/functions/v1/push-worker`, {
+            method: "POST", redirect: "error", signal: AbortSignal.timeout(12_000),
+            headers: {
+              Authorization: `Bearer ${serviceKey}`,
+              "Content-Type": "application/json",
+              "x-worker-secret": pushSecret,
+            },
+            body: JSON.stringify({
+              user_id: alert.user_id, delivery_key: `radar:${alertKey}`,
+              title: "Alerta do Radar",
+              body: `${alert.symbol}: condição ${alert.condition_type} atingida. Preço observado: ${evaluation.price}. Fonte: ${quote.source}; cotação de ${new Date(quote.observed_at ?? quote.saved_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}.`,
+              url: "/",
+              tag: `radar-${alertKey}`,
+            }),
+          });
+          if (response.ok) notifications++;
+          else notificationFailures++;
+        } catch { notificationFailures++; }
+      }
+
+      if (alerts.length < pageSize) break;
+      offset += pageSize;
     }
 
     return jsonResponse({
-      data: { checked: alerts.length, fired, duplicates, notifications, notification_failures: notificationFailures },
+      data: { checked, fired, duplicates, notifications, notification_failures: notificationFailures },
     }, 200, origin);
   } catch { return internalError(origin); }
 });
