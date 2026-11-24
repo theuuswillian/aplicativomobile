@@ -156,7 +156,7 @@ begin
     return;
   end;
 
-  if v_kind not in ('income','expense')
+  if v_kind is null or v_kind not in ('income','expense')
      or v_amount is null or v_amount <= 0 or v_amount > 10000000
      or round(v_amount,2) <> v_amount
      or v_date is null or v_date > current_date + 1
