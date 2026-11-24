@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { Home, ReceiptText, TrendingUp, UserRound } from "lucide-react";
 import { supabase } from "./lib/supabase";
+import { BANK_CATALOG, bankLogoStyle } from "./data/bank-catalog";
 import { clearFinancialRecordsForUser } from "./lib/secure-storage";
 import { generateOccurrences, type RecurrenceFrequency } from "./domain/recurrence";
 import { calculateInvestmentSummary, normalizeManualReferencePrice, type InvestmentOperation } from "./domain/investments";
@@ -24,14 +25,14 @@ type RadarAlert = {
   is_enabled: boolean;
 };
 type Profile = { display_name: string | null; email?: string };
-type AccountRow = { id: string; name: string; account_type: string; opening_balance: string; opening_balance_date: string; is_primary: boolean };
+type AccountRow = { id: string; name: string; account_type: string; opening_balance: string; opening_balance_date: string; is_primary: boolean; institution_name?: string | null; institution_code?: string | null; institution_logo_key?: string | null };
 type CardRow = { id: string; name: string; institution_name: string; last_four: string; brand: string | null; credit_limit: string; closing_day: number; due_day: number; is_archived: boolean };
 type CategoryRow = { id: string; name: string; kind: "income" | "expense"; color: string | null; icon: string | null };
 type RecurrenceRow = { id: string; name: string; kind: "income" | "expense"; amount: string; frequency: RecurrenceFrequency; interval_count: number; weekday: number | null; month_day: number | null; month_of_year: number | null; starts_on: string; ends_on: string | null; next_occurrence_on: string; account_id: string | null; card_id: string | null; is_active: boolean };
 type BudgetRow = { id: string; category_id: string; year: number; month: number; limit_amount: string };
 type GoalRow = { id: string; name: string; target_amount: string; current_amount: string; monthly_contribution: string; target_month: string | null };
 type GoalContributionRow = { id: string; goal_id: string; amount: string; contribution_date: string; source: string; created_at: string };
-type InvestmentAssetRow = { id: string; symbol: string; name: string; asset_class: "stock" | "fii" | "etf" | "bdr" | "fixed_income" | "crypto"; currency: "BRL" | "USD"; current_price?: string | number | null; price_as_of?: string | null; price_source?: "manual" | "brapi.dev" | null };
+type InvestmentAssetRow = { id: string; symbol: string; name: string; asset_class: "stock" | "fii" | "etf" | "bdr" | "fixed_income" | "crypto"; currency: "BRL" | "USD"; current_price?: string | number | null; price_as_of?: string | null; price_source?: "manual" | "brapi.dev" | null; metadata?: Record<string, unknown> };
 type InvestmentOperationRow = { id: string; asset_id: string; operation_type: "opening" | "buy" | "sell"; operation_date: string; quantity: string; unit_price: string; gross_amount: string; fees: string };
 type IncomeEventRow = { id: string; asset_id: string; event_type: "dividend" | "jcp" | "distribution" | "coupon" | "interest" | "amortization" | "other"; reference_date: string; payment_date: string | null; announced_amount: string; received_amount: string; status: "announced" | "planned" | "received" | "cancelled" };
 type BudgetSpendRow = { category_id: string | null; settled_amount: string };
@@ -155,6 +156,13 @@ export default function App() {
   const [investmentUnitPrice, setInvestmentUnitPrice] = useState("");
   const [investmentFees, setInvestmentFees] = useState("0,00");
   const [investmentDate, setInvestmentDate] = useState(todayInBrazil);
+  const [fixedIncomeProduct, setFixedIncomeProduct] = useState("CDB");
+  const [fixedIncomeIssuer, setFixedIncomeIssuer] = useState("");
+  const [fixedIncomeIndexer, setFixedIncomeIndexer] = useState<"CDI" | "IPCA" | "SELIC" | "PREFIXADO">("CDI");
+  const [fixedIncomeRate, setFixedIncomeRate] = useState("");
+  const [fixedIncomeMaturity, setFixedIncomeMaturity] = useState("");
+  const [fixedIncomeStart, setFixedIncomeStart] = useState(todayInBrazil);
+  const [fixedIncomeFrequency, setFixedIncomeFrequency] = useState<"daily" | "monthly" | "semiannual" | "at_maturity">("daily");
   const [goalName, setGoalName] = useState("");
   const [goalTarget, setGoalTarget] = useState("");
   const [goalMonthly, setGoalMonthly] = useState("0,00");
@@ -197,6 +205,7 @@ export default function App() {
   const currentBudgetMonthStart = `${currentBudgetYear}-${String(currentBudgetMonth).padStart(2, "0")}-01`;
   const nextBudgetMonthStart = new Date(Date.UTC(currentBudgetYear, currentBudgetMonth, 1)).toISOString().slice(0, 10);
   const [accountName, setAccountName] = useState("");
+  const [accountInstitutionKey, setAccountInstitutionKey] = useState("");
   const [accountType, setAccountType] = useState("checking");
   const [openingBalance, setOpeningBalance] = useState("0,00");
   const [txDescription, setTxDescription] = useState("");
@@ -256,7 +265,7 @@ export default function App() {
           client.functions.invoke("push-inscricoes", { body: { action: "consultar" } }),
           client.functions.invoke("whatsapp-vincular", { body: { action: "consultar" } }),
           client.from("receipt_files").select("id,transaction_id,storage_path,mime_type,byte_size,created_at").eq("user_id", session.user.id).order("created_at", { ascending: false }).limit(100),
-          client.from("accounts").select("id,name,account_type,opening_balance,opening_balance_date,is_primary").eq("user_id", session.user.id).eq("is_archived", false).order("created_at", { ascending: true }),
+          client.from("accounts").select("id,name,account_type,opening_balance,opening_balance_date,is_primary,institution_name,institution_code,institution_logo_key").eq("user_id", session.user.id).eq("is_archived", false).order("created_at", { ascending: true }),
           client.from("transactions").select("id,kind,status,amount,transaction_date,description,account_id,card_id,transfer_from_account_id,transfer_to_account_id,category_id").eq("user_id", session.user.id).order("transaction_date", { ascending: false }).limit(10000),
           client.from("cards").select("id,name,institution_name,last_four,brand,credit_limit,closing_day,due_day,is_archived").eq("user_id", session.user.id).eq("is_archived", false).order("created_at", { ascending: true }),
           client.from("categories").select("id,name,kind,color,icon").eq("user_id", session.user.id).order("kind", { ascending: true }).order("name", { ascending: true }),
@@ -265,7 +274,7 @@ export default function App() {
           client.from("transactions").select("category_id,settled_amount").eq("user_id", session.user.id).eq("kind", "expense").eq("status", "paid").gte("transaction_date", currentBudgetMonthStart).lt("transaction_date", nextBudgetMonthStart).limit(10000),
           client.from("goals").select("id,name,target_amount,current_amount,monthly_contribution,target_month").eq("user_id", session.user.id).order("created_at", { ascending: true }),
           client.from("goal_contributions").select("id,goal_id,amount,contribution_date,source,created_at").eq("user_id", session.user.id).order("created_at", { ascending: false }).limit(100),
-          client.from("investment_assets").select("id,symbol,name,asset_class,currency,current_price,price_as_of,price_source").eq("user_id", session.user.id).order("symbol", { ascending: true }),
+          client.from("investment_assets").select("id,symbol,name,asset_class,currency,current_price,price_as_of,price_source,metadata").eq("user_id", session.user.id).order("symbol", { ascending: true }),
           client.from("investment_operations").select("id,asset_id,operation_type,operation_date,quantity,unit_price,gross_amount,fees").eq("user_id", session.user.id).in("operation_type", ["opening","buy","sell"]).order("operation_date", { ascending: true }),
           client.from("income_events").select("id,asset_id,event_type,reference_date,payment_date,announced_amount,received_amount,status").eq("user_id", session.user.id).order("reference_date", { ascending: false }),
         ]);
@@ -443,6 +452,9 @@ export default function App() {
     try {
       const { data, error } = await supabase.from("accounts").insert({
         user_id: session.user.id, name: accountName.trim(), account_type: accountType,
+        institution_name: BANK_CATALOG.find((bank) => bank.logoKey === accountInstitutionKey)?.name ?? null,
+        institution_code: BANK_CATALOG.find((bank) => bank.logoKey === accountInstitutionKey)?.code || null,
+        institution_logo_key: accountInstitutionKey || null,
         opening_balance: amount, opening_balance_date: todayInBrazil(),
         is_primary: accounts.length === 0,
       }).select("id,name,account_type,opening_balance,opening_balance_date,is_primary").single();
@@ -452,6 +464,7 @@ export default function App() {
       setTxAccountId((current) => current || created.id);
       setReceiptAccountId((current) => current || created.id);
       setAccountName("");
+      setAccountInstitutionKey("");
       setOpeningBalance("0,00");
       setNotice("Conta criada.");
     } catch (error) { setNotice(errorMessage(error)); }
@@ -822,15 +835,23 @@ export default function App() {
     }
     setBusy(true); setNotice("");
     try {
+      const fixedRate = fixedIncomeRate.trim().replace(",", ".");
+    if (investmentClass === "fixed_income" && (!fixedIncomeProduct.trim() || !fixedIncomeStart || !/^\\d{4}-\\d{2}-\\d{2}$/.test(fixedIncomeStart) || !/^\\d{4}-\\d{2}-\\d{2}$/.test(fixedIncomeMaturity) || fixedIncomeMaturity <= fixedIncomeStart || !/^[0-9]{1,3}(?:[.][0-9]{1,4})?$/.test(fixedRate) || Number(fixedRate) <= 0 || Number(fixedRate) > 1000)) {
+      setNotice("Confira o produto, indexador, taxa e datas da renda fixa."); return;
+    }
+    const metadata = investmentClass === "fixed_income" ? { fixed_income: { product: fixedIncomeProduct, issuer: fixedIncomeIssuer.trim(), indexer: fixedIncomeIndexer, annual_rate_percent: fixedRate, start_date: fixedIncomeStart, maturity_date: fixedIncomeMaturity, yield_frequency: fixedIncomeFrequency } } : {};
+    setBusy(true); setNotice("");
+    try {
       const { data, error } = await supabase.from("investment_assets").insert({
         user_id: session.user.id, symbol: symbolValue, name: nameValue,
-        asset_class: investmentClass, currency: investmentCurrency,
-      }).select("id,symbol,name,asset_class,currency").single();
+        asset_class: investmentClass, currency: investmentCurrency, metadata,
+      }).select("id,symbol,name,asset_class,currency,current_price,price_as_of,price_source,metadata").single();
       if (error) throw error;
       const created = data as InvestmentAssetRow;
       setInvestmentAssets((current) => [...current, created].sort((a,b) => a.symbol.localeCompare(b.symbol)));
       setInvestmentAssetId(created.id);
       setInvestmentSymbol(""); setInvestmentName("");
+      setFixedIncomeIssuer(""); setFixedIncomeRate(""); setFixedIncomeMaturity(""); setFixedIncomeStart(todayInBrazil());
       setNotice("Ativo adicionado à carteira. A cotação ainda não está conectada.");
     } catch (error) { setNotice(errorMessage(error)); }
     finally { setBusy(false); }
@@ -1449,6 +1470,15 @@ export default function App() {
                   <label>Nome do ativo<input value={investmentName} onChange={(event) => setInvestmentName(event.target.value)} maxLength={120} placeholder="Nome ou descrição" required /></label>
                   <label>Classe<select value={investmentClass} onChange={(event) => setInvestmentClass(event.target.value as InvestmentAssetRow["asset_class"])}><option value="stock">Ação</option><option value="fii">FII</option><option value="etf">ETF</option><option value="bdr">BDR</option><option value="fixed_income">Renda fixa</option><option value="crypto">Cripto</option></select></label>
                   <label>Moeda<select value={investmentCurrency} onChange={(event) => setInvestmentCurrency(event.target.value as "BRL" | "USD")}><option value="BRL">BRL</option><option value="USD">USD</option></select></label>
+                  {investmentClass === "fixed_income" && <>
+                    <label>Produto<select value={fixedIncomeProduct} onChange={(event) => setFixedIncomeProduct(event.target.value)}><option>CDB</option><option>LCI</option><option>LCA</option><option>Tesouro Selic</option><option>Tesouro IPCA+</option><option>Tesouro Prefixado</option><option>LC</option><option>CRI</option><option>CRA</option><option>Poupança</option></select></label>
+                    <label>Instituição emissora<input value={fixedIncomeIssuer} onChange={(event) => setFixedIncomeIssuer(event.target.value)} maxLength={100} placeholder="Ex.: Banco emissor"/></label>
+                    <label>Indexador<select value={fixedIncomeIndexer} onChange={(event) => setFixedIncomeIndexer(event.target.value as typeof fixedIncomeIndexer)}><option value="CDI">CDI</option><option value="IPCA">IPCA</option><option value="SELIC">Selic</option><option value="PREFIXADO">Prefixado</option></select></label>
+                    <label>Taxa anual (%)<input inputMode="decimal" value={fixedIncomeRate} onChange={(event) => setFixedIncomeRate(event.target.value)} placeholder="Ex.: 100 ou 12,5" required/></label>
+                    <label>Início da aplicação<input type="date" value={fixedIncomeStart} onChange={(event) => setFixedIncomeStart(event.target.value)} required/></label>
+                    <label>Vencimento<input type="date" min={fixedIncomeStart} value={fixedIncomeMaturity} onChange={(event) => setFixedIncomeMaturity(event.target.value)} required/></label>
+                    <label>Periodicidade do rendimento<select value={fixedIncomeFrequency} onChange={(event) => setFixedIncomeFrequency(event.target.value as typeof fixedIncomeFrequency)}><option value="daily">Diário (dias úteis)</option><option value="monthly">Mensal</option><option value="semiannual">Semestral</option><option value="at_maturity">No vencimento</option></select></label>
+                  </>}
                   <button className="primary-button" type="submit" disabled={busy}>Adicionar ativo</button>
                 </form>
                 {investmentAssets.length > 0 && <form className="finance-form" onSubmit={(event) => void createInvestmentOperation(event)}>
@@ -1464,7 +1494,7 @@ export default function App() {
                   const summary = investmentSummary(asset.id);
                   const receivedCents = incomeEvents.filter((item) => item.asset_id === asset.id && item.status === "received")
                     .reduce((total, item) => total + decimalToCents(item.received_amount), 0n);
-                  return <li key={asset.id}><strong>{asset.symbol} · {asset.name}</strong><span>{asset.asset_class} · {asset.currency}</span><small>Quantidade: {summary.quantity.toLocaleString("pt-BR", { maximumFractionDigits: 8 })} · Custo: {formatInvestmentCents(BigInt(summary.costBasisCents), asset.currency)} · Custo médio: {formatInvestmentCents(BigInt(summary.averageCostCents), asset.currency)}</small><small>Resultado realizado: {formatInvestmentCents(BigInt(summary.realizedProfitCents), asset.currency)}{summary.error ? ` · ${summary.error}` : ""}</small><small>Proventos recebidos: {formatInvestmentCents(receivedCents, asset.currency)}</small>{asset.current_price != null && asset.price_as_of ? <small>Preço de referência: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: asset.currency, minimumFractionDigits: 2, maximumFractionDigits: 8 }).format(Number(asset.current_price))} · Fonte: {asset.price_source === "brapi.dev" ? "brapi.dev" : asset.price_source === "manual" ? "informado manualmente" : "origem não identificada"}{asset.price_source === "brapi.dev" ? " · atraso de origem aproximado de 30 min" : " · não é cotação automática"}{asset.price_source === "brapi.dev" && Date.now() - Date.parse(asset.price_as_of) > 45 * 60_000 ? " · cotação possivelmente desatualizada" : ""} · registrado em {new Date(asset.price_as_of).toLocaleString("pt-BR")}</small> : <small>Sem preço de referência cadastrado.</small>}
+                  return <li key={asset.id}><strong>{asset.symbol} · {asset.name}</strong><span>{asset.asset_class} · {asset.currency}</span><small>Quantidade: {summary.quantity.toLocaleString("pt-BR", { maximumFractionDigits: 8 })} · Custo: {formatInvestmentCents(BigInt(summary.costBasisCents), asset.currency)} · Custo médio: {formatInvestmentCents(BigInt(summary.averageCostCents), asset.currency)}</small>{asset.asset_class === "fixed_income" && (asset.metadata?.fixed_income as Record<string, unknown> | undefined) && <small>{String((asset.metadata?.fixed_income as Record<string, unknown>).product ?? asset.name)} · {String((asset.metadata?.fixed_income as Record<string, unknown>).indexer ?? "")} · {String((asset.metadata?.fixed_income as Record<string, unknown>).annual_rate_percent ?? "")}% a.a. · Vencimento: {String((asset.metadata?.fixed_income as Record<string, unknown>).maturity_date ?? "não informado")} · Rendimento: {{daily:"diário (dias úteis)",monthly:"mensal",semiannual:"semestral",at_maturity:"no vencimento"}[String((asset.metadata?.fixed_income as Record<string, unknown>).yield_frequency ?? "")] ?? "não informado"}</small>}<small>Resultado realizado: {formatInvestmentCents(BigInt(summary.realizedProfitCents), asset.currency)}{summary.error ? ` · ${summary.error}` : ""}</small><small>Proventos recebidos: {formatInvestmentCents(receivedCents, asset.currency)}</small>{asset.current_price != null && asset.price_as_of ? <small>Preço de referência: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: asset.currency, minimumFractionDigits: 2, maximumFractionDigits: 8 }).format(Number(asset.current_price))} · Fonte: {asset.price_source === "brapi.dev" ? "brapi.dev" : asset.price_source === "manual" ? "informado manualmente" : "origem não identificada"}{asset.price_source === "brapi.dev" ? " · atraso de origem aproximado de 30 min" : " · não é cotação automática"}{asset.price_source === "brapi.dev" && Date.now() - Date.parse(asset.price_as_of) > 45 * 60_000 ? " · cotação possivelmente desatualizada" : ""} · registrado em {new Date(asset.price_as_of).toLocaleString("pt-BR")}</small> : <small>Sem preço de referência cadastrado.</small>}
                     <form className="finance-form" onSubmit={(event) => void updateManualInvestmentPrice(event, asset)}>
                       <label>Preço de referência manual ({asset.currency})<input inputMode="decimal" value={manualPriceInputs[asset.id] ?? ""} onChange={(event) => setManualPriceInputs((current) => ({ ...current, [asset.id]: event.target.value }))} placeholder="Ex.: 32,45" disabled={busy} /></label>
                       <button className="quiet-button" type="submit" disabled={busy || !(manualPriceInputs[asset.id] ?? "").trim()}>Salvar preço</button>
@@ -1528,11 +1558,13 @@ export default function App() {
               </nav>
               <form className="finance-form" id="gastos-contas" onSubmit={(event) => void createAccount(event)}>
                 <label>Nome da conta<input value={accountName} onChange={(event) => setAccountName(event.target.value)} maxLength={100} placeholder="Ex.: Conta principal" required /></label>
+                <label>Banco ou instituição<select value={accountInstitutionKey} onChange={(event) => setAccountInstitutionKey(event.target.value)}><option value="">Selecione o banco (opcional)</option>{BANK_CATALOG.map((bank) => <option key={bank.logoKey} value={bank.logoKey}>{bank.name}{bank.code ? ` · ${bank.code}` : ""}</option>)}</select></label>
+                {accountInstitutionKey && (() => { const bank = BANK_CATALOG.find((item) => item.logoKey === accountInstitutionKey); return bank ? <div className="bank-selected"><span className="bank-logo-sprite" style={bankLogoStyle(bank.logoIndex)} aria-hidden="true"/><strong>{bank.name}</strong><small>{bank.code ? `Código ${bank.code}` : "Instituição digital"}</small></div> : null; })()}
                 <label>Tipo<select value={accountType} onChange={(event) => setAccountType(event.target.value)}><option value="checking">Conta corrente</option><option value="savings">Poupança</option><option value="cash">Dinheiro</option><option value="investment">Investimentos</option><option value="other">Outra</option></select></label>
                 <label>Saldo inicial (R$)<input inputMode="decimal" value={openingBalance} onChange={(event) => setOpeningBalance(event.target.value)} placeholder="0,00" required /></label>
                 <button className="primary-button" type="submit" disabled={busy}>Adicionar conta</button>
               </form>
-              {accounts.length > 0 ? <ul className="account-list">{accounts.map((account) => <li key={account.id}><strong>{account.name}{account.is_primary ? " · Principal" : ""}</strong><span>{account.account_type}</span><small>Saldo atual: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(accountBalances[account.id] ?? Number(account.opening_balance))} · Saldo inicial: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(account.opening_balance))}</small></li>)}</ul> : <p className="empty-state">Cadastre sua primeira conta para começar.</p>}
+              {accounts.length > 0 ? <ul className="account-list">{accounts.map((account) => <li key={account.id}><strong>{account.name}{account.is_primary ? " · Principal" : ""}</strong><span className="account-institution">{account.institution_logo_key && BANK_CATALOG.some((bank) => bank.logoKey === account.institution_logo_key) ? <span className="bank-logo-sprite bank-logo-small" style={bankLogoStyle(BANK_CATALOG.find((bank) => bank.logoKey === account.institution_logo_key)!.logoIndex)} aria-hidden="true"/> : null}{account.institution_name || account.account_type}</span><small>Saldo atual: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(accountBalances[account.id] ?? Number(account.opening_balance))} · Saldo inicial: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(account.opening_balance))}</small></li>)}</ul> : <p className="empty-state">Cadastre sua primeira conta para começar.</p>}
               <section className="subpanel" id="gastos-cartoes" aria-labelledby="cards-title">
                 <div className="transaction-heading"><strong id="cards-title">Cartões</strong><span>{cards.length} ativos</span></div>
                 <form className="finance-form" onSubmit={(event) => void createCard(event)}>
