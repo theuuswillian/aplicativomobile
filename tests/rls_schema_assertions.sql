@@ -13,7 +13,7 @@ begin
     ('accounts'),('cards'),('recurrence_rules'),('import_batches'),('transactions'),
     ('budgets'),('goals'),('goal_contributions'),('tangible_assets'),('liabilities'),
     ('net_worth_snapshots'),('receivables'),('import_items'),('receipt_files'),
-    ('investment_assets'),('investment_operations'),('income_events'),('quote_cache'),('market_data_usage'),
+    ('investment_assets'),('investment_operations'),('income_events'),('quote_cache'),('market_data_usage'),('market_data_cursor'),
     ('radar_alerts'),('radar_fires'),('push_subscriptions'),('push_deliveries'),
     ('ai_usage'),('ai_usage_reservations'),('rate_limit_buckets'),('function_errors'),
     ('whatsapp_links'),('whatsapp_link_codes'),('whatsapp_link_attempts'),
@@ -34,7 +34,7 @@ begin
       ('accounts'),('cards'),('recurrence_rules'),('import_batches'),('transactions'),
       ('budgets'),('goals'),('goal_contributions'),('tangible_assets'),('liabilities'),
       ('net_worth_snapshots'),('receivables'),('import_items'),('receipt_files'),
-      ('investment_assets'),('investment_operations'),('income_events'),('quote_cache'),('market_data_usage'),
+      ('investment_assets'),('investment_operations'),('income_events'),('quote_cache'),('market_data_usage'),('market_data_cursor'),
       ('radar_alerts'),('radar_fires'),('push_subscriptions'),('push_deliveries'),
       ('ai_usage'),('ai_usage_reservations'),('rate_limit_buckets'),('function_errors'),
       ('whatsapp_links'),('whatsapp_link_codes'),('whatsapp_link_attempts'),
@@ -53,6 +53,8 @@ begin
      or has_table_privilege('authenticated','public.quote_cache','select')
      or has_table_privilege('anon','public.market_data_usage','select')
      or has_table_privilege('authenticated','public.market_data_usage','select')
+     or has_table_privilege('anon','public.market_data_cursor','select')
+     or has_table_privilege('authenticated','public.market_data_cursor','select')
      or has_table_privilege('anon','public.ai_usage','select')
      or has_table_privilege('authenticated','public.ai_usage','select')
      or has_table_privilege('anon','public.ai_usage_reservations','select')
@@ -200,6 +202,7 @@ do $assert_market_data_private$
 begin
   begin
     perform 1 from public.market_data_usage;
+    perform 1 from public.market_data_cursor;
     raise exception 'Usuário autenticado conseguiu ler a cota global do provedor';
   exception when insufficient_privilege then
     null;
