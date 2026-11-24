@@ -1124,9 +1124,9 @@ Referências oficiais consultadas:
 - Não contratar B3/UP2DATA, plano pago de provedor ou serviço de dados sem autorização específica de custo.
 - Não usar TradingView como fonte de dados para o backend, Radar, cálculo de valorização ou preço de carteira; eventual widget visual é independente e depende dos termos próprios de exibição.
 - A integração Brapi permanece implementada apenas como adaptador técnico, mas bloqueada para uso público por padrão. Não configurar `BRAPI_PUBLIC_DISPLAY_APPROVED=true` sem direito de exibição/distribuição confirmado para o GranaViva.
-- A próxima implementação de fallback deverá permitir ao usuário informar manualmente um preço de referência, com fonte “informado pelo usuário”, data/hora da atualização e indicação explícita de que não é cotação automática. Não atribuir preço manual à Brapi ou à B3.
-- Preços manuais são estimativas de referência: não alteram operações, quantidade, custo médio, saldos, patrimônio realizado ou proventos; não disparam alertas automáticos do Radar como se fossem cotações de mercado.
-- Até essa interface ser implementada e testada, não afirmar que a atualização manual já está disponível. Ativos sem cotação válida devem continuar identificados como sem preço de mercado disponível.
+- A carteira permite ao usuário informar manualmente um preço de referência, com fonte “informado manualmente”, data/hora da atualização e indicação explícita de que não é cotação automática. Não atribuir preço manual à Brapi ou à B3. A origem é persistida em `investment_assets.price_source`.
+- Preços manuais são estimativas de referência: não alteram operações, quantidade, custo médio, saldos, patrimônio realizado ou proventos; não disparam alertas automáticos do Radar como se fossem cotações de mercado. O Radar continua consumindo exclusivamente o cache de cotações automáticas com fonte e timestamp válidos.
+- A interface de preço manual está implementada e protegida por RLS. Ativos sem preço válido continuam identificados como sem preço de referência; registros legados sem origem permanecem como “origem não identificada”.
 
 ### 13.4 Segurança e operação
 
