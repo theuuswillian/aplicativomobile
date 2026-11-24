@@ -18,14 +18,14 @@ export interface ParsedStatementRow {
 }
 
 function normalizeHeader(value: string): string {
-  return value.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "")
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .toLocaleLowerCase("pt-BR").replace(/[^a-z0-9]+/g, "");
 }
 
 function parseStatementDate(value: string): string | null {
   const input = value.trim();
-  let match = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(input);
-  if (!match) match = /^(\\d{2})[/.](\\d{2})[/.](\\d{4})$/.exec(input);
+  let match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(input);
+  if (!match) match = /^(\d{2})[/.](\d{2})[/.](\d{4})$/.exec(input);
   if (!match) return null;
   const year = Number(match[match.length === 4 && input.includes("-") ? 1 : 3]);
   const month = Number(match[match.length === 4 && input.includes("-") ? 2 : 2]);
@@ -39,18 +39,18 @@ function parseStatementDate(value: string): string | null {
 }
 
 function parseStatementAmount(value: string): { amountCents: number; negative: boolean } | null {
-  let input = value.trim().replace(/^R\\$\\s*/i, "").replace(/\\s/g, "");
+  let input = value.trim().replace(/^R\$\s*/i, "").replace(/\s/g, "");
   if (!input || input.length > 40) return null;
   const negative = input.startsWith("-") || (input.startsWith("(") && input.endsWith(")"));
   input = input.replace(/[()]/g, "").replace(/^[+-]/, "");
   if (input.includes(",") && input.includes(".")) {
     input = input.lastIndexOf(",") > input.lastIndexOf(".")
-      ? input.replace(/\\./g, "").replace(",", ".")
+      ? input.replace(/\./g, "").replace(",", ".")
       : input.replace(/,/g, "");
   } else if (input.includes(",")) {
     input = input.replace(",", ".");
   }
-  if (!/^\\d{1,12}(?:\\.\\d{1,2})?$/.test(input)) return null;
+  if (!/^\d{1,12}(?:\.\d{1,2})?$/.test(input)) return null;
   const [whole, fraction = ""] = input.split(".");
   const cents = BigInt(whole) * 100n + BigInt(fraction.padEnd(2, "0"));
   if (cents <= 0n || cents > 99999999999999n) return null;
@@ -58,8 +58,8 @@ function parseStatementAmount(value: string): { amountCents: number; negative: b
 }
 
 function parseCsvRecords(content: string): string[][] {
-  const delimiter = (content.split(/\\r?\\n/, 1)[0].match(/;/g)?.length ?? 0) >
-    (content.split(/\\r?\\n/, 1)[0].match(/,/g)?.length ?? 0) ? ";" : ",";
+  const delimiter = (content.split(/\r?\n/, 1)[0].match(/;/g)?.length ?? 0) >
+    (content.split(/\r?\n/, 1)[0].match(/,/g)?.length ?? 0) ? ";" : ",";
   const rows: string[][] = [];
   let row: string[] = [], field = "", quoted = false;
   for (let i = 0; i < content.length; i++) {
@@ -70,8 +70,8 @@ function parseCsvRecords(content: string): string[][] {
       else field += char;
     } else if (char === '"' && field.length === 0) quoted = true;
     else if (char === delimiter) { row.push(field); field = ""; }
-    else if (char === "\\n" || char === "\\r") {
-      if (char === "\\r" && content[i + 1] === "\\n") i++;
+    else if (char === "\n" || char === "\r") {
+      if (char === "\r" && content[i + 1] === "\n") i++;
       row.push(field); field = "";
       if (row.some((cell) => cell.trim())) rows.push(row);
       row = [];
@@ -87,7 +87,7 @@ function parseCsvRecords(content: string): string[][] {
 
 export function parseCsvStatement(content: string): ParsedStatementRow[] {
   if (content.length > 5_000_000) throw new TypeError("Arquivo CSV excede o limite de 5 MB.");
-  const records = parseCsvRecords(content.replace(/^\\uFEFF/, ""));
+  const records = parseCsvRecords(content.replace(/^\uFEFF/, ""));
   if (records.length < 2) throw new TypeError("O CSV precisa conter cabeçalho e ao menos um lançamento.");
   const headers = records[0].map(normalizeHeader);
   const index = (...names: string[]) => headers.findIndex((header) => names.includes(header));
@@ -113,7 +113,7 @@ export function parseCsvStatement(content: string): ParsedStatementRow[] {
     const amount = parsedAmount ?? (credit && !debit ? credit : debit && !credit ? debit : null);
     if (!date || !description || !amount) throw new TypeError(`Linha CSV ${result.length + 2} inválida: confira data, descrição e valor.`);
     const explicitType = normalizeHeader(record[typeIndex] ?? "");
-    const kind = explicitType.includes("receita") || explicitType === "income" || explicitType === "credit" || (credit !== null && debit === null) || (amountIndex >= 0 && !parsedAmount?.negative && /^\\s*\\+/.test(rawAmount))
+    const kind = explicitType.includes("receita") || explicitType === "income" || explicitType === "credit" || (credit !== null && debit === null) || (amountIndex >= 0 && !parsedAmount?.negative && /^\s*\+/.test(rawAmount))
       ? "income" : explicitType.includes("despesa") || explicitType === "expense" || explicitType === "debit" || (parsedAmount?.negative ?? false) || debit !== null ? "expense" : "income";
     result.push({ sourceId: (record[idIndex] ?? "").trim() || null, date, amountCents: amount.amountCents, kind, description });
   }
@@ -121,13 +121,13 @@ export function parseCsvStatement(content: string): ParsedStatementRow[] {
 }
 
 function ofxValue(block: string, tag: string): string {
-  const match = new RegExp(`<${tag}>([^<\\r\\n]*)`, "i").exec(block);
+  const match = new RegExp("<" + tag + ">([^<\\r\\n]*)", "i").exec(block);
   return match?.[1]?.trim() ?? "";
 }
 
 export function parseOfxStatement(content: string): ParsedStatementRow[] {
   if (content.length > 5_000_000) throw new TypeError("Arquivo OFX excede o limite de 5 MB.");
-  const blocks = [...content.matchAll(/<STMTTRN>\\s*([\\s\\S]*?)<\\/STMTTRN>/gi)];
+  const blocks = [...content.matchAll(/<STMTTRN>\s*([\s\S]*?)<\/STMTTRN>/gi)];
   if (!blocks.length) throw new TypeError("OFX sem lançamentos STMTTRN válidos.");
   if (blocks.length > 10000) throw new TypeError("O arquivo contém mais de 10.000 lançamentos.");
   return blocks.map((match, index) => {
@@ -148,7 +148,8 @@ export function parseOfxStatement(content: string): ParsedStatementRow[] {
     };
   });
 }
-\nexport interface ImportDecision {
+
+export interface ImportDecision {
   row: ImportRow;
   dedupeKey: string;
   result: "created" | "duplicate";
