@@ -107,7 +107,7 @@ Deno.serve(async (request: Request) => {
     const notificationResults = await Promise.all(notificationsToSend.map(async (item) => {
       try {
         const response = await fetch(`${url}/functions/v1/push-worker`, {
-          method: "POST", redirect: "error", signal: AbortSignal.timeout(12_000),
+          method: "POST", redirect: "error", signal: AbortSignal.timeout(115_000),
           headers: {
             Authorization: `Bearer ${serviceKey}`,
             "Content-Type": "application/json",
