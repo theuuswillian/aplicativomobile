@@ -274,3 +274,15 @@ O CI verde valida o código e as migrações em ambiente local; não comprova ch
 - [ ] A tentativa de Preview atualizado continua bloqueada pelo limite temporário de deployments da Vercel; o CI verde não substitui o teste manual no Safari/PWA.
 
 **Nota de atualização:** este registro é o mais recente e prevalece sobre referências históricas anteriores deste documento que indiquem migrations 001–011 apenas na branch ou CI ainda em andamento. O projeto Supabase Brasil já recebeu migrations 001–012, conforme verificação remota registrada acima.
+
+
+
+## Correção de paginação dos workers — 24/11/2026
+
+- [x] `radar-worker` deixou de depender do limite único de 1.000 alertas. Agora percorre páginas de 200 registros com cursor keyset (`created_at,id`), preservando a ordenação e a chave idempotente de disparo por alerta/geração.
+- [x] Resumo semanal WhatsApp deixou de consultar um conjunto fixo de até 500 vínculos. Agora seleciona até 10 vínculos ainda não reservados para a semana atual (`last_summary_week`), ordenados por usuário; cada execução continua do próximo lote após a RPC atômica de reserva.
+- [x] Vínculos sem consentimento efetivo nas preferências são marcados como tratados para a semana pela mesma RPC, evitando que ocupem repetidamente as primeiras posições e impeçam o avanço dos lotes.
+- [ ] A paginação do Radar percorre os lotes dentro de uma única invocação. Antes de habilitar workers em produção, ainda é necessário testar volume elevado e duração máxima; se a execução exceder o limite da Edge Function, a próxima evolução será persistir o cursor entre invocações.
+- [ ] A cadência de 15 minutos do workflow significa até 10 resumos semanais por execução agendada; validar backlog e capacidade com dados sintéticos antes de ativar `WORKERS_ENABLED`.
+- [ ] CI do código atualizado está em execução; não considerar aprovado até todos os jobs do HEAD final terminarem com sucesso.
+- Nenhuma migration nova foi criada/aplicada, nenhuma Edge Function publicada, nenhum worker ativado e nenhum ambiente Production alterado.
