@@ -11,3 +11,6 @@ verify_jwt = true
 
 [functions.ler-comprovante]
 verify_jwt = true
+
+[functions.radar-alertas]
+verify_jwt = true
