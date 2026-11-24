@@ -253,3 +253,12 @@ O CI verde valida o código e as migrações em ambiente local; não comprova ch
 - [ ] Supabase Edge Functions: nenhuma implantada no projeto brasileiro. O deploy deve ocorrer após conferir os secrets obrigatórios; não publicar endpoints que dependam de credenciais ausentes.
 - [ ] Secrets e integrações que dependem de contas/credenciais do proprietário: chave OpenAI, credenciais Meta WhatsApp, chaves VAPID e segredos internos distintos para workers. Configurar diretamente nos painéis oficiais; nunca enviar no chat.
 - [ ] Aceite final no Safari e no app instalado (PWA) depende do Preview atualizado e das credenciais acima. Workers e Brapi continuam desligados.
+
+
+## URL canônica aprovada e CI — 24/11/2026
+
+- URL provisória oficial aprovada: `https://granaviva-rust.vercel.app`, domínio Vercel já vinculado e verificado no projeto `granaviva`.
+- `granaviva.vercel.app` não pode ser usado: a Vercel informou que já está atribuído a outro projeto.
+- Valor exato para configurar no Supabase Edge Function Secrets: `APP_ORIGIN=https://granaviva-rust.vercel.app`. A gravação remota ainda está pendente porque a conexão disponível não oferece ferramenta para cadastrar Edge Function Secrets; o valor foi registrado no guia operacional.
+- CI no HEAD `493c367d309bed14e506011d1e66148d1cb27034`, execução [#45386967728](https://github.com/theuuswillian/aplicativomobile/actions/runs/45386967728): `validate`, `sql`, `edge-runtime` e `edge-integration` passaram; `lockfile` foi ignorado normalmente.
+- Nenhuma Edge Function foi publicada, nenhum worker foi habilitado e produção permanece intocada.
