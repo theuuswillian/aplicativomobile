@@ -4,7 +4,7 @@ import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
 import { generateOccurrences, type RecurrenceFrequency } from "./domain/recurrence";
 import { calculateInvestmentSummary, type InvestmentOperation } from "./domain/investments";
-import { parseCsvStatement, parseOfxStatement, planImportBatch, type ParsedStatementRow } from "./domain/imports";
+import { parseCsvStatement, parseOfxStatement, planImportBatch, type ImportRow } from "./domain/imports";
 type PushSubscriptionRow = { id: string; endpoint: string; user_agent: string | null };
 type WhatsappLinkState = { phone: string; weekly_summary_enabled: boolean };
 
@@ -30,7 +30,7 @@ type InvestmentOperationRow = { id: string; asset_id: string; operation_type: "o
 type IncomeEventRow = { id: string; asset_id: string; event_type: "dividend" | "jcp" | "distribution" | "coupon" | "interest" | "amortization" | "other"; reference_date: string; payment_date: string | null; announced_amount: string; received_amount: string; status: "announced" | "planned" | "received" | "cancelled" };
 type BudgetSpendRow = { category_id: string | null; settled_amount: string };
 type TransactionRow = { id: string; kind: "income" | "expense" | "transfer"; status: "paid" | "planned" | "cancelled"; amount: string; transaction_date: string; description: string; account_id: string | null };
-type ImportPreviewRow = ParsedStatementRow & { dedupeKey: string; duplicate: boolean };
+type ImportPreviewRow = ImportRow & { dedupeKey: string; duplicate: boolean };
 type ReceiptFileRow = { id: string; transaction_id: string; storage_path: string; mime_type: string; byte_size: number; created_at: string };
 type ReceiptDraft = { sufficient: boolean; kind: "income" | "expense" | null; amount: string | null; date: string | null; description: string | null; category: string | null; payment_method: string | null; installment_count: number | null; card_last_four: string | null; confidence: number; warnings: string[] };
 const THEME_STORAGE_KEY = "granaviva:theme:v1";
