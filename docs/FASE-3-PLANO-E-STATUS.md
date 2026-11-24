@@ -58,17 +58,20 @@ Implementar backend e integração gradual da interface do GranaViva conforme `d
 - [x] Reservas atômicas e rate limit por usuário.
 - [x] Tela de consentimento individual por solicitação; somente até 20 lançamentos recentes são enviados após confirmação explícita.
 - [x] Frontend envia arquivo com consentimento, mostra prévia editável e grava lançamento somente após confirmação explícita.
-- [ ] Storage privado e vínculo persistente do comprovante à transação.
+- [x] Migration `008_whatsapp_and_receipt_storage_safety.sql` cria bucket privado de 5 MB, RLS por usuário e transação, e consentimento WhatsApp desativado por padrão.
+- [x] Frontend envia comprovante após confirmação, registra hash SHA-256 e metadados, permite abrir URL assinada curta e remove objeto ao excluir o lançamento.
 - [ ] Configurar secrets e limites operacionais no ambiente remoto, somente após autorização.
 
 ### Radar
 - [x] CRUD autenticado de alertas por usuário.
 - [x] Condições acima, abaixo e queda percentual diária.
+- [x] Worker `radar-worker` valida frescor de 15 minutos, fonte e classe do ativo, aplica condições, persiste disparos idempotentes por geração e solicita Push.
+- [x] Histórico dos últimos disparos disponível no endpoint e na interface.
 - [x] RPC atômica: desativar preserva geração; reativar incrementa uma vez; repetição não incrementa.
 - [x] Migration `006_radar_alert_generation.sql`, grants restritos, RLS e testes de isolamento.
 - [x] Testes de validação, integração entre dois usuários e concorrência da reativação.
 - [x] Tela do Radar conectada ao endpoint no frontend.
-- [ ] Fonte de cotação pública e gratuita, com fonte/horário, cache e política de dados antigos. Nenhuma API financeira foi escolhida ou chamada.
+- [ ] Fonte de cotação pública e gratuita, com fonte/horário, cache e política de dados antigos. A arquitetura travada proíbe dependência de provedor financeiro externo; não integrar APIs pagas ou não aprovadas.
 
 ### Push
 - [x] Registro, listagem e remoção de inscrições por usuário autenticado.
@@ -85,7 +88,8 @@ Implementar backend e integração gradual da interface do GranaViva conforme `d
 - [ ] Adaptador de provedor e validação HMAC do webhook sobre corpo bruto.
 - [x] Endpoint autenticado de geração de código temporário, hash SHA-256, expiração de 10 minutos e rate limit de 3 códigos por hora.
 - [x] UI de vínculo, desvinculação e consentimento explícito do resumo semanal; gerar código não ativa o resumo.
-- [ ] Worker de inbox, parser de mensagem, confirmação explícita atômica e worker de outbox.
+- [x] RPC `whatsapp_pending_confirm` valida vínculo, referências e payload e cria o lançamento uma única vez sob lock transacional.
+- [ ] Adaptador de provedor, webhook HMAC, worker de inbox/parser e worker de outbox ainda pendentes.
 - [ ] Resumo semanal com consentimento e opt-out no worker.
 - Nenhum provedor, segredo, número ou envio real foi configurado.
 
@@ -97,8 +101,8 @@ Implementar backend e integração gradual da interface do GranaViva conforme `d
 - [x] Carteira de investimentos conectada: cadastro de ativos, posições iniciais, compras e vendas, cálculo de quantidade, custo médio e resultado realizado a partir do livro de operações.
 - [x] Importação CSV/OFX com parser validado, prévia, deduplicação por destino e confirmação humana; lote revertido em caso de falha.
 - [x] Registro manual de dividendos, JCP e outros proventos com estados anunciado/previsto/recebido/cancelado.
-- [x] Consentimento por uso da IA e prévia editável de comprovante no frontend; arquivo não persistido.
-- [x] Push no frontend e Service Worker; WhatsApp ainda pendente.
+- [x] Consentimento por uso da IA e prévia editável de comprovante; arquivo persiste em Storage privado somente após confirmação.
+- [x] Push no frontend e Service Worker; UI de vínculo WhatsApp, geração de código e consentimento explícito do resumo semanal conectados.
 - [ ] Auditoria de acessibilidade e testes reais do usuário após a integração dos módulos.
 
 ## Configuração necessária do backend (ainda não aplicada)
@@ -119,23 +123,23 @@ Para Push, a etapa de envio usa o worker interno `push-worker`. Antes de habilit
  
 Os limites são obrigatórios e uniformes, sem planos ou diferenciação comercial. Não foram inventados valores nem configurados segredos remotos. Os endpoints exigem `consent: true`; o frontend apresenta consentimento individual e o reseta após cada solicitação. Os documentos e fatos enviados são processados externamente pelo provedor configurado; `store: false` evita solicitar armazenamento da resposta pela API, mas não é promessa de retenção zero pelo provedor.
 
-A leitura do comprovante é atualmente efêmera: o arquivo é enviado para extração e não fica armazenado no Storage nem gera registro `receipt_files`. A persistência/anexo ao lançamento será implementada em etapa própria após o fluxo de confirmação e Storage privado.
+A extração do comprovante é efêmera durante a chamada de IA. Após confirmação humana, o arquivo original é armazenado no bucket privado `receipt-files`, com metadados e SHA-256 em `receipt_files`. Download usa URL assinada de curta duração; exclusão remove o objeto e o lançamento.
 
 ## Validação pendente
 
-O commit `bd53ebfc18aedeadf992aeaa5c75de7802291dd4` passou integralmente na execução [PR #45305286705](https://github.com/theuuswillian/aplicativomobile/actions/runs/45305286705). Todos os jobs concluíram com sucesso:
+O commit `bd53ebfc18aedeadf992aeaa5c75de7802291dd4` passou integralmente na execução [PR #45305286705](https://github.com/theuuswillian/aplicativomobile/actions/runs/45305286705). Os commits seguintes ampliaram os módulos; a validação integral do HEAD atual está em andamento:
 - `validate`: lint, política arquitetural, verificação de segredos, shell, TypeScript, testes, build, Playwright, responsividade, offline e acessibilidade.
 - `edge-runtime`: type-check Deno e testes unitários.
 - `sql`: migrations, RLS, grants, isolamento e concorrência no PostgreSQL 17.
 - `edge-integration`: Auth local, perfil, preferências, CORS, Radar, Push e isolamento entre dois usuários.
 
-O CI verde não significa que a Fase 3 esteja concluída. Permanecem integração de fonte de cotação, webhook/provedor e workers WhatsApp, configuração remota autorizada, agendamento/orquestração dos workers Radar e Push e validação manual no dispositivo.
+O CI verde não significa que a Fase 3 esteja concluída. Permanecem escolha/configuração de provedor WhatsApp, webhook HMAC e workers WhatsApp, escolha de fonte de cotações compatível com a arquitetura, configuração remota autorizada, agendamento/orquestração de Radar e Push e validação manual no dispositivo.
 
-- HEAD consultado anteriormente: `bd53ebfc18aedeadf992aeaa5c75de7802291dd4`. A implementação de metas, a migration `007_goal_contribution_atomic.sql`, a carteira de investimentos e a validação do livro de operações foram adicionadas depois; a CI do HEAD final ainda precisa concluir.
+- HEAD atual consultado: `986e4a0de1a24940d275e2db3c5e1124a058a2e3`; execução GitHub Actions [#45311538306](https://github.com/theuuswillian/aplicativomobile/actions/runs/45311538306) em validação. O commit contém migrations 007/008, metas, carteira, proventos, importação, Storage privado, Push e workers Radar.
 - [Branch Fase 3](https://github.com/theuuswillian/aplicativomobile/tree/fase-3-backend).
 - [PR #2](https://github.com/theuuswillian/aplicativomobile/pull/2), ainda draft e sem merge.
-- O teste local de integração cobre perfil, preferências, Radar e inscrições Push entre dois usuários.
-- O teste PostgreSQL inclui a migration 006 e verifica isolamento, grants e reativação concorrente do Radar.
+- O teste local de integração cobre perfil, preferências, CORS, Radar, Push, geração de código WhatsApp e bloqueio de workers sem JWT, além do isolamento entre dois usuários.
+- O teste PostgreSQL aplica migrations 001–008 e verifica RLS, grants, isolamento de Storage privado, consentimento WhatsApp, concorrência de metas, confirmação WhatsApp e reativação Radar.
 
 A aprovação final exige CI integral verde no HEAD final, auditoria, configuração remota somente autorizada e validação manual do aplicativo pelo usuário. Não relaxar asserts para obter CI verde.
 
