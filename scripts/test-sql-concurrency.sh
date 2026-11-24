@@ -85,4 +85,31 @@ if [[ "$allowed_count" != "1" ]]; then
   exit 1
 fi
 
-echo "Concorrência PostgreSQL validada: quota de IA e rate limit aceitaram somente uma operação."
+# Reativação concorrente de um alerta só pode avançar uma geração.
+alert_id="30000000-0000-4000-8000-000000000001"
+psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  insert into public.radar_alerts(id,user_id,asset_class,symbol,condition_type,threshold,generation,is_enabled)
+  values ('$alert_id','$user_id','stock','CONC1','above',10,1,false)
+"
+for suffix in a b; do
+  psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 >"$tmp_dir/radar-$suffix.out" <<SQL &
+begin;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','$user_id',true);
+select generation from public.radar_alert_set_enabled('$alert_id', true);
+select pg_sleep(1);
+commit;
+SQL
+  eval "radar_pid_$suffix=$!"
+done
+wait "$radar_pid_a"
+wait "$radar_pid_b"
+
+generation="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select generation from public.radar_alerts where id='$alert_id' and user_id='$user_id'")"
+if [[ "$generation" != "2" ]]; then
+  echo "Falha: reativação concorrente deveria deixar geração 2; recebida ${generation:-vazia}."
+  cat "$tmp_dir"/radar-*.out
+  exit 1
+fi
+
+echo "Concorrência PostgreSQL validada: quota de IA, rate limit e geração Radar foram serializados."
