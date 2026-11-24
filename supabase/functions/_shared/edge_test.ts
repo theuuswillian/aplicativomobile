@@ -273,12 +273,12 @@ Deno.test("Web Push payload encryption creates an aes128gcm record", async () =>
     return Uint8Array.from(binary, (character) => character.charCodeAt(0));
   })();
   const info = new Uint8Array([
-    ...new TextEncoder().encode("WebPush: info\\0"), ...clientPublicBytes, ...serverPublic,
+    ...new TextEncoder().encode("WebPush: info\0"), ...clientPublicBytes, ...serverPublic,
   ]);
   const inputKey = await expand(authPrk, info, 32);
   const contentPrk = await hmac(salt, inputKey);
-  const cek = await expand(contentPrk, new TextEncoder().encode("Content-Encoding: aes128gcm\\0"), 16);
-  const nonce = await expand(contentPrk, new TextEncoder().encode("Content-Encoding: nonce\\0"), 12);
+  const cek = await expand(contentPrk, new TextEncoder().encode("Content-Encoding: aes128gcm\0"), 16);
+  const nonce = await expand(contentPrk, new TextEncoder().encode("Content-Encoding: nonce\0"), 12);
   const aes = await crypto.subtle.importKey("raw", cek, { name: "AES-GCM" }, false, ["decrypt"]);
   const plaintext = new Uint8Array(await crypto.subtle.decrypt(
     { name: "AES-GCM", iv: nonce, tagLength: 128 }, aes, encrypted.slice(86),
