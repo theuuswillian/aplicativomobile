@@ -137,7 +137,7 @@ O commit `bd53ebfc18aedeadf992aeaa5c75de7802291dd4` passou integralmente na exec
 
 O CI verde não significa que a Fase 3 esteja concluída. Permanecem escolha/configuração de provedor WhatsApp, webhook HMAC e workers WhatsApp, fonte de cotação compatível com a arquitetura, secrets remotos autorizados e validação manual no dispositivo. O workflow `Scheduled workers` já está preparado, mas começa desativado até a variável `WORKERS_ENABLED=true` e os secrets necessários serem configurados no GitHub.
 
-- HEAD atual consultado anteriormente: `e2f5d6583da0b0ede1fb3ec6aad5f493457c9e65`; execução GitHub Actions [#45313153322](https://github.com/theuuswillian/aplicativomobile/actions/runs/45313153322) passou integralmente. O workflow agendado e a documentação foram adicionados depois e precisam de nova CI no HEAD final.
+- HEAD validado: `bd547533780c254477cacb0812dde31ba6fa2ed1`; execução GitHub Actions [#45313607017](https://github.com/theuuswillian/aplicativomobile/actions/runs/45313607017) passou integralmente: Edge Runtime, PostgreSQL 17, integração local Supabase e frontend (lint, policy, secrets, TypeScript, testes, build, Playwright, responsividade, offline e acessibilidade).
 - [Branch Fase 3](https://github.com/theuuswillian/aplicativomobile/tree/fase-3-backend).
 - [PR #2](https://github.com/theuuswillian/aplicativomobile/pull/2), ainda draft e sem merge.
 - O teste local de integração cobre perfil, preferências, CORS, Radar, Push, geração de código WhatsApp e bloqueio de workers sem JWT, além do isolamento entre dois usuários.
