@@ -449,7 +449,7 @@ export default function App() {
     const unitPrice = normalizeBrlAmount(investmentUnitPrice);
     const fees = normalizeBrlAmount(investmentFees, true);
     const asset = investmentAssets.find((item) => item.id === investmentAssetId);
-    if (!asset || !Number.isFinite(quantity) || quantity <= 0 || quantity > 1000000000 ||
+    if (!asset || !Number.isFinite(quantity) || Number(quantity.toFixed(8)) <= 0 || quantity > 1000000000 ||
         !/^\\d{1,10}(?:[.,]\\d{1,8})?$/.test(investmentQuantity.trim()) || !unitPrice || !fees || !investmentDate) {
       setNotice("Confira ativo, quantidade, preço, taxas e data da operação.");
       return;
