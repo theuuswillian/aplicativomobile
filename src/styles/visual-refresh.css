@@ -29,6 +29,10 @@
   border: 1px solid var(--color-line);
   background: var(--color-surface-raised);
 }
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--gv-accent);
+  outline-offset: 3px;
+}
 .dashboard { gap: 16px; padding-top: 14px; }
 .dashboard-heading {
   align-items: center; gap: 12px;
