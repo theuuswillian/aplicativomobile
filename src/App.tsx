@@ -1357,9 +1357,9 @@ export default function App() {
               </article>
               <button className="overview-action" type="button" onClick={() => setActiveTab("gastos")}><span aria-hidden="true">＋</span> Organizar contas e cartões</button>
             </section>}
-            <section className="panel privacy-panel" hidden={activeTab !== "conta"} id="conta-dados" aria-labelledby="privacy-title">
+            <section className="panel privacy-panel" hidden={activeTab !== "conta"} id="conta" aria-labelledby="privacy-title">
               <div className="panel-heading"><div><span className="principles-label">PRIVACIDADE E CONTROLE</span><h2 id="privacy-title">Seus dados e sua conta</h2><p>Exporte uma cópia dos seus dados ou solicite a exclusão permanente da conta e dos comprovantes privados.</p></div></div>
-              <nav className="section-jump" aria-label="Atalhos da área da conta"><a href="#conta-dados">Dados e privacidade</a><a href="#conta-assistente">Assistente</a><a href="#conta-comprovante">Leitor de comprovantes</a><a href="#conta-proximos-passos">Próximos recursos</a></nav>
+              <nav className="section-jump" aria-label="Atalhos da área da conta"><a href="#conta">Dados e privacidade</a><a href="#conta-assistente">Assistente</a><a href="#conta-comprovante">Leitor de comprovantes</a><a href="#conta-proximos-passos">Próximos recursos</a></nav>
               <div className="privacy-actions">
                 <button className="primary-button" type="button" onClick={() => void exportPersonalData()} disabled={busy}>Exportar meus dados (JSON)</button>
                 <label>Para excluir, digite EXCLUIR_CONTA
@@ -1372,8 +1372,9 @@ export default function App() {
             <section className="panel" id="patrimonio" hidden={activeTab !== "patrimonio"} aria-labelledby="radar-title">
               <div className="panel-heading"><div><span className="principles-label">ACOMPANHAMENTO DE ATIVOS</span><h2 id="radar-title">Radar de preços</h2><p>Crie alertas para acompanhar seus ativos. O disparo usa somente cotações recentes de uma fonte validada; nenhuma fonte de preços está conectada ainda.</p></div></div>
               <nav className="section-jump" aria-label="Atalhos do patrimônio">
-                <a href="#patrimonio-investimentos">Carteira</a><a href="#patrimonio-proventos">Proventos</a><a href="#patrimonio-metas">Metas</a><a href="#patrimonio-radar">Radar</a>
+                <a href="#patrimonio-radar">Radar</a><a href="#patrimonio-investimentos">Carteira</a><a href="#patrimonio-proventos">Proventos</a><a href="#patrimonio-metas">Metas</a>
               </nav>
+              <div className="transaction-heading"><strong>Radar de preços</strong><span>{alerts.length} alertas cadastrados</span></div>
               <form className="radar-form" id="patrimonio-radar" onSubmit={(event) => void createAlert(event)}>
                 <label>Classe<select value={assetClass} onChange={(event) => setAssetClass(event.target.value as RadarAlert["asset_class"])}><option value="stock">Ação</option><option value="fii">FII</option><option value="etf">ETF</option><option value="bdr">BDR</option><option value="crypto">Cripto</option></select></label>
                 <label>Ativo<input value={symbol} onChange={(event) => setSymbol(event.target.value.toUpperCase())} placeholder="Ex.: PETR4" maxLength={32} required /></label>
