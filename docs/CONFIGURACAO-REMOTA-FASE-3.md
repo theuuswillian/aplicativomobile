@@ -145,7 +145,7 @@ Cotações automáticas permanecem desativadas independentemente do cron até au
 ## Estado já realizado em 24/11/2026
 
 - Supabase Brasil: migrations 001–013 aplicadas; RLS habilitado em todas as tabelas públicas e bucket de comprovantes privado.
-- GitHub Actions: CI integral verde no commit `1c141f53ad4062aad41a78e09763fe02563aedf2`.
+- GitHub Actions: CI integral verde no HEAD `4bce678d62b1f3f41bb3ec7dd5ad26e3befef09d` (run `45481057887`): validate, SQL/PostgreSQL 17, Edge Runtime e integração local aprovados; lockfile skipped por não ser aplicável.
 - Vercel: variáveis públicas de URL e publishable key do Supabase Brasil cadastradas para Preview da branch `fase-3-backend` e Development. Nenhuma variável de produção ou secret foi adicionado.
 - Ainda não implantadas: Edge Functions; ainda não configurados: secrets de backend, OpenAI, Meta, VAPID e workers.
 - `WORKERS_ENABLED` permanece ausente/falso; Brapi permanece desligada por decisão de licença.
@@ -177,3 +177,13 @@ Cotações automáticas permanecem desativadas independentemente do cron até au
 - O workflow continua opt-in. Não definir `WORKERS_ENABLED=true` e não executar manualmente com `run_workers=true` durante a configuração.
 - Esses limites são proteções iniciais, não uma validação de carga. Antes de ampliar lotes, medir duração e backlog em ambiente controlado.
 - Migration 013 já está aplicada no Supabase Brasil; histórico remoto contém 13 migrations. `APP_ORIGIN` foi cadastrado conforme confirmação do operador.
+
+
+## CI de confiabilidade WhatsApp — 24/11/2026
+
+- [x] HEAD `4bce678d62b1f3f41bb3ec7dd5ad26e3befef09d`: run `45481057887` concluído com sucesso em validate, SQL/PostgreSQL 17, Edge Runtime e integração local.
+- [x] Lint, política, verificação de secrets, shell scripts, TypeScript, Vitest, build, Chromium/WebKit, responsividade, offline e acessibilidade passaram.
+- [x] Testes SQL de migrations, RLS e concorrência passaram; integração local Auth, Edge Functions, CORS e RLS passou.
+- [ ] Status Vercel do commit continua falhando por limite de quota de Preview (não é falha do CI GitHub e não valida deployment do HEAD).
+- [ ] Secrets de serviço ainda precisam ser configurados diretamente no Supabase/GitHub conforme este checklist; não há leitura dos valores pelo conector.
+- Nenhuma função publicada, nenhum worker ativado e nenhuma alteração em Production.
