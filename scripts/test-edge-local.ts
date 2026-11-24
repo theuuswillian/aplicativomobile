@@ -172,6 +172,27 @@ try {
   });
   assert(invalidSettings.response.status === 400, "Campo user_id enviado pelo cliente deve ser rejeitado.");
 
+  const whatsappState = await invoke("whatsapp-vincular", tokenA, { action: "consultar" });
+  assert(whatsappState.response.ok && whatsappState.body?.data?.linked === false &&
+    whatsappState.body?.data?.weekly_summary_enabled === false,
+    "WhatsApp deve iniciar sem vínculo e sem consentimento de resumo.");
+  const whatsappCode = await invoke("whatsapp-vincular", tokenA, { action: "gerar_codigo" });
+  assert(whatsappCode.response.status === 201 && /^\\d{6}$/.test(whatsappCode.body?.data?.code ?? "") &&
+    whatsappCode.body?.data?.provider_ready === false,
+    "Geração de código WhatsApp deve criar código temporário sem ativar provedor.");
+  const whatsappConsentWithoutLink = await invoke("whatsapp-vincular", tokenA, {
+    action: "resumo", enabled: true,
+  });
+  assert(whatsappConsentWithoutLink.response.status === 409,
+    "Resumo semanal não pode ser ativado sem vínculo WhatsApp.");
+
+  const unauthenticatedPushWorker = await invoke("push-worker", null, {});
+  assert(unauthenticatedPushWorker.response.status === 401,
+    "Worker Push deve exigir JWT de serviço antes do segredo interno.");
+  const unauthenticatedRadarWorker = await invoke("radar-worker", null, {});
+  assert(unauthenticatedRadarWorker.response.status === 401,
+    "Worker Radar deve exigir JWT de serviço antes do segredo interno.");
+
   const radarCreated = await invoke("radar-alertas", tokenA, {
     action: "criar",
     asset_class: "stock",
