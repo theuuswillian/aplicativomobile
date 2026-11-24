@@ -48,7 +48,15 @@ const INVESTMENT_CATALOG: Record<string, { name: string; assetClass: InvestmentA
   HGLG11:{name:"Pátria Logística",assetClass:"fii"},MXRF11:{name:"Maxi Renda",assetClass:"fii"},KNRI11:{name:"Kinea Renda Imobiliária",assetClass:"fii"},
   XPLG11:{name:"XP Log",assetClass:"fii"},VISC11:{name:"Vinci Shopping Centers",assetClass:"fii"},CPTS11:{name:"Capitânia Securities II",assetClass:"fii"},
   IVVB11:{name:"iShares S&P 500",assetClass:"etf"},BOVA11:{name:"iShares Ibovespa",assetClass:"etf"},SMAL11:{name:"iShares Small Cap",assetClass:"etf"},
-  HASH11:{name:"Hashdex Nasdaq Crypto",assetClass:"etf"}
+  HASH11:{name:"Hashdex Nasdaq Crypto",assetClass:"etf"},
+  XPML11:{name:"XP Malls",assetClass:"fii"},BTLG11:{name:"BTG Pactual Logística",assetClass:"fii"},
+  HGRU11:{name:"CSHG Renda Urbana",assetClass:"fii"},IRDM11:{name:"Iridium Recebíveis Imobiliários",assetClass:"fii"},
+  BCFF11:{name:"BTG Pactual Fundo de Fundos",assetClass:"fii"},RBRR11:{name:"RBR Rendimento High Grade",assetClass:"fii"},
+  HGBS11:{name:"Hedge Brasil Shopping",assetClass:"fii"},PRIO3:{name:"PRIO",assetClass:"stock"},
+  DIVO11:{name:"Itaú Dividendos",assetClass:"etf"},AAPL34:{name:"Apple (BDR)",assetClass:"bdr"},
+  MSFT34:{name:"Microsoft (BDR)",assetClass:"bdr"},AMZO34:{name:"Amazon (BDR)",assetClass:"bdr"},
+  GOGL34:{name:"Alphabet (BDR)",assetClass:"bdr"},NVDC34:{name:"NVIDIA (BDR)",assetClass:"bdr"},
+  TSLA34:{name:"Tesla (BDR)",assetClass:"bdr"},MELI34:{name:"MercadoLibre (BDR)",assetClass:"bdr"}
 };
 
 const THEME_STORAGE_KEY = "granaviva:theme:v1";
@@ -1461,8 +1469,9 @@ export default function App() {
                       const total = rows.reduce((sum,item)=>sum+item.amount,0);
                       if (!total) return null;
                       let cursor = 0;
-                      const gradient = rows.map((item,index)=>{const from=cursor;cursor+=item.amount/total*100;return `${colors[index%colors.length]} ${from}% ${cursor}%`;}).join(", ");
-                      return <div className="allocation-group" key={id}><strong>{title} · {currency}</strong><div className="allocation-chart-row"><div className="allocation-donut" role="img" aria-label={`Gráfico ${title}, total ${new Intl.NumberFormat("pt-BR",{style:"currency",currency}).format(total)}`} style={{background:`conic-gradient(${gradient})`}}><span>{new Intl.NumberFormat("pt-BR",{style:"currency",currency,notation:"compact",maximumFractionDigits:1}).format(total)}</span></div><ul className="allocation-legend">{[...rows].sort((a,b)=>b.amount-a.amount).map((item,index)=><li key={item.key}><span className="allocation-dot" style={{background:colors[index%colors.length]}}/><span><strong>{item.label}</strong>{item.hint && <small>{item.hint}</small>}</span><b>{(item.amount/total*100).toLocaleString("pt-BR",{maximumFractionDigits:1})}%</b></li>)}</ul></div></div>;
+                      const colorByKey = new Map(rows.map((item,index)=>[item.key,colors[index%colors.length]]));
+                      const gradient = rows.map((item)=>{const from=cursor;cursor+=item.amount/total*100;return `${colorByKey.get(item.key)} ${from}% ${cursor}%`;}).join(", ");
+                      return <div className="allocation-group" key={id}><strong>{title} · {currency}</strong><div className="allocation-chart-row"><div className="allocation-donut" role="img" aria-label={`Gráfico ${title}, total ${new Intl.NumberFormat("pt-BR",{style:"currency",currency}).format(total)}`} style={{background:`conic-gradient(${gradient})`}}><span>{new Intl.NumberFormat("pt-BR",{style:"currency",currency,notation:"compact",maximumFractionDigits:1}).format(total)}</span></div><ul className="allocation-legend">{[...rows].sort((a,b)=>b.amount-a.amount).map((item,index)=><li key={item.key}><span className="allocation-dot" style={{background:colorByKey.get(item.key)}}/><span><strong>{item.label}</strong>{item.hint && <small>{item.hint}</small>}</span><b>{(item.amount/total*100).toLocaleString("pt-BR",{maximumFractionDigits:1})}%</b></li>)}</ul></div></div>;
                     };
                     const currencies = (["BRL","USD"] as const).map((currency) => {
                       const rows = baseRows.filter((item)=>item.asset.currency===currency);
