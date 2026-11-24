@@ -230,7 +230,7 @@ radar_claim2="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select reservat
 if [[ "$radar_claim2" != "reserved|$radar_cursor_id" ]]; then
   echo "Falha: Radar não retomou cursor persistido: $radar_claim2"; exit 1
 fi
-radar_token2="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select fencing_token::text from public.radar_worker_state where worker_key='$radar_worker_key'")"
+radar_token2="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select lease_token::text from public.radar_worker_state where worker_key='$radar_worker_key'")"
 radar_stale="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select public.radar_worker_checkpoint('$radar_worker_key','$radar_token','$radar_cursor_time','$radar_cursor_id',false)")"
 if [[ "$radar_stale" != "f" ]]; then
   echo "Falha: token antigo conseguiu alterar checkpoint Radar: $radar_stale"; exit 1
