@@ -61,6 +61,15 @@ function formatCents(value: bigint): string {
   return `${negative ? "-" : ""}${formattedWhole},${fraction}`;
 }
 
+function formatInvestmentCents(value: bigint, currency: "BRL" | "USD"): string {
+  const negative = value < 0n;
+  const absolute = negative ? -value : value;
+  const whole = absolute / 100n;
+  const fraction = Number(absolute % 100n) / 100;
+  const numeric = Number(whole) + fraction;
+  return `${negative ? "-" : ""}${new Intl.NumberFormat("pt-BR", { style: "currency", currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(numeric)}`;
+}
+
 function normalizeBrlAmount(value: string, allowZero = false, allowNegative = false): string | null {
   const input = value.trim();
   if (!/^-?\d{1,10}(?:,\d{1,2})?$/.test(input)) return null;
@@ -448,8 +457,13 @@ export default function App() {
     const gross = (quantity * Number(unitPrice)).toFixed(2);
     const grossCents = decimalToCents(gross);
     const feeCents = decimalToCents(fees);
-    if (grossCents <= 0n || (investmentOperationType === "sell" && grossCents < feeCents)) {
-      setNotice("O valor bruto deve cobrir as taxas da operação.");
+    if (grossCents <= 0n || grossCents > 99999999999999n || feeCents > 99999999999999n || (investmentOperationType === "sell" && grossCents < feeCents)) {
+      setNotice("O valor bruto deve caber no limite financeiro e cobrir as taxas da operação.");
+      return;
+    }
+    const currentSummary = investmentSummary(asset.id);
+    if (currentSummary.error || (investmentOperationType === "sell" && quantity > currentSummary.quantity + 1e-9)) {
+      setNotice(currentSummary.error ?? "A venda não pode superar a quantidade disponível na carteira.");
       return;
     }
     const net = investmentOperationType === "sell" ? grossCents - feeCents : grossCents + feeCents;
@@ -924,14 +938,14 @@ export default function App() {
                   <label>Ativo<select value={investmentAssetId} onChange={(event) => setInvestmentAssetId(event.target.value)} required>{investmentAssets.map((asset) => <option key={asset.id} value={asset.id}>{asset.symbol} · {asset.name}</option>)}</select></label>
                   <label>Operação<select value={investmentOperationType} onChange={(event) => setInvestmentOperationType(event.target.value as "opening" | "buy" | "sell")}><option value="buy">Compra</option><option value="sell">Venda</option><option value="opening">Posição inicial</option></select></label>
                   <label>Quantidade<input inputMode="decimal" value={investmentQuantity} onChange={(event) => setInvestmentQuantity(event.target.value)} placeholder="Ex.: 10" required /></label>
-                  <label>Preço unitário (R$)<input inputMode="decimal" value={investmentUnitPrice} onChange={(event) => setInvestmentUnitPrice(event.target.value)} placeholder="0,00" required /></label>
-                  <label>Taxas (R$)<input inputMode="decimal" value={investmentFees} onChange={(event) => setInvestmentFees(event.target.value)} required /></label>
+                  <label>Preço unitário ({investmentAssets.find((item) => item.id === investmentAssetId)?.currency ?? "BRL"})<input inputMode="decimal" value={investmentUnitPrice} onChange={(event) => setInvestmentUnitPrice(event.target.value)} placeholder="0,00" required /></label>
+                  <label>Taxas ({investmentAssets.find((item) => item.id === investmentAssetId)?.currency ?? "BRL"})<input inputMode="decimal" value={investmentFees} onChange={(event) => setInvestmentFees(event.target.value)} required /></label>
                   <label>Data<input type="date" value={investmentDate} onChange={(event) => setInvestmentDate(event.target.value)} required /></label>
                   <button className="primary-button" type="submit" disabled={busy}>Registrar operação</button>
                 </form>}
                 {investmentAssets.length === 0 ? <p className="empty-state">Adicione seus ativos e registre posições iniciais, compras e vendas.</p> : <ul className="account-list">{investmentAssets.map((asset) => {
                   const summary = investmentSummary(asset.id);
-                  return <li key={asset.id}><strong>{asset.symbol} · {asset.name}</strong><span>{asset.asset_class} · {asset.currency}</span><small>Quantidade: {summary.quantity.toLocaleString("pt-BR", { maximumFractionDigits: 8 })} · Custo: {formatCents(BigInt(summary.costBasisCents))} · Custo médio: {formatCents(BigInt(summary.averageCostCents))}</small><small>Resultado realizado: {formatCents(BigInt(summary.realizedProfitCents))}{summary.error ? ` · ${summary.error}` : ""}</small></li>;
+                  return <li key={asset.id}><strong>{asset.symbol} · {asset.name}</strong><span>{asset.asset_class} · {asset.currency}</span><small>Quantidade: {summary.quantity.toLocaleString("pt-BR", { maximumFractionDigits: 8 })} · Custo: {formatInvestmentCents(BigInt(summary.costBasisCents), asset.currency)} · Custo médio: {formatInvestmentCents(BigInt(summary.averageCostCents), asset.currency)}</small><small>Resultado realizado: {formatInvestmentCents(BigInt(summary.realizedProfitCents), asset.currency)}{summary.error ? ` · ${summary.error}` : ""}</small></li>;
                 })}</ul>}
                 <p className="helper-text">A carteira mostra posição e custo com base nas operações registradas. Não exibe preço de mercado nem rentabilidade atual enquanto não houver fonte de cotação validada e timestamp.</p>
               </section>
