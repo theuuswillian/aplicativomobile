@@ -157,12 +157,18 @@ Deno.serve(async (request: Request) => {
         if (command.kind !== "link") {
           reply = "Para vincular, gere um código no GranaViva e envie os 6 dígitos aqui. O código expira em 10 minutos.";
         } else {
-          const hash = await sha256Hex(command.code);
-          const consumed = await db.rpc("whatsapp_link_consume", { p_code_hash: hash, p_phone: phone });
-          if (consumed.error) throw new Error("link_consume_failed");
-          reply = typeof consumed.data === "string"
-            ? "WhatsApp vinculado com sucesso! Envie AJUDA para ver os comandos."
-            : "Código inválido ou expirado. Gere outro código no aplicativo.";
+          const attempt = await db.rpc("whatsapp_link_attempt_allow", { p_phone: phone });
+          if (attempt.error) throw new Error("link_attempt_rate_limit_failed");
+          if (attempt.data !== true) {
+            reply = "Muitas tentativas de vinculação. Aguarde 15 minutos antes de tentar novamente.";
+          } else {
+            const hash = await sha256Hex(command.code);
+            const consumed = await db.rpc("whatsapp_link_consume", { p_code_hash: hash, p_phone: phone });
+            if (consumed.error) throw new Error("link_consume_failed");
+            reply = typeof consumed.data === "string"
+              ? "WhatsApp vinculado com sucesso! Envie AJUDA para ver os comandos."
+              : "Código inválido ou expirado. Gere outro código no aplicativo.";
+          }
         }
       } else if (command.kind === "help") {
         reply = "Comandos disponíveis:\nDESPESA 12,50 descrição\nRECEITA 20,00 descrição\nCONFIRMAR ID\nCANCELAR ID\nCada lançamento fica pendente até sua confirmação.";
