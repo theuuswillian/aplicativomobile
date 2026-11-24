@@ -129,9 +129,10 @@ Deno.serve(async (request: Request) => {
     if (reservationResult.error) { failed++; continue; }
     const reservation = Array.isArray(reservationResult.data) ? reservationResult.data[0] : null;
     if (!reservation || reservation.reservation_status !== "reserved" || typeof reservation.fencing_token !== "string") continue;
+    const fencingToken = reservation.fencing_token;
     const finish = async (success: boolean, reason?: string) => {
       const result = await db.rpc("whatsapp_inbox_finalize", {
-        p_message_id: row.message_id, p_fencing_token: reservation.fencing_token,
+        p_message_id: row.message_id, p_fencing_token: fencingToken,
         p_success: success, p_error: reason ?? null,
       });
       return !result.error && result.data === true;
