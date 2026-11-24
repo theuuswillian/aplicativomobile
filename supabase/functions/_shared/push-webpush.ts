@@ -1,5 +1,11 @@
 const encoder = new TextEncoder();
 
+export function toArrayBuffer(value: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(value.byteLength);
+  copy.set(value);
+  return copy.buffer;
+}
+
 function decodeBase64Url(value: string): Uint8Array {
   if (!/^[A-Za-z0-9_-]+$/.test(value)) throw new TypeError("Invalid base64url value");
   const base64 = value.replace(/-/g, "+").replace(/_/g, "/");
@@ -21,8 +27,8 @@ function concatBytes(...parts: Uint8Array[]): Uint8Array {
 }
 
 async function hmac(keyBytes: Uint8Array, data: Uint8Array): Promise<Uint8Array> {
-  const key = await crypto.subtle.importKey("raw", keyBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-  return new Uint8Array(await crypto.subtle.sign("HMAC", key, data));
+  const key = await crypto.subtle.importKey("raw", toArrayBuffer(keyBytes), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  return new Uint8Array(await crypto.subtle.sign("HMAC", key, toArrayBuffer(data)));
 }
 
 async function hkdfExtract(salt: Uint8Array, input: Uint8Array): Promise<Uint8Array> {
@@ -58,12 +64,12 @@ export async function createVapidAuthorization(
   })));
   const signingInput = encoder.encode(`${header}.${payload}`);
   const key = await crypto.subtle.importKey(
-    "pkcs8", decodeBase64Url(privateKeyPkcs8),
+    "pkcs8", toArrayBuffer(decodeBase64Url(privateKeyPkcs8)),
     { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"],
   );
-  const signature = new Uint8Array(await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, signingInput));
-  const verifyKey = await crypto.subtle.importKey("raw", publicBytes, { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
-  const matches = await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, verifyKey, signature, signingInput);
+  const signature = new Uint8Array(await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, toArrayBuffer(signingInput)));
+  const verifyKey = await crypto.subtle.importKey("raw", toArrayBuffer(publicBytes), { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
+  const matches = await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, verifyKey, toArrayBuffer(signature), toArrayBuffer(signingInput));
   if (!matches) throw new TypeError("VAPID key pair does not match");
   return `vapid t=${header}.${payload}.${encodeBase64Url(signature)}, k=${publicKey}`;
 }
@@ -82,7 +88,7 @@ export async function encryptWebPushPayload(
   if (plaintext.length > 2048) throw new TypeError("Push payload exceeds 2 KB");
 
   const clientKey = await crypto.subtle.importKey(
-    "raw", clientPublic, { name: "ECDH", namedCurve: "P-256" }, false, [],
+    "raw", toArrayBuffer(clientPublic), { name: "ECDH", namedCurve: "P-256" }, false, [],
   );
   const ephemeral = await crypto.subtle.generateKey(
     { name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"],
@@ -98,10 +104,10 @@ export async function encryptWebPushPayload(
   const contentPrk = await hkdfExtract(salt, inputKeyMaterial);
   const contentKey = await hkdfExpand(contentPrk, encoder.encode("Content-Encoding: aes128gcm\0"), 16);
   const nonce = await hkdfExpand(contentPrk, encoder.encode("Content-Encoding: nonce\0"), 12);
-  const aesKey = await crypto.subtle.importKey("raw", contentKey, { name: "AES-GCM" }, false, ["encrypt"]);
+  const aesKey = await crypto.subtle.importKey("raw", toArrayBuffer(contentKey), { name: "AES-GCM" }, false, ["encrypt"]);
   const padded = concatBytes(plaintext, new Uint8Array([2]));
   const ciphertext = new Uint8Array(await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv: nonce, tagLength: 128 }, aesKey, padded,
+    { name: "AES-GCM", iv: toArrayBuffer(nonce), tagLength: 128 }, aesKey, toArrayBuffer(padded),
   ));
   const recordSize = new Uint8Array([0, 0, 16, 0]);
   const keyLength = new Uint8Array([serverPublic.length]);
