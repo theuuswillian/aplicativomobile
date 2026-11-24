@@ -1440,7 +1440,7 @@ export default function App() {
                       const byClass = [...byClassMap.entries()].map(([key,amount])=>({key,label:classNames[key]??key,amount}));
                       return <div className="allocation-currency" key={currency}>{renderDonut("Por ativo",byAsset,currency,currency+"-asset")}{renderDonut("Por classe",byClass,currency,currency+"-class")}</div>;
                     });
-                    return currencies.some((item)=>item.props.children.some(Boolean)) ? <>{currencies}</> : <p className="empty-state">Registre operações para visualizar a distribuição da carteira.</p>;
+                    return baseRows.length > 0 ? <>{currencies}</> : <p className="empty-state">Registre operações para visualizar a distribuição da carteira.</p>;
                   })()}
                   <p className="helper-text">A distribuição usa preço de referência manual quando disponível; nos demais ativos, usa o custo investido. Valores em BRL e USD são separados para não misturar moedas. Não representa cotação de mercado nem rentabilidade atual.</p>
                 </div>}
