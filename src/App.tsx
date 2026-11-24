@@ -25,6 +25,7 @@ type BudgetRow = { id: string; category_id: string; year: number; month: number;
 type GoalRow = { id: string; name: string; target_amount: string; current_amount: string; monthly_contribution: string; target_month: string | null };
 type InvestmentAssetRow = { id: string; symbol: string; name: string; asset_class: "stock" | "fii" | "etf" | "bdr" | "fixed_income" | "crypto"; currency: "BRL" | "USD" };
 type InvestmentOperationRow = { id: string; asset_id: string; operation_type: "opening" | "buy" | "sell"; operation_date: string; quantity: string; unit_price: string; gross_amount: string; fees: string };
+type IncomeEventRow = { id: string; asset_id: string; event_type: "dividend" | "jcp" | "distribution" | "coupon" | "interest" | "amortization" | "other"; reference_date: string; payment_date: string | null; announced_amount: string; received_amount: string; status: "announced" | "planned" | "received" | "cancelled" };
 type BudgetSpendRow = { category_id: string | null; settled_amount: string };
 type TransactionRow = { id: string; kind: "income" | "expense" | "transfer"; status: "paid" | "planned" | "cancelled"; amount: string; transaction_date: string; description: string; account_id: string | null };
 type ImportPreviewRow = ParsedStatementRow & { dedupeKey: string; duplicate: boolean };
@@ -108,6 +109,13 @@ export default function App() {
   const [goals, setGoals] = useState<GoalRow[]>([]);
   const [investmentAssets, setInvestmentAssets] = useState<InvestmentAssetRow[]>([]);
   const [investmentOperations, setInvestmentOperations] = useState<InvestmentOperationRow[]>([]);
+  const [incomeEvents, setIncomeEvents] = useState<IncomeEventRow[]>([]);
+  const [incomeAssetId, setIncomeAssetId] = useState("");
+  const [incomeEventType, setIncomeEventType] = useState<IncomeEventRow["event_type"]>("dividend");
+  const [incomeAmount, setIncomeAmount] = useState("");
+  const [incomeReferenceDate, setIncomeReferenceDate] = useState(todayInBrazil);
+  const [incomePaymentDate, setIncomePaymentDate] = useState("");
+  const [incomeStatus, setIncomeStatus] = useState<IncomeEventRow["status"]>("received");
   const [investmentSymbol, setInvestmentSymbol] = useState("");
   const [investmentName, setInvestmentName] = useState("");
   const [investmentClass, setInvestmentClass] = useState<InvestmentAssetRow["asset_class"]>("stock");
@@ -195,7 +203,7 @@ export default function App() {
       setSession(nextSession);
       setNotice("");
       if (!nextSession || event === "SIGNED_IN") {
-        setProfile(null); setAlerts([]); setAccounts([]); setCards([]); setCategories([]); setRecurrences([]); setBudgets([]); setGoals([]); setInvestmentAssets([]); setInvestmentOperations([]); setInvestmentSymbol(""); setInvestmentName(""); setInvestmentAssetId(""); setInvestmentQuantity(""); setInvestmentUnitPrice(""); setInvestmentFees("0,00"); setInvestmentDate(todayInBrazil()); setGoalName(""); setGoalTarget(""); setGoalMonthly("0,00"); setGoalTargetMonth(""); setGoalContributionAmounts({}); setImportFormat("CSV"); setImportDestinationType("account"); setImportDestinationId(""); setImportFileName(""); setImportPreview([]); setBudgetSpend([]); setTransactions([]); setTxCategoryId(""); setBudgetCategoryId(""); setBudgetLimit(""); setRecurrenceCategoryId(""); setRecurrenceAccountId(""); setRecurrenceCardId(""); setRecurrenceName(""); setRecurrenceAmount(""); setRecurrenceEnd(""); setRecurrenceStart(todayInBrazil());
+        setProfile(null); setAlerts([]); setAccounts([]); setCards([]); setCategories([]); setRecurrences([]); setBudgets([]); setGoals([]); setInvestmentAssets([]); setInvestmentOperations([]); setIncomeEvents([]); setIncomeAssetId(""); setIncomeAmount(""); setIncomeReferenceDate(todayInBrazil()); setIncomePaymentDate(""); setInvestmentSymbol(""); setInvestmentName(""); setInvestmentAssetId(""); setInvestmentQuantity(""); setInvestmentUnitPrice(""); setInvestmentFees("0,00"); setInvestmentDate(todayInBrazil()); setGoalName(""); setGoalTarget(""); setGoalMonthly("0,00"); setGoalTargetMonth(""); setGoalContributionAmounts({}); setImportFormat("CSV"); setImportDestinationType("account"); setImportDestinationId(""); setImportFileName(""); setImportPreview([]); setBudgetSpend([]); setTransactions([]); setTxCategoryId(""); setBudgetCategoryId(""); setBudgetLimit(""); setRecurrenceCategoryId(""); setRecurrenceAccountId(""); setRecurrenceCardId(""); setRecurrenceName(""); setRecurrenceAmount(""); setRecurrenceEnd(""); setRecurrenceStart(todayInBrazil());
         setTxAccountId(""); setTxCardId(""); setReceiptAccountId(""); setEditingTransactionId(null);
         setAssistantAnswer(""); setAssistantQuestion(""); setAssistantConsent(false);
         setReceiptDraft(null); setReceiptFile(null); setReceiptConsent(false);
@@ -210,7 +218,7 @@ export default function App() {
     let active = true;
     const load = async () => {
       try {
-        const [account, preferences, radar, accountRows, transactionRows, cardRows, categoryRows, recurrenceRows, budgetRows, budgetSpendRows, goalRows, investmentAssetRows, investmentOperationRows] = await Promise.all([
+        const [account, preferences, radar, accountRows, transactionRows, cardRows, categoryRows, recurrenceRows, budgetRows, budgetSpendRows, goalRows, investmentAssetRows, investmentOperationRows, incomeEventRows] = await Promise.all([
           client.functions.invoke("minha-conta", { body: { action: "consultar" } }),
           client.functions.invoke("minhas-preferencias", { body: { action: "consultar" } }),
           client.functions.invoke("radar-alertas", { body: { action: "consultar" } }),
@@ -224,6 +232,7 @@ export default function App() {
           client.from("goals").select("id,name,target_amount,current_amount,monthly_contribution,target_month").eq("user_id", session.user.id).order("created_at", { ascending: true }),
           client.from("investment_assets").select("id,symbol,name,asset_class,currency").eq("user_id", session.user.id).order("symbol", { ascending: true }),
           client.from("investment_operations").select("id,asset_id,operation_type,operation_date,quantity,unit_price,gross_amount,fees").eq("user_id", session.user.id).in("operation_type", ["opening","buy","sell"]).order("operation_date", { ascending: true }),
+          client.from("income_events").select("id,asset_id,event_type,reference_date,payment_date,announced_amount,received_amount,status").eq("user_id", session.user.id).order("reference_date", { ascending: false }),
         ]);
         if (account.error) throw account.error;
         if (preferences.error) throw preferences.error;
@@ -238,6 +247,7 @@ export default function App() {
         if (goalRows.error) throw goalRows.error;
         if (investmentAssetRows.error) throw investmentAssetRows.error;
         if (investmentOperationRows.error) throw investmentOperationRows.error;
+        if (incomeEventRows.error) throw incomeEventRows.error;
         if (!active) return;
         setProfile(account.data?.data?.profile ?? null);
         const serverTheme = preferences.data?.data?.theme;
@@ -252,6 +262,8 @@ export default function App() {
         setGoals((goalRows.data ?? []) as GoalRow[]);
         setInvestmentAssets((investmentAssetRows.data ?? []) as InvestmentAssetRow[]);
         setInvestmentOperations((investmentOperationRows.data ?? []) as InvestmentOperationRow[]);
+        setIncomeEvents((incomeEventRows.data ?? []) as IncomeEventRow[]);
+        if (investmentAssetRows.data?.[0]?.id) setIncomeAssetId((current) => current || investmentAssetRows.data[0].id);
         if (investmentAssetRows.data?.[0]?.id) setInvestmentAssetId((current) => current || investmentAssetRows.data[0].id);
         setTransactions((transactionRows.data ?? []) as TransactionRow[]);
         if (accountRows.data?.[0]?.id) setTxAccountId((current) => current || accountRows.data[0].id);
@@ -543,6 +555,32 @@ export default function App() {
       }
       setNotice(`Importação cancelada e revertida: ${errorMessage(error)}`);
     } finally { setBusy(false); }
+  }
+
+  async function createIncomeEvent(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase || !session) return;
+    const amount = normalizeBrlAmount(incomeAmount);
+    if (!investmentAssets.some((asset) => asset.id === incomeAssetId) || !amount || !incomeReferenceDate ||
+        (incomePaymentDate && incomePaymentDate < incomeReferenceDate) ||
+        (incomeStatus === "received" && !incomePaymentDate)) {
+      setNotice("Confira o ativo, valor e datas. Proventos recebidos precisam ter data de pagamento.");
+      return;
+    }
+    setBusy(true); setNotice("");
+    try {
+      const { data, error } = await supabase.from("income_events").insert({
+        user_id: session.user.id, asset_id: incomeAssetId, event_type: incomeEventType,
+        reference_date: incomeReferenceDate, payment_date: incomePaymentDate || null,
+        announced_amount: amount, received_amount: incomeStatus === "received" ? amount : "0.00",
+        status: incomeStatus,
+      }).select("id,asset_id,event_type,reference_date,payment_date,announced_amount,received_amount,status").single();
+      if (error) throw error;
+      setIncomeEvents((current) => [data as IncomeEventRow, ...current]);
+      setIncomeAmount(""); setIncomePaymentDate("");
+      setNotice("Provento registrado no histórico da carteira.");
+    } catch (error) { setNotice(errorMessage(error)); }
+    finally { setBusy(false); }
   }
 
   async function createInvestmentAsset(event: FormEvent<HTMLFormElement>) {
@@ -1091,6 +1129,26 @@ export default function App() {
                   return <li key={asset.id}><strong>{asset.symbol} · {asset.name}</strong><span>{asset.asset_class} · {asset.currency}</span><small>Quantidade: {summary.quantity.toLocaleString("pt-BR", { maximumFractionDigits: 8 })} · Custo: {formatInvestmentCents(BigInt(summary.costBasisCents), asset.currency)} · Custo médio: {formatInvestmentCents(BigInt(summary.averageCostCents), asset.currency)}</small><small>Resultado realizado: {formatInvestmentCents(BigInt(summary.realizedProfitCents), asset.currency)}{summary.error ? ` · ${summary.error}` : ""}</small></li>;
                 })}</ul>}
                 <p className="helper-text">A carteira mostra posição e custo com base nas operações registradas. Não exibe preço de mercado nem rentabilidade atual enquanto não houver fonte de cotação validada e timestamp.</p>
+              </section>
+              <section className="subpanel" aria-labelledby="income-events-title">
+                <div className="transaction-heading"><strong id="income-events-title">Dividendos e proventos</strong><span>{incomeEvents.filter((item) => item.status === "received").length} recebidos</span></div>
+                {investmentAssets.length === 0 ? <p className="empty-state">Cadastre um ativo para registrar dividendos, JCP e outros proventos.</p> : <>
+                  <form className="finance-form" onSubmit={(event) => void createIncomeEvent(event)}>
+                    <label>Ativo<select value={incomeAssetId} onChange={(event) => setIncomeAssetId(event.target.value)} required>{investmentAssets.map((asset) => <option key={asset.id} value={asset.id}>{asset.symbol} · {asset.name}</option>)}</select></label>
+                    <label>Tipo<select value={incomeEventType} onChange={(event) => setIncomeEventType(event.target.value as IncomeEventRow["event_type"])}><option value="dividend">Dividendo</option><option value="jcp">Juros sobre capital próprio</option><option value="distribution">Distribuição</option><option value="coupon">Cupom</option><option value="interest">Juros</option><option value="amortization">Amortização</option><option value="other">Outro</option></select></label>
+                    <label>Valor (R$)<input inputMode="decimal" value={incomeAmount} onChange={(event) => setIncomeAmount(event.target.value)} placeholder="0,00" required /></label>
+                    <label>Data de referência<input type="date" value={incomeReferenceDate} onChange={(event) => setIncomeReferenceDate(event.target.value)} required /></label>
+                    <label>Data de pagamento<input type="date" min={incomeReferenceDate} value={incomePaymentDate} onChange={(event) => setIncomePaymentDate(event.target.value)} /></label>
+                    <label>Situação<select value={incomeStatus} onChange={(event) => setIncomeStatus(event.target.value as IncomeEventRow["status"])}><option value="announced">Anunciado</option><option value="planned">Previsto</option><option value="received">Recebido</option><option value="cancelled">Cancelado</option></select></label>
+                    <button className="primary-button" type="submit" disabled={busy}>Registrar provento</button>
+                  </form>
+                </>}
+                {incomeEvents.length > 0 && <ul className="account-list">{incomeEvents.slice(0, 20).map((item) => {
+                  const asset = investmentAssets.find((entry) => entry.id === item.asset_id);
+                  const amount = item.status === "received" ? item.received_amount : item.announced_amount;
+                  return <li key={item.id}><strong>{asset?.symbol ?? "Ativo"} · {item.event_type.toUpperCase()}</strong><span>{formatInvestmentCents(decimalToCents(amount), asset?.currency ?? "BRL")} · {item.status === "received" ? "Recebido" : item.status === "cancelled" ? "Cancelado" : item.status === "planned" ? "Previsto" : "Anunciado"}</span><small>Referência: {item.reference_date}{item.payment_date ? ` · Pagamento: ${item.payment_date}` : ""}</small></li>;
+                })}</ul>}
+                <p className="helper-text">Os valores são lançados manualmente e não são previsões automáticas de mercado. Somente itens marcados como recebidos entram no total recebido.</p>
               </section>
               <section className="subpanel" aria-labelledby="goals-title">
                 <div className="transaction-heading"><strong id="goals-title">Metas financeiras</strong><span>{goals.length} cadastradas</span></div>
