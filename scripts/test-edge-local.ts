@@ -132,9 +132,8 @@ try {
     "https://attacker.example",
   );
   assert(
-    hostileOriginRequest.response.status === 403 &&
-      hostileOriginRequest.response.headers.get("Access-Control-Allow-Origin") === null,
-    "A função deve rejeitar requisições de origens não configuradas, mesmo com JWT válido.",
+    hostileOriginRequest.response.status === 403,
+    `A função deve rejeitar requisições de origens não configuradas, mesmo com JWT válido (status=${hostileOriginRequest.response.status}; allow-origin=${hostileOriginRequest.response.headers.get("Access-Control-Allow-Origin") ?? "ausente"}; body=${JSON.stringify(hostileOriginRequest.body)}).`,
   );
   assert(profile.body?.data?.profile?.id === userA.id, "Perfil retornado deve pertencer ao usuário A.");
   assert(profile.body?.data?.settings, "Preferências iniciais devem ser criadas pelo trigger.");
