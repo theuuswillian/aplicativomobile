@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { Home, ReceiptText, TrendingUp, UserRound } from "lucide-react";
+import { Home, ReceiptText, TrendingUp, UserRound, Target } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import { BANK_CATALOG, bankLogoStyle } from "./data/bank-catalog";
 import { clearFinancialRecordsForUser } from "./lib/secure-storage";
@@ -14,7 +14,7 @@ type WhatsappLinkState = { phone: string; weekly_summary_enabled: boolean };
 type RadarFireRow = { alert_key: string; fired_at: string; observed_price: string; source: string | null; quote_observed_at: string | null };
 
 type Theme = "dark" | "light";
-type DashboardTab = "inicio" | "gastos" | "patrimonio" | "conta";
+type DashboardTab = "inicio" | "gastos" | "patrimonio" | "planejamento" | "conta";
 type RadarAlert = {
   id: string;
   asset_class: "stock" | "fii" | "etf" | "bdr" | "crypto";
@@ -1422,11 +1422,27 @@ export default function App() {
                 <div className="overview-recent-heading"><strong>Últimos lançamentos</strong><button type="button" onClick={() => setActiveTab("gastos")}>Ver gastos <span aria-hidden="true">›</span></button></div>
                 {transactions.length === 0 ? <p className="empty-state">Seus lançamentos aparecerão aqui.</p> : <ul className="recent-list">{transactions.slice(0, 4).map((item) => <li key={item.id}><span className={item.kind === "income" ? "recent-icon income" : "recent-icon"}>{item.kind === "income" ? "↗" : "↘"}</span><span className="recent-description"><strong>{item.description}</strong><small>{new Date(item.transaction_date + "T12:00:00").toLocaleDateString("pt-BR")}</small></span><strong className={item.kind === "income" ? "amount-income" : "amount-expense"}>{item.kind === "income" ? "+" : "−"}{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(item.amount))}</strong></li>)}</ul>}
               </article>
+              <article className="overview-flow">
+                <div className="overview-recent-heading"><strong>Fluxo dos últimos 6 meses</strong><span>Valores realizados</span></div>
+                {(() => {
+                  const reference = new Date(currentBudgetDate + "T12:00:00");
+                  const months = Array.from({ length: 6 }, (_, index) => {
+                    const date = new Date(reference.getFullYear(), reference.getMonth() - (5 - index), 1, 12);
+                    const key = String(date.getFullYear()) + "-" + String(date.getMonth() + 1).padStart(2, "0");
+                    const rows = transactions.filter((item) => item.status === "paid" && item.transaction_date.startsWith(key));
+                    return { key, label: new Intl.DateTimeFormat("pt-BR", { month: "short" }).format(date).replace(".", ""), income: rows.filter((item) => item.kind === "income").reduce((sum, item) => sum + Number(item.amount), 0), expense: rows.filter((item) => item.kind === "expense").reduce((sum, item) => sum + Number(item.amount), 0) };
+                  });
+                  const max = Math.max(1, ...months.flatMap((month) => [month.income, month.expense]));
+                  return <div className="cashflow-chart">{months.map((month) => <div className="cashflow-month" key={month.key}><div className="cashflow-bars"><span className="cashflow-income" style={{ height: Math.max(3, month.income / max * 100) + "%" }} title={"Receitas: " + month.income.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} /><span className="cashflow-expense" style={{ height: Math.max(3, month.expense / max * 100) + "%" }} title={"Despesas: " + month.expense.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} /></div><small>{month.label}</small></div>)}</div>;
+                })()}
+                <div className="cashflow-legend"><span><i className="cashflow-income" /> Receitas</span><span><i className="cashflow-expense" /> Despesas</span></div>
+                <p className="helper-text">Considera apenas lançamentos realizados disponíveis no histórico carregado. Meses sem registros aparecem sem movimento.</p>
+              </article>
               <button className="overview-action" type="button" onClick={() => setActiveTab("gastos")}><span aria-hidden="true">＋</span> Organizar contas e cartões</button>
             </section>}
             <section className="panel privacy-panel" hidden={activeTab !== "conta"} id="conta" aria-labelledby="privacy-title">
               <div className="panel-heading"><div><span className="principles-label">PRIVACIDADE E CONTROLE</span><h2 id="privacy-title">Seus dados e sua conta</h2><p>Exporte uma cópia dos seus dados ou solicite a exclusão permanente da conta e dos comprovantes privados.</p></div></div>
-              <nav className="section-jump" aria-label="Atalhos da área da conta"><a href="#conta">Dados e privacidade</a><a href="#conta-assistente">Assistente</a><a href="#conta-comprovante">Leitor de comprovantes</a><a href="#conta-proximos-passos">Próximos recursos</a></nav>
+              <nav className="section-jump" aria-label="Atalhos da área da conta"><a href="#conta">Dados e privacidade</a><a href="#conta-relatorios">Relatórios</a><a href="#conta-assistente">Assistente</a><a href="#conta-comprovante">Leitor de comprovantes</a><a href="#conta-proximos-passos">Próximos recursos</a></nav>
               <div className="privacy-actions">
                 <button className="primary-button" type="button" onClick={() => void exportPersonalData()} disabled={busy}>Exportar meus dados (JSON)</button>
                 <label>Para excluir, digite EXCLUIR_CONTA
@@ -1439,7 +1455,7 @@ export default function App() {
             <section className="panel" id="patrimonio" hidden={activeTab !== "patrimonio"} aria-labelledby="radar-title">
               <div className="panel-heading"><div><span className="principles-label">ACOMPANHAMENTO DE ATIVOS</span><h2 id="radar-title">Radar de preços</h2><p>Crie alertas para acompanhar seus ativos. O disparo usa somente cotações recentes de uma fonte validada; nenhuma fonte de preços está conectada ainda.</p></div></div>
               <nav className="section-jump" aria-label="Atalhos do patrimônio">
-                <a href="#patrimonio-radar">Radar</a><a href="#patrimonio-investimentos">Carteira</a><a href="#patrimonio-proventos">Proventos</a><a href="#patrimonio-metas">Metas</a>
+                <a href="#patrimonio-radar">Radar</a><a href="#patrimonio-investimentos">Carteira</a><a href="#patrimonio-proventos">Proventos</a>
               </nav>
               <div className="transaction-heading"><strong>Radar de preços</strong><span>{alerts.length} alertas cadastrados</span></div>
               <form className="radar-form" id="patrimonio-radar" onSubmit={(event) => void createAlert(event)}>
@@ -1560,7 +1576,11 @@ export default function App() {
                 <div className="income-calendar"><strong>Próximos pagamentos</strong>{incomeEvents.filter((item) => item.payment_date && item.payment_date >= todayInBrazil() && ["announced","planned"].includes(item.status)).sort((a,b) => (a.payment_date ?? "").localeCompare(b.payment_date ?? "")).slice(0,6).map((item) => { const asset = investmentAssets.find((entry) => entry.id === item.asset_id); return <div key={item.id}><span>{item.payment_date}</span><b>{asset?.symbol ?? "Ativo"}</b><strong>{formatInvestmentCents(decimalToCents(item.announced_amount), asset?.currency ?? "BRL")}</strong></div>; })}{!incomeEvents.some((item) => item.payment_date && item.payment_date >= todayInBrazil() && ["announced","planned"].includes(item.status)) && <p className="empty-state">Nenhum pagamento futuro cadastrado.</p>}</div>
                 <p className="helper-text">Os valores são lançados manualmente e não são previsões automáticas de mercado. Somente itens marcados como recebidos entram no total recebido; o histórico não altera automaticamente o saldo da conta.</p>
               </section>
-              <section className="subpanel" id="patrimonio-metas" aria-labelledby="goals-title">
+            </section>
+
+            <section className="panel planning-panel" id="planejamento" hidden={activeTab !== "planejamento"} aria-labelledby="planning-title">
+              <div className="panel-heading"><div><span className="principles-label">OBJETIVOS E FUTURO</span><h2 id="planning-title">Metas e planejamento</h2><p>Acompanhe objetivos, registre contribuições e veja o progresso do que está construindo.</p></div></div>
+                            <section className="planning-content" id="planejamento-metas" aria-labelledby="goals-title">
                 <div className="transaction-heading"><strong id="goals-title">Metas financeiras</strong><span>{goals.length} cadastradas</span></div>
                 <form className="finance-form" onSubmit={(event) => void createGoal(event)}>
                   <label>Nome da meta<input value={goalName} onChange={(event) => setGoalName(event.target.value)} maxLength={100} placeholder="Ex.: Reserva de emergência" required /></label>
@@ -1594,6 +1614,11 @@ export default function App() {
               <nav className="section-jump" aria-label="Atalhos da área de gastos">
                 <a href="#gastos-contas">Contas</a><a href="#gastos-cartoes">Cartões</a><a href="#gastos-categorias">Categorias</a><a href="#gastos-orcamentos">Orçamentos</a><a href="#gastos-recorrencias">Recorrências</a><a href="#gastos-lancamentos">Lançamentos</a><a href="#gastos-importacao">Importar</a><a href="#gastos-integracoes">Integrações</a>
               </nav>
+              <div className="area-summary" aria-label="Resumo da área de gastos">
+                <article><span>Contas</span><strong>{accounts.length}</strong><small>cadastradas</small></article>
+                <article><span>Cartões</span><strong>{cards.length}</strong><small>cadastrados</small></article>
+                <article><span>Despesas realizadas no mês</span><strong>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(transactions.filter((item) => item.kind === "expense" && item.status === "paid" && item.transaction_date.startsWith(currentBudgetDate.slice(0, 7))).reduce((sum, item) => sum + Number(item.amount), 0))}</strong><small>com base nos lançamentos carregados</small></article>
+              </div>
               <form className="finance-form" id="gastos-contas" onSubmit={(event) => void createAccount(event)}>
                 <label>Nome da conta<input value={accountName} onChange={(event) => setAccountName(event.target.value)} maxLength={100} placeholder="Ex.: Conta principal" required /></label>
                 <label>Banco ou instituição<select value={accountInstitutionKey} onChange={(event) => setAccountInstitutionKey(event.target.value)}><option value="">Selecione o banco (opcional)</option>{BANK_CATALOG.map((bank) => <option key={bank.logoKey} value={bank.logoKey}>{bank.name}{bank.code ? ` · ${bank.code}` : ""}</option>)}</select></label>
@@ -1716,6 +1741,21 @@ export default function App() {
               {transactions.length === 0 ? <p className="empty-state">Seus lançamentos aparecerão aqui.</p> : <ul className="transaction-list">{transactions.map((item) => <li key={item.id}><div className="transaction-main"><div><strong>{item.description}</strong><span>{item.kind === "income" ? "Receita" : item.kind === "expense" ? "Despesa" : "Transferência"} · {item.status === "paid" ? "Realizado" : item.status === "planned" ? "Previsto" : "Cancelado"}</span><small>{new Date(item.transaction_date + "T12:00:00").toLocaleDateString("pt-BR")}</small></div><strong className={item.kind === "income" ? "income-value" : "expense-value"}>{item.kind === "income" ? "+" : item.kind === "expense" ? "−" : ""}{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(item.amount))}</strong></div><div className="transaction-row-actions">{receiptFiles.some((file) => file.transaction_id === item.id) && <button className="quiet-button" type="button" disabled={busy} onClick={() => void openReceiptFile(item.id)}>Abrir comprovante</button>}<button className="quiet-button" type="button" disabled={busy} onClick={() => beginTransactionEdit(item)}>Editar</button><button className="quiet-button danger-button" type="button" disabled={busy} onClick={() => void deleteTransaction(item)}>Excluir</button></div>{editingTransactionId === item.id && <form className="transaction-edit-form" onSubmit={(event) => { event.preventDefault(); void saveTransactionEdit(item); }}><label>Descrição<input value={editDescription} onChange={(event) => setEditDescription(event.target.value)} maxLength={240} required /></label><label>Valor (R$)<input inputMode="decimal" value={editAmount} onChange={(event) => setEditAmount(event.target.value)} required /></label><label>Data<input type="date" value={editDate} onChange={(event) => setEditDate(event.target.value)} required /></label><label>Situação<select value={editStatus} onChange={(event) => setEditStatus(event.target.value as "paid" | "planned")}><option value="paid">Realizado</option><option value="planned">Previsto</option></select></label><button className="primary-button" type="submit" disabled={busy}>Salvar alterações</button><button className="quiet-button" type="button" disabled={busy} onClick={() => setEditingTransactionId(null)}>Cancelar</button></form>}</li>)}</ul>}
             </section>
 
+
+            <section className="panel reports-panel" id="conta-relatorios" hidden={activeTab !== "conta"} aria-labelledby="reports-title">
+              <span className="principles-label">ACOMPANHAMENTO DO MÊS</span>
+              <h2 id="reports-title">Relatório mensal</h2>
+              <p>Resumo calculado a partir dos lançamentos realizados no mês atual. Valores previstos não entram neste resultado.</p>
+              {(() => {
+                const rows = transactions.filter((item) => item.status === "paid" && item.transaction_date.startsWith(currentBudgetDate.slice(0, 7)));
+                const income = rows.filter((item) => item.kind === "income").reduce((sum, item) => sum + Number(item.amount), 0);
+                const expense = rows.filter((item) => item.kind === "expense").reduce((sum, item) => sum + Number(item.amount), 0);
+                const net = income - expense;
+                const byCategory = categories.filter((category) => category.kind === "expense").map((category) => ({ name: category.name, amount: rows.filter((item) => item.kind === "expense" && item.category_id === category.id).reduce((sum, item) => sum + Number(item.amount), 0) })).filter((item) => item.amount > 0).sort((a, b) => b.amount - a.amount);
+                return <><div className="report-metrics"><article><span>Receitas</span><strong className="amount-income">{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(income)}</strong></article><article><span>Despesas</span><strong className="amount-expense">{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(expense)}</strong></article><article><span>Resultado</span><strong>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(net)}</strong></article></div><div className="transaction-heading"><strong>Despesas por categoria</strong><span>{byCategory.length} com movimento</span></div>{byCategory.length ? <ul className="account-list">{byCategory.map((item) => <li key={item.name}><strong>{item.name}</strong><span>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(item.amount)}</span></li>)}</ul> : <p className="empty-state">Ainda não há despesas realizadas por categoria neste mês.</p>}</>;
+              })()}
+              <p className="helper-text">Relatório informativo baseado nos registros carregados. Não substitui extrato bancário ou documento fiscal.</p>
+            </section>
             <section className="panel" id="conta-assistente" hidden={activeTab !== "conta"} aria-labelledby="assistant-title">
               <span className="principles-label">INTELIGÊNCIA ARTIFICIAL COM CONTROLE</span>
               <h2 id="assistant-title">Assistente financeiro</h2>
@@ -1762,6 +1802,7 @@ export default function App() {
           <button type="button" className={activeTab === "inicio" ? "active" : ""} aria-current={activeTab === "inicio" ? "page" : undefined} onClick={() => setActiveTab("inicio")}><Home size={20} strokeWidth={2.2} /><span>Início</span></button>
           <button type="button" className={activeTab === "gastos" ? "active" : ""} aria-current={activeTab === "gastos" ? "page" : undefined} onClick={() => setActiveTab("gastos")}><ReceiptText size={20} strokeWidth={2.2} /><span>Gastos</span></button>
           <button type="button" className={activeTab === "patrimonio" ? "active" : ""} aria-current={activeTab === "patrimonio" ? "page" : undefined} onClick={() => setActiveTab("patrimonio")}><TrendingUp size={20} strokeWidth={2.2} /><span>Patrimônio</span></button>
+          <button type="button" className={activeTab === "planejamento" ? "active" : ""} aria-current={activeTab === "planejamento" ? "page" : undefined} onClick={() => setActiveTab("planejamento")}><Target size={20} strokeWidth={2.2} /><span>Metas</span></button>
           <button type="button" className={activeTab === "conta" ? "active" : ""} aria-current={activeTab === "conta" ? "page" : undefined} onClick={() => setActiveTab("conta")}><UserRound size={20} strokeWidth={2.2} /><span>Conta</span></button>
         </nav>}
         <footer className="app-footer"><span>GRANAVIVA</span><span>Privacidade · Clareza · Gratuito para todos</span></footer>
