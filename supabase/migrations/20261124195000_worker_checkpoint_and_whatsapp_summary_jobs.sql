@@ -518,6 +518,7 @@ commit;
   ) parsed
  where o.idempotency_key like 'weekly:%'
    and o.status = 'failed_safe'
+   and parsed.user_id is not null and parsed.week_start is not null
    and jsonb_typeof(o.payload #> '{text}') = 'object'
    and length(coalesce(o.payload #>> '{text,body}', '')) between 1 and 4096
  on conflict (user_id, week_start) do nothing;
