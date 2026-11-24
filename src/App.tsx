@@ -17,6 +17,7 @@ type Profile = { display_name: string | null; email?: string };
 type AccountRow = { id: string; name: string; account_type: string; opening_balance: string; is_primary: boolean };
 type CardRow = { id: string; name: string; institution_name: string; last_four: string; brand: string | null; credit_limit: string; closing_day: number; due_day: number; is_archived: boolean };
 type CategoryRow = { id: string; name: string; kind: "income" | "expense"; color: string | null; icon: string | null };
+type RecurrenceRow = { id: string; name: string; kind: "income" | "expense"; amount: string; frequency: "daily" | "weekly" | "biweekly" | "monthly" | "yearly" | "interval"; interval_count: number; weekday: number | null; month_day: number | null; month_of_year: number | null; starts_on: string; ends_on: string | null; next_occurrence_on: string; account_id: string | null; card_id: string | null; is_active: boolean };
 type TransactionRow = { id: string; kind: "income" | "expense" | "transfer"; status: "paid" | "planned" | "cancelled"; amount: string; transaction_date: string; description: string; account_id: string | null };
 type ReceiptDraft = { sufficient: boolean; kind: "income" | "expense" | null; amount: string | null; date: string | null; description: string | null; category: string | null; payment_method: string | null; installment_count: number | null; card_last_four: string | null; confidence: number; warnings: string[] };
 const THEME_STORAGE_KEY = "granaviva:theme:v1";
@@ -35,6 +36,51 @@ function todayInBrazil(): string {
   const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
   const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return `${values.year}-${values.month}-${values.day}`;
+}
+
+function nextRecurrenceDate(start: string, frequency: RecurrenceRow["frequency"], intervalCount: number, weekday: number | null, monthDay: number | null, monthOfYear: number | null): string {
+  const parse = (value: string) => new Date(`${value}T00:00:00.000Z`);
+  const format = (date: Date) => date.toISOString().slice(0, 10);
+  const today = parse(todayInBrazil());
+  const initial = parse(start);
+  if (frequency === "daily" || frequency === "interval") {
+    const step = frequency === "daily" ? 1 : intervalCount;
+    const days = Math.max(0, Math.ceil((today.getTime() - initial.getTime()) / 86400000));
+    const offset = Math.ceil(days / step) * step;
+    initial.setUTCDate(initial.getUTCDate() + offset);
+    return format(initial);
+  }
+  if (frequency === "weekly" || frequency === "biweekly") {
+    const targetDay = weekday ?? initial.getUTCDay();
+    const first = new Date(initial);
+    first.setUTCDate(first.getUTCDate() + ((targetDay - first.getUTCDay() + 7) % 7));
+    const period = frequency === "weekly" ? 7 : 14;
+    const days = Math.max(0, Math.ceil((today.getTime() - first.getTime()) / 86400000));
+    first.setUTCDate(first.getUTCDate() + Math.ceil(days / period) * period);
+    return format(first);
+  }
+  const targetDay = monthDay ?? initial.getUTCDate();
+  if (frequency === "monthly") {
+    let year = initial.getUTCFullYear();
+    let month = initial.getUTCMonth();
+    for (let attempt = 0; attempt < 1200; attempt += 1) {
+      const last = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+      const candidate = new Date(Date.UTC(year, month, Math.min(targetDay, last)));
+      if (candidate >= today && candidate >= parse(start)) return format(candidate);
+      month += 1;
+      if (month > 11) { month = 0; year += 1; }
+    }
+  }
+  if (frequency === "yearly") {
+    let year = Math.max(initial.getUTCFullYear(), today.getUTCFullYear());
+    const month = (monthOfYear ?? initial.getUTCMonth() + 1) - 1;
+    for (let attempt = 0; attempt < 400; attempt += 1, year += 1) {
+      const last = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+      const candidate = new Date(Date.UTC(year, month, Math.min(targetDay, last)));
+      if (candidate >= today && candidate >= parse(start)) return format(candidate);
+    }
+  }
+  return start;
 }
 
 function normalizeBrlAmount(value: string, allowZero = false, allowNegative = false): string | null {
@@ -68,6 +114,7 @@ export default function App() {
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
   const [cards, setCards] = useState<CardRow[]>([]);
   const [categories, setCategories] = useState<CategoryRow[]>([]);
+  const [recurrences, setRecurrences] = useState<RecurrenceRow[]>([]);
   const [transactions, setTransactions] = useState<TransactionRow[]>([]);
   const [cardName, setCardName] = useState("");
   const [cardInstitution, setCardInstitution] = useState("");
@@ -79,6 +126,19 @@ export default function App() {
   const [categoryKind, setCategoryKind] = useState<"income" | "expense">("expense");
   const [txCategoryId, setTxCategoryId] = useState("");
   const [txCardId, setTxCardId] = useState("");
+  const [recurrenceName, setRecurrenceName] = useState("");
+  const [recurrenceKind, setRecurrenceKind] = useState<"income" | "expense">("expense");
+  const [recurrenceAmount, setRecurrenceAmount] = useState("");
+  const [recurrenceFrequency, setRecurrenceFrequency] = useState<RecurrenceRow["frequency"]>("monthly");
+  const [recurrenceInterval, setRecurrenceInterval] = useState("1");
+  const [recurrenceWeekday, setRecurrenceWeekday] = useState("1");
+  const [recurrenceMonthDay, setRecurrenceMonthDay] = useState("1");
+  const [recurrenceMonth, setRecurrenceMonth] = useState("1");
+  const [recurrenceStart, setRecurrenceStart] = useState(todayInBrazil);
+  const [recurrenceEnd, setRecurrenceEnd] = useState("");
+  const [recurrenceCategoryId, setRecurrenceCategoryId] = useState("");
+  const [recurrenceAccountId, setRecurrenceAccountId] = useState("");
+  const [recurrenceCardId, setRecurrenceCardId] = useState("");
   const [accountName, setAccountName] = useState("");
   const [accountType, setAccountType] = useState("checking");
   const [openingBalance, setOpeningBalance] = useState("0,00");
@@ -115,7 +175,7 @@ export default function App() {
       setSession(nextSession);
       setNotice("");
       if (!nextSession || event === "SIGNED_IN") {
-        setProfile(null); setAlerts([]); setAccounts([]); setCards([]); setCategories([]); setTransactions([]); setTxCategoryId("");
+        setProfile(null); setAlerts([]); setAccounts([]); setCards([]); setCategories([]); setRecurrences([]); setTransactions([]); setTxCategoryId(""); setRecurrenceCategoryId(""); setRecurrenceAccountId(""); setRecurrenceCardId("");
         setTxAccountId(""); setTxCardId(""); setReceiptAccountId(""); setEditingTransactionId(null);
         setAssistantAnswer(""); setAssistantQuestion(""); setAssistantConsent(false);
         setReceiptDraft(null); setReceiptFile(null); setReceiptConsent(false);
@@ -130,7 +190,7 @@ export default function App() {
     let active = true;
     const load = async () => {
       try {
-        const [account, preferences, radar, accountRows, transactionRows, cardRows, categoryRows] = await Promise.all([
+        const [account, preferences, radar, accountRows, transactionRows, cardRows, categoryRows, recurrenceRows] = await Promise.all([
           client.functions.invoke("minha-conta", { body: { action: "consultar" } }),
           client.functions.invoke("minhas-preferencias", { body: { action: "consultar" } }),
           client.functions.invoke("radar-alertas", { body: { action: "consultar" } }),
@@ -138,6 +198,7 @@ export default function App() {
           client.from("transactions").select("id,kind,status,amount,transaction_date,description,account_id").eq("user_id", session.user.id).order("transaction_date", { ascending: false }).limit(30),
           client.from("cards").select("id,name,institution_name,last_four,brand,credit_limit,closing_day,due_day,is_archived").eq("user_id", session.user.id).eq("is_archived", false).order("created_at", { ascending: true }),
           client.from("categories").select("id,name,kind,color,icon").eq("user_id", session.user.id).order("kind", { ascending: true }).order("name", { ascending: true }),
+          client.from("recurrence_rules").select("id,name,kind,amount,frequency,interval_count,weekday,month_day,month_of_year,starts_on,ends_on,next_occurrence_on,account_id,card_id,is_active").eq("user_id", session.user.id).order("next_occurrence_on", { ascending: true }),
         ]);
         if (account.error) throw account.error;
         if (preferences.error) throw preferences.error;
@@ -146,6 +207,7 @@ export default function App() {
         if (transactionRows.error) throw transactionRows.error;
         if (cardRows.error) throw cardRows.error;
         if (categoryRows.error) throw categoryRows.error;
+        if (recurrenceRows.error) throw recurrenceRows.error;
         if (!active) return;
         setProfile(account.data?.data?.profile ?? null);
         const serverTheme = preferences.data?.data?.theme;
@@ -154,6 +216,7 @@ export default function App() {
         setAccounts((accountRows.data ?? []) as AccountRow[]);
         setCards((cardRows.data ?? []) as CardRow[]);
         setCategories((categoryRows.data ?? []) as CategoryRow[]);
+        setRecurrences((recurrenceRows.data ?? []) as RecurrenceRow[]);
         setTransactions((transactionRows.data ?? []) as TransactionRow[]);
         if (accountRows.data?.[0]?.id) setTxAccountId((current) => current || accountRows.data[0].id);
         if (accountRows.data?.[0]?.id) setReceiptAccountId((current) => current || accountRows.data[0].id);
@@ -282,6 +345,66 @@ export default function App() {
       setCategories((current) => [...current, data as CategoryRow].sort((a,b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name, "pt-BR")));
       setCategoryName("");
       setNotice("Categoria criada.");
+    } catch (error) { setNotice(errorMessage(error)); }
+    finally { setBusy(false); }
+  }
+
+  async function createRecurrence(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase || !session) return;
+    const amount = normalizeBrlAmount(recurrenceAmount);
+    const interval = Number(recurrenceInterval);
+    const weekday = Number(recurrenceWeekday);
+    const monthDay = Number(recurrenceMonthDay);
+    const month = Number(recurrenceMonth);
+    if (!recurrenceName.trim() || recurrenceName.trim().length > 100 || !amount || !recurrenceStart ||
+        (recurrenceEnd && recurrenceEnd < recurrenceStart) ||
+        (recurrenceFrequency === "interval" && (!Number.isInteger(interval) || interval < 1 || interval > 366)) ||
+        ((recurrenceFrequency === "weekly" || recurrenceFrequency === "biweekly") && (!Number.isInteger(weekday) || weekday < 0 || weekday > 6)) ||
+        ((recurrenceFrequency === "monthly" || recurrenceFrequency === "yearly") && (!Number.isInteger(monthDay) || monthDay < 1 || monthDay > 31)) ||
+        (recurrenceFrequency === "yearly" && (!Number.isInteger(month) || month < 1 || month > 12)) ||
+        (recurrenceCardId && recurrenceKind !== "expense")) {
+      setNotice("Confira nome, valor, frequência, data inicial/final e os parâmetros do calendário.");
+      return;
+    }
+    const nextDate = nextRecurrenceDate(recurrenceStart, recurrenceFrequency, interval || 1,
+      recurrenceFrequency === "weekly" || recurrenceFrequency === "biweekly" ? weekday : null,
+      recurrenceFrequency === "monthly" || recurrenceFrequency === "yearly" ? monthDay : null,
+      recurrenceFrequency === "yearly" ? month : null);
+    if (recurrenceEnd && nextDate > recurrenceEnd) {
+      setNotice("A data final é anterior à próxima ocorrência calculada.");
+      return;
+    }
+    setBusy(true); setNotice("");
+    try {
+      const { data, error } = await supabase.from("recurrence_rules").insert({
+        user_id: session.user.id, name: recurrenceName.trim(), kind: recurrenceKind, amount,
+        frequency: recurrenceFrequency, interval_count: recurrenceFrequency === "interval" ? interval : 1,
+        weekday: recurrenceFrequency === "weekly" || recurrenceFrequency === "biweekly" ? weekday : null,
+        month_day: recurrenceFrequency === "monthly" || recurrenceFrequency === "yearly" ? monthDay : null,
+        month_of_year: recurrenceFrequency === "yearly" ? month : null,
+        starts_on: recurrenceStart, ends_on: recurrenceEnd || null, next_occurrence_on: nextDate,
+        category_id: recurrenceCategoryId || null, account_id: recurrenceCardId ? null : recurrenceAccountId || null,
+        card_id: recurrenceCardId || null, is_active: true,
+      }).select("id,name,kind,amount,frequency,interval_count,weekday,month_day,month_of_year,starts_on,ends_on,next_occurrence_on,account_id,card_id,is_active").single();
+      if (error) throw error;
+      setRecurrences((current) => [...current, data as RecurrenceRow].sort((a,b) => a.next_occurrence_on.localeCompare(b.next_occurrence_on)));
+      setRecurrenceName(""); setRecurrenceAmount(""); setRecurrenceEnd(""); setRecurrenceCategoryId("");
+      setNotice("Regra de recorrência cadastrada. Nenhum lançamento foi criado automaticamente.");
+    } catch (error) { setNotice(errorMessage(error)); }
+    finally { setBusy(false); }
+  }
+
+  async function toggleRecurrence(rule: RecurrenceRow) {
+    if (!supabase || !session) return;
+    setBusy(true); setNotice("");
+    try {
+      const { data, error } = await supabase.from("recurrence_rules").update({ is_active: !rule.is_active })
+        .eq("id", rule.id).eq("user_id", session.user.id)
+        .select("id,name,kind,amount,frequency,interval_count,weekday,month_day,month_of_year,starts_on,ends_on,next_occurrence_on,account_id,card_id,is_active").single();
+      if (error) throw error;
+      setRecurrences((current) => current.map((item) => item.id === rule.id ? data as RecurrenceRow : item));
+      setNotice(data.is_active ? "Recorrência reativada." : "Recorrência pausada.");
     } catch (error) { setNotice(errorMessage(error)); }
     finally { setBusy(false); }
   }
@@ -586,6 +709,35 @@ export default function App() {
                   <button className="primary-button" type="submit" disabled={busy}>Criar categoria</button>
                 </form>
                 {categories.length === 0 ? <p className="empty-state">Crie categorias para organizar seus lançamentos.</p> : <ul className="category-list">{categories.map((category) => <li key={category.id}><span>{category.kind === "income" ? "Receita" : "Despesa"}</span><strong>{category.name}</strong></li>)}</ul>}
+              </section>
+              <section className="subpanel" aria-labelledby="recurrences-title">
+                <div className="transaction-heading"><strong id="recurrences-title">Recorrências</strong><span>{recurrences.filter((rule) => rule.is_active).length} ativas</span></div>
+                <form className="finance-form" onSubmit={(event) => void createRecurrence(event)}>
+                  <label>Nome da regra<input value={recurrenceName} onChange={(event) => setRecurrenceName(event.target.value)} maxLength={100} placeholder="Ex.: Aluguel, salário, academia" required /></label>
+                  <label>Tipo<select value={recurrenceKind} onChange={(event) => { const nextKind = event.target.value as "income" | "expense"; setRecurrenceKind(nextKind); setRecurrenceCategoryId(""); if (nextKind === "income") setRecurrenceCardId(""); }}><option value="expense">Despesa</option><option value="income">Receita</option></select></label>
+                  <label>Valor (R$)<input inputMode="decimal" value={recurrenceAmount} onChange={(event) => setRecurrenceAmount(event.target.value)} placeholder="0,00" required /></label>
+                  <label>Frequência<select value={recurrenceFrequency} onChange={(event) => setRecurrenceFrequency(event.target.value as RecurrenceRow["frequency"])}><option value="daily">Diária</option><option value="weekly">Semanal</option><option value="biweekly">Quinzenal</option><option value="monthly">Mensal</option><option value="yearly">Anual</option><option value="interval">A cada intervalo de dias</option></select></label>
+                  {#if recurrenceFrequency === "interval"}
+                    <label>Intervalo em dias<input type="number" min="1" max="366" value={recurrenceInterval} onChange={(event) => setRecurrenceInterval(event.target.value)} required /></label>
+                  {/if}
+                  {#if recurrenceFrequency === "weekly" || recurrenceFrequency === "biweekly"}
+                    <label>Dia da semana<select value={recurrenceWeekday} onChange={(event) => setRecurrenceWeekday(event.target.value)}>{["Domingo","Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado"].map((day,index) => <option key={day} value={index}>{day}</option>)}</select></label>
+                  {/if}
+                  {#if recurrenceFrequency === "monthly" || recurrenceFrequency === "yearly"}
+                    <label>Dia do mês<input type="number" min="1" max="31" value={recurrenceMonthDay} onChange={(event) => setRecurrenceMonthDay(event.target.value)} required /></label>
+                  {/if}
+                  {#if recurrenceFrequency === "yearly"}
+                    <label>Mês<select value={recurrenceMonth} onChange={(event) => setRecurrenceMonth(event.target.value)}>{["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"].map((month,index) => <option key={month} value={index+1}>{month}</option>)}</select></label>
+                  {/if}
+                  <label>Começa em<input type="date" value={recurrenceStart} onChange={(event) => setRecurrenceStart(event.target.value)} required /></label>
+                  <label>Termina em (opcional)<input type="date" min={recurrenceStart} value={recurrenceEnd} onChange={(event) => setRecurrenceEnd(event.target.value)} /></label>
+                  <label>Categoria<select value={recurrenceCategoryId} onChange={(event) => setRecurrenceCategoryId(event.target.value)}><option value="">Sem categoria</option>{categories.filter((category) => category.kind === recurrenceKind).map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
+                  <label>Conta<select value={recurrenceAccountId} onChange={(event) => { setRecurrenceAccountId(event.target.value); if (event.target.value) setRecurrenceCardId(""); }}><option value="">Não vinculada</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
+                  <label>Cartão<select value={recurrenceCardId} onChange={(event) => { setRecurrenceCardId(event.target.value); if (event.target.value) setRecurrenceAccountId(""); }} disabled={recurrenceKind !== "expense"}><option value="">Não vincular cartão</option>{cards.map((card) => <option key={card.id} value={card.id}>{card.name} · final {card.last_four}</option>)}</select></label>
+                  <button className="primary-button" type="submit" disabled={busy}>Criar recorrência</button>
+                </form>
+                {recurrences.length === 0 ? <p className="empty-state">Cadastre uma regra para acompanhar despesas e receitas periódicas.</p> : <ul className="account-list">{recurrences.map((rule) => <li key={rule.id}><strong>{rule.name} · {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(rule.amount))}</strong><span>{rule.kind === "income" ? "Receita" : "Despesa"} · {({daily:"Diária",weekly:"Semanal",biweekly:"Quinzenal",monthly:"Mensal",yearly:"Anual",interval:"Por intervalo"})[rule.frequency]}</span><small>Próxima data: {new Date(`${rule.next_occurrence_on}T12:00:00`).toLocaleDateString("pt-BR")} · {rule.is_active ? "Ativa" : "Pausada"}<button className="quiet-button" type="button" disabled={busy} onClick={() => void toggleRecurrence(rule)}>{rule.is_active ? "Pausar" : "Reativar"}</button></small></li>)}</ul>}
+                <p className="helper-text">A regra apenas programa a próxima ocorrência. A geração de lançamentos será ativada com o processamento idempotente da agenda, sem marcar valores como realizados.</p>
               </section>
               <form className="finance-form transaction-form" onSubmit={(event) => void createTransaction(event)}>
                 <label>Tipo de lançamento<select value={txKind} onChange={(event) => { const nextKind = event.target.value as "income" | "expense"; setTxKind(nextKind); setTxCategoryId(""); if (nextKind === "income") setTxCardId(""); }}><option value="expense">Despesa</option><option value="income">Receita</option></select></label>
