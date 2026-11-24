@@ -31,7 +31,8 @@ export async function verifyMetaWebhookSignature(
   const key = await crypto.subtle.importKey(
     "raw", encoder.encode(appSecret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
   );
-  const expected = new Uint8Array(await crypto.subtle.sign("HMAC", key, rawBody));
+  const bodyBuffer = new Uint8Array(rawBody).buffer as ArrayBuffer;
+  const expected = new Uint8Array(await crypto.subtle.sign("HMAC", key, bodyBuffer));
   return constantTimeEqual(expected, supplied);
 }
 
