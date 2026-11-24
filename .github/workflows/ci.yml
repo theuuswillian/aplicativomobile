@@ -73,6 +73,7 @@ jobs:
           supabase/functions/whatsapp-vincular/index.ts
           supabase/functions/whatsapp-webhook/index.ts
           supabase/functions/whatsapp-meta-send/index.ts
+          supabase/functions/whatsapp-worker/index.ts
       - name: Run Edge runtime unit tests
         run: deno test --no-config --allow-env supabase/functions/_shared/edge_test.ts
 
