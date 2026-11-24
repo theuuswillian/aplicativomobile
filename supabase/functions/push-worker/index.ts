@@ -3,7 +3,7 @@ import {
   handleOptions, internalError, isAllowedOrigin, isJsonRequest, jsonResponse,
   methodNotAllowed, originNotAllowedResponse, readJsonObject,
 } from "../_shared/http.ts";
-import { createVapidAuthorization, encryptWebPushPayload } from "../_shared/push-webpush.ts";
+import { createVapidAuthorization, encryptWebPushPayload, toArrayBuffer } from "../_shared/push-webpush.ts";
 
 const isUuid = (value: unknown): value is string =>
   typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
@@ -108,7 +108,7 @@ Deno.serve(async (request: Request) => {
           TTL: "3600",
           Urgency: "normal",
         },
-        body: encrypted,
+        body: toArrayBuffer(encrypted),
       });
       if (response.ok) delivered++;
       else if (response.status === 404 || response.status === 410) {
