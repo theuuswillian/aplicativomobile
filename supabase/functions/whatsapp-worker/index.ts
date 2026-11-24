@@ -19,6 +19,92 @@ async function sha256Hex(value: string): Promise<string> {
   return [...digest].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
+
+function shiftDate(date: string, days: number): string {
+  const value = new Date(date + "T12:00:00Z");
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+function previousWeekRange(): { monday: string; sunday: string } | null {
+  const today = todaySaoPaulo();
+  const weekday = new Date(today + "T12:00:00Z").getUTCDay();
+  const daysSinceMonday = (weekday + 6) % 7;
+  if (daysSinceMonday !== 0) return null;
+  const monday = shiftDate(today, -7);
+  return { monday, sunday: shiftDate(monday, 6) };
+}
+function decimalToCents(value: unknown): bigint {
+  const text = String(value);
+  if (!/^\d{1,12}(?:\.\d{1,2})?$/.test(text)) return 0n;
+  const [whole, fraction = ""] = text.split(".");
+  return BigInt(whole) * 100n + BigInt((fraction + "00").slice(0, 2));
+}
+function brl(cents: bigint): string {
+  const negative = cents < 0n;
+  const absolute = negative ? -cents : cents;
+  const whole = (absolute / 100n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  const fraction = (absolute % 100n).toString().padStart(2, "0");
+  return (negative ? "-" : "") + "R$ " + whole + "," + fraction;
+}
+async function sendWeeklySummaries(
+  db: ReturnType<typeof createClient>, url: string, serviceKey: string, secret: string,
+): Promise<{ sent: number; skipped: number; failed: number }> {
+  const range = previousWeekRange();
+  if (!range) return { sent: 0, skipped: 0, failed: 0 };
+  const { data: links, error } = await db.from("whatsapp_links")
+    .select("user_id,phone").eq("weekly_summary_enabled", true).limit(500);
+  if (error) return { sent: 0, skipped: 0, failed: 1 };
+  let sent = 0, skipped = 0, failed = 0;
+  for (const link of links ?? []) {
+    try {
+      const { data: settings, error: settingsError } = await db.from("settings")
+        .select("whatsapp_weekly_summary").eq("user_id", link.user_id).maybeSingle();
+      if (settingsError) throw new Error("summary_settings_failed");
+      if (settings?.whatsapp_weekly_summary !== true) { skipped++; continue; }
+      const { data: transactions, error: transactionError } = await db.from("transactions")
+        .select("kind,amount").eq("user_id", link.user_id).eq("status", "paid")
+        .gte("transaction_date", range.monday).lte("transaction_date", range.sunday);
+      if (transactionError) throw new Error("summary_transactions_failed");
+      let income = 0n, expense = 0n;
+      for (const transaction of transactions ?? []) {
+        const amount = decimalToCents(transaction.amount);
+        if (transaction.kind === "income") income += amount;
+        else if (transaction.kind === "expense") expense += amount;
+      }
+      const { data: reserved, error: reserveError } = await db.rpc("whatsapp_summary_reserve", {
+        p_user_id: link.user_id, p_week: range.monday,
+      });
+      if (reserveError) throw new Error("summary_reserve_failed");
+      if (reserved !== true) { skipped++; continue; }
+      const message = "Resumo semanal GranaViva (" + range.monday + " a " + range.sunday + ")" +
+        "\nReceitas realizadas: " + brl(income) +
+        "\nDespesas realizadas: " + brl(expense) +
+        "\nSaldo do período: " + brl(income - expense) +
+        "\nSomente lançamentos realizados foram considerados.";
+      const response = await fetch(url + "/functions/v1/whatsapp-meta-send", {
+        method: "POST", redirect: "error", signal: AbortSignal.timeout(25_000),
+        headers: {
+          Authorization: "Bearer " + serviceKey, "Content-Type": "application/json",
+          "x-whatsapp-worker-secret": secret,
+        },
+        body: JSON.stringify({
+          idempotency_key: "weekly:" + link.user_id + ":" + range.monday,
+          phone: link.phone, text: message,
+        }),
+      });
+      if (!response.ok) throw new Error("summary_delivery_failed");
+      const result = await response.json().catch(() => null) as { data?: { status?: string } } | null;
+      if (!result?.data?.status || !["sent", "uncertain", "failed", "failed_safe", "busy"].includes(result.data.status)) {
+        throw new Error("summary_delivery_unknown");
+      }
+      sent++;
+    } catch {
+      failed++;
+    }
+  }
+  return { sent, skipped, failed };
+}
+
 Deno.serve(async (request: Request) => {
   if (request.method !== "POST") return new Response("Method Not Allowed", { status: 405 });
   const secret = Deno.env.get("WHATSAPP_WORKER_SECRET") ?? "";
@@ -154,5 +240,6 @@ Deno.serve(async (request: Request) => {
       failed++;
     }
   }
-  return Response.json({ processed, failed, fetched: rows?.length ?? 0 });
+  const summaries = await sendWeeklySummaries(db, url, serviceKey, secret);
+  return Response.json({ processed, failed, fetched: rows?.length ?? 0, summaries });
 });
