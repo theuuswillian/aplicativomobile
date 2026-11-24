@@ -396,10 +396,10 @@ begin
      or public.whatsapp_summary_reserve(v_user, date '2026-11-23') then
     raise exception 'Resumo semanal não preservou reserva idempotente';
   end if;
-  if public.recurrence_next_date('monthly', 1, date '2026-01-31', 31, null) <> date '2026-02-28' then
+  if public.recurrence_next_date('monthly', 1, date '2026-01-31', 31::smallint, null::smallint) <> date '2026-02-28' then
     raise exception 'Recorrência mensal não preservou o último dia em fevereiro';
   end if;
-  if public.recurrence_next_date('yearly', 1, date '2024-02-29', 29, 2) <> date '2025-02-28' then
+  if public.recurrence_next_date('yearly', 1, date '2024-02-29', 29::smallint, 2::smallint) <> date '2025-02-28' then
     raise exception 'Recorrência anual não tratou ano bissexto';
   end if;
 end $assert_usage$;
