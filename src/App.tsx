@@ -13,6 +13,7 @@ type WhatsappLinkState = { phone: string; weekly_summary_enabled: boolean };
 type RadarFireRow = { alert_key: string; fired_at: string; observed_price: string; source: string | null; quote_observed_at: string | null };
 
 type Theme = "dark" | "light";
+type DashboardTab = "inicio" | "gastos" | "patrimonio" | "conta";
 type RadarAlert = {
   id: string;
   asset_class: "stock" | "fii" | "etf" | "bdr" | "crypto";
@@ -95,6 +96,7 @@ function normalizeBrlAmount(value: string, allowZero = false, allowNegative = fa
 
 export default function App() {
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
+  const [activeTab, setActiveTab] = useState<DashboardTab>("inicio");
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(!supabase);
   const [email, setEmail] = useState("");
@@ -1341,7 +1343,22 @@ export default function App() {
               <div><span className="eyebrow"><span className="live-dot" /> ÁREA PESSOAL</span><h1 id="dashboard-title">Olá{profile?.display_name ? `, ${profile.display_name}` : ""}.</h1><p>Seus dados estão sincronizados com sua conta.</p></div>
               <div className="metric-card"><strong>{alerts.length}</strong><span>alertas no Radar</span><small>{enabledAlerts} ativos</small></div>
             </div>
-            <section className="panel privacy-panel" id="conta" aria-labelledby="privacy-title">
+            {activeTab === "inicio" && <section className="overview-grid" aria-label="Resumo financeiro">
+              <article className="overview-balance">
+                <div className="overview-label">Saldo disponível <span aria-hidden="true">◉</span></div>
+                <strong>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Object.values(accountBalances).reduce((sum, value) => sum + value, 0))}</strong>
+                <small>{accounts.length} {accounts.length === 1 ? "conta conectada" : "contas cadastradas"}</small>
+                <div className="overview-sparkline" aria-hidden="true"><span/><span/><span/><span/><span/><span/><span/></div>
+              </article>
+              <article className="overview-stat"><span>Cartões utilizados</span><strong>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Object.values(cardCommittedAmounts).reduce((sum, value) => sum + value, 0))}</strong><small>Limite comprometido</small></article>
+              <article className="overview-stat"><span>Cartões cadastrados</span><strong>{cards.length}</strong><small>{enabledAlerts} alertas ativos no Radar</small></article>
+              <article className="overview-recent">
+                <div className="overview-recent-heading"><strong>Últimos lançamentos</strong><button type="button" onClick={() => setActiveTab("gastos")}>Ver gastos <span aria-hidden="true">›</span></button></div>
+                {transactions.length === 0 ? <p className="empty-state">Seus lançamentos aparecerão aqui.</p> : <ul className="recent-list">{transactions.slice(0, 4).map((item) => <li key={item.id}><span className={item.kind === "income" ? "recent-icon income" : "recent-icon"}>{item.kind === "income" ? "↗" : "↘"}</span><span className="recent-description"><strong>{item.description}</strong><small>{new Date(item.transaction_date + "T12:00:00").toLocaleDateString("pt-BR")}</small></span><strong className={item.kind === "income" ? "amount-income" : "amount-expense"}>{item.kind === "income" ? "+" : "−"}{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(item.amount))}</strong></li>)}</ul>}
+              </article>
+              <button className="overview-action" type="button" onClick={() => setActiveTab("gastos")}><span aria-hidden="true">＋</span> Organizar contas e cartões</button>
+            </section>}
+            <section className="panel privacy-panel" hidden={activeTab !== "conta"} id="conta" aria-labelledby="privacy-title">
               <div className="panel-heading"><div><span className="principles-label">PRIVACIDADE E CONTROLE</span><h2 id="privacy-title">Seus dados e sua conta</h2><p>Exporte uma cópia dos seus dados ou solicite a exclusão permanente da conta e dos comprovantes privados.</p></div></div>
               <div className="privacy-actions">
                 <button className="primary-button" type="button" onClick={() => void exportPersonalData()} disabled={busy}>Exportar meus dados (JSON)</button>
@@ -1352,7 +1369,7 @@ export default function App() {
               </div>
               <p className="helper-text">A exportação inclui metadados dos comprovantes; os arquivos podem ser abertos individualmente no histórico. A exclusão exige autenticação recente (últimos 15 minutos), remove comprovantes do Storage e apaga os dados vinculados à conta. Essa ação não pode ser desfeita.</p>
             </section>
-            <section className="panel" id="patrimonio" aria-labelledby="radar-title">
+            <section className="panel" id="patrimonio" hidden={activeTab !== "patrimonio"} aria-labelledby="radar-title">
               <div className="panel-heading"><div><span className="principles-label">ACOMPANHAMENTO DE ATIVOS</span><h2 id="radar-title">Radar de preços</h2><p>Crie alertas para acompanhar seus ativos. O disparo usa somente cotações recentes de uma fonte validada; nenhuma fonte de preços está conectada ainda.</p></div></div>
               <form className="radar-form" onSubmit={(event) => void createAlert(event)}>
                 <label>Classe<select value={assetClass} onChange={(event) => setAssetClass(event.target.value as RadarAlert["asset_class"])}><option value="stock">Ação</option><option value="fii">FII</option><option value="etf">ETF</option><option value="bdr">BDR</option><option value="crypto">Cripto</option></select></label>
@@ -1381,7 +1398,7 @@ export default function App() {
                 })}</ul>}
               </div>
             </section>
-            <section className="panel" id="gastos" aria-labelledby="accounts-title">
+            <section className="panel" id="gastos" hidden={activeTab !== "gastos"} aria-labelledby="accounts-title">
               <div className="panel-heading"><div><span className="principles-label">BASE FINANCEIRA</span><h2 id="accounts-title">Contas e lançamentos</h2><p>Cadastre suas contas e registre receitas e despesas. Valores previstos permanecem separados dos realizados.</p></div></div>
               <form className="finance-form" onSubmit={(event) => void createAccount(event)}>
                 <label>Nome da conta<input value={accountName} onChange={(event) => setAccountName(event.target.value)} maxLength={100} placeholder="Ex.: Conta principal" required /></label>
@@ -1578,7 +1595,7 @@ export default function App() {
               {transactions.length === 0 ? <p className="empty-state">Seus lançamentos aparecerão aqui.</p> : <ul className="transaction-list">{transactions.map((item) => <li key={item.id}><div className="transaction-main"><div><strong>{item.description}</strong><span>{item.kind === "income" ? "Receita" : item.kind === "expense" ? "Despesa" : "Transferência"} · {item.status === "paid" ? "Realizado" : item.status === "planned" ? "Previsto" : "Cancelado"}</span><small>{new Date(item.transaction_date + "T12:00:00").toLocaleDateString("pt-BR")}</small></div><strong className={item.kind === "income" ? "income-value" : "expense-value"}>{item.kind === "income" ? "+" : item.kind === "expense" ? "−" : ""}{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(item.amount))}</strong></div><div className="transaction-row-actions">{receiptFiles.some((file) => file.transaction_id === item.id) && <button className="quiet-button" type="button" disabled={busy} onClick={() => void openReceiptFile(item.id)}>Abrir comprovante</button>}<button className="quiet-button" type="button" disabled={busy} onClick={() => beginTransactionEdit(item)}>Editar</button><button className="quiet-button danger-button" type="button" disabled={busy} onClick={() => void deleteTransaction(item)}>Excluir</button></div>{editingTransactionId === item.id && <form className="transaction-edit-form" onSubmit={(event) => { event.preventDefault(); void saveTransactionEdit(item); }}><label>Descrição<input value={editDescription} onChange={(event) => setEditDescription(event.target.value)} maxLength={240} required /></label><label>Valor (R$)<input inputMode="decimal" value={editAmount} onChange={(event) => setEditAmount(event.target.value)} required /></label><label>Data<input type="date" value={editDate} onChange={(event) => setEditDate(event.target.value)} required /></label><label>Situação<select value={editStatus} onChange={(event) => setEditStatus(event.target.value as "paid" | "planned")}><option value="paid">Realizado</option><option value="planned">Previsto</option></select></label><button className="primary-button" type="submit" disabled={busy}>Salvar alterações</button><button className="quiet-button" type="button" disabled={busy} onClick={() => setEditingTransactionId(null)}>Cancelar</button></form>}</li>)}</ul>}
             </section>
 
-            <section className="panel" aria-labelledby="assistant-title">
+            <section className="panel" hidden={activeTab !== "conta"} aria-labelledby="assistant-title">
               <span className="principles-label">INTELIGÊNCIA ARTIFICIAL COM CONTROLE</span>
               <h2 id="assistant-title">Assistente financeiro</h2>
               <p>Faça uma pergunta sobre seus lançamentos recentes. Nenhum dado é enviado sem sua confirmação explícita nesta solicitação.</p>
@@ -1590,7 +1607,7 @@ export default function App() {
               {assistantAnswer && <p className="assistant-answer" role="status">{assistantAnswer}</p>}
             </section>
 
-            <section className="panel" aria-labelledby="receipt-title">
+            <section className="panel" hidden={activeTab !== "conta"} aria-labelledby="receipt-title">
               <span className="principles-label">LEITURA ASSISTIDA</span>
               <h2 id="receipt-title">Ler comprovante</h2>
               <p>Envie um PDF ou imagem para extrair uma prévia. O arquivo é processado em memória; esta etapa não armazena o anexo.</p>
@@ -1615,16 +1632,16 @@ export default function App() {
               <p className="muted-copy">A confirmação cria somente o lançamento. O armazenamento privado do arquivo e o vínculo do anexo ainda serão implementados separadamente.</p>
             </section>
 
-            <section className="panel coming-panel"><span className="principles-label">PRÓXIMAS CONEXÕES</span><h2>Seu financeiro em expansão</h2><p>Importação CSV/OFX, notificações e automações serão conectadas em etapas testadas, preservando a separação entre valores realizados e previstos.</p></section>
+            <section className="panel coming-panel" hidden={activeTab !== "conta"}><span className="principles-label">PRÓXIMAS CONEXÕES</span><h2>Seu financeiro em expansão</h2><p>Importação CSV/OFX, notificações e automações serão conectadas em etapas testadas, preservando a separação entre valores realizados e previstos.</p></section>
             {notice && <p className="notice" role="status">{notice}</p>}
           </section>
         )}
 
         {signedIn && <nav className="bottom-nav" aria-label="Navegação principal">
-          <a href="#inicio"><Home size={19} strokeWidth={2.2} /><span>Início</span></a>
-          <a href="#gastos"><ReceiptText size={19} strokeWidth={2.2} /><span>Gastos</span></a>
-          <a href="#patrimonio"><TrendingUp size={19} strokeWidth={2.2} /><span>Patrimônio</span></a>
-          <a href="#conta"><UserRound size={19} strokeWidth={2.2} /><span>Conta</span></a>
+          <button type="button" className={activeTab === "inicio" ? "active" : ""} aria-current={activeTab === "inicio" ? "page" : undefined} onClick={() => setActiveTab("inicio")}><Home size={20} strokeWidth={2.2} /><span>Início</span></button>
+          <button type="button" className={activeTab === "gastos" ? "active" : ""} aria-current={activeTab === "gastos" ? "page" : undefined} onClick={() => setActiveTab("gastos")}><ReceiptText size={20} strokeWidth={2.2} /><span>Gastos</span></button>
+          <button type="button" className={activeTab === "patrimonio" ? "active" : ""} aria-current={activeTab === "patrimonio" ? "page" : undefined} onClick={() => setActiveTab("patrimonio")}><TrendingUp size={20} strokeWidth={2.2} /><span>Patrimônio</span></button>
+          <button type="button" className={activeTab === "conta" ? "active" : ""} aria-current={activeTab === "conta" ? "page" : undefined} onClick={() => setActiveTab("conta")}><UserRound size={20} strokeWidth={2.2} /><span>Conta</span></button>
         </nav>}
         <footer className="app-footer"><span>GRANAVIVA</span><span>Privacidade · Clareza · Gratuito para todos</span></footer>
       </div>
