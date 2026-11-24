@@ -37,6 +37,14 @@ Deno.serve(async (request: Request) => {
       return jsonResponse({ data: data ?? [] }, 200, origin);
     }
 
+    if (body.action === "consultar_disparos" && Object.keys(body).length === 1) {
+      const { data, error } = await db.from("radar_fires")
+        .select("alert_key,fired_at,observed_price")
+        .eq("user_id", userId).order("fired_at", { ascending: false }).limit(50);
+      if (error) return internalError(origin);
+      return jsonResponse({ data: data ?? [] }, 200, origin);
+    }
+
     if (body.action === "criar") {
       const input = Object.fromEntries(Object.entries(body).filter(([key]) => key !== "action"));
       const validated = validateRadarAlertInput(input);
