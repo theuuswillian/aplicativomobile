@@ -1091,7 +1091,7 @@ O usuário autorizou explicitamente a revisão da proibição de fonte externa *
 - Provedor técnico inicial: **brapi.dev**, endpoint legado documentado `/api/quote/{ticker}`, que aceita um ticker por chamada no plano Gratuito.
 - Escopo: ações, FIIs, ETFs e BDRs brasileiros denominados em BRL.
 - Plano Gratuito divulgado pela fonte: 15.000 chamadas/mês, um ticker por chamada e atraso aproximado de 30 minutos para ações.
-- O worker usa cache de 30 minutos, no máximo quatro consultas por execução do cron de 15 minutos e reserva atômica com teto interno de 12.000 chamadas por mês. A rotação por ticker evita starvation; chamadas que falham também consomem a cota interna, por segurança.
+- O worker usa cache de 30 minutos, no máximo quatro consultas por execução do cron de 15 minutos e reserva atômica com teto interno de 12.000 chamadas em qualquer janela móvel de 30 dias. A rotação por ticker evita starvation; chamadas que falham também consomem a cota interna, por segurança.
 - API key somente em Supabase Secret `BRAPI_API_KEY`. Nenhum segredo ou chamada de provedor no frontend.
 - Toda cotação persistida inclui preço, moeda, classe, fonte, horário observado na origem e horário de ingestão. A interface e as notificações devem atribuir a fonte e identificar o atraso; nunca usar a expressão “tempo real”.
 - A cotação é referência informativa para exibição e Radar; não altera operações, custo médio, saldo, patrimônio realizado nem recomenda compra/venda.
@@ -1121,7 +1121,7 @@ Referências oficiais consultadas:
 
 ### 13.4 Segurança e operação
 
-- Migration `010_market_data_provider.sql` cria contador global sem dados pessoais, RLS habilitada sem grants a usuários e RPC atômica exclusiva de `service_role`.
+- Migration `010_market_data_provider.sql` cria contador diário privado com limite agregado móvel de 30 dias, cursor rotativo, RLS sem grants a usuários e RPC atômica serializada exclusiva de `service_role`.
 - Segredo independente `QUOTE_WORKER_SECRET` protege o worker; `BRAPI_API_KEY` fica exclusivamente em Supabase Secrets.
 - `BRAPI_PUBLIC_DISPLAY_APPROVED` é um bloqueio de licença, não um aceite automático.
 - O workflow de workers permanece desativado até configuração autorizada de secrets e variável operacional.
