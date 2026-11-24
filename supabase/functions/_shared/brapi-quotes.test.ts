@@ -10,7 +10,7 @@ const sample = {
       currency: "BRL",
       regularMarketPrice: 38.5,
       regularMarketPreviousClose: 37.9,
-      regularMarketTime: "2026-11-24T09:30:00.000Z",
+      regularMarketTime: "2026-11-24T09:00:00.000Z",
     },
   }],
 };
@@ -21,7 +21,7 @@ Deno.test("normalizes a valid Brapi quote and preserves source observation time"
   strictEqual(quote?.price, 38.5);
   strictEqual(quote?.previous_close, 37.9);
   strictEqual(quote?.currency, "BRL");
-  strictEqual(quote?.observed_at, "2026-11-24T09:30:00.000Z");
+  strictEqual(quote?.observed_at, "2026-11-24T09:00:00.000Z");
 });
 
 Deno.test("rejects malformed, mismatched, non-BRL and future quotes", () => {
