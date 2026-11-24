@@ -141,10 +141,10 @@ O commit `bd53ebfc18aedeadf992aeaa5c75de7802291dd4` passou integralmente na exec
 
 O CI verde não significa que a Fase 3 esteja concluída. Permanecem escolha/configuração de provedor WhatsApp, webhook HMAC e workers WhatsApp, fonte de cotação compatível com a arquitetura, secrets remotos autorizados e validação manual no dispositivo. O workflow `Scheduled workers` já está preparado, mas começa desativado até a variável `WORKERS_ENABLED=true` e os secrets necessários serem configurados no GitHub.
 
-- HEAD validado: `bd547533780c254477cacb0812dde31ba6fa2ed1`; execução GitHub Actions [#45313607017](https://github.com/theuuswillian/aplicativomobile/actions/runs/45313607017) passou integralmente: Edge Runtime, PostgreSQL 17, integração local Supabase e frontend (lint, policy, secrets, TypeScript, testes, build, Playwright, responsividade, offline e acessibilidade).
+- Última validação integral concluída: HEAD `824bd9d059555a667b91002d987d2c8e673f45c7`; GitHub Actions [#45366029779](https://github.com/theuuswillian/aplicativomobile/actions/runs/45366029779) passou em todos os jobs: Edge Runtime/Deno, PostgreSQL 17 com migrations 001–010, integração local Supabase, lint, policy, secrets, TypeScript, testes, build, Playwright, responsividade, offline e acessibilidade.
 - [Branch Fase 3](https://github.com/theuuswillian/aplicativomobile/tree/fase-3-backend).
 - [PR #2](https://github.com/theuuswillian/aplicativomobile/pull/2), ainda draft e sem merge.
-- O teste local de integração cobre perfil, preferências, CORS, Radar, Push, geração de código WhatsApp e bloqueio de workers sem JWT, além do isolamento entre dois usuários.
+- O teste local de integração cobre perfil, preferências, CORS, Radar, Push, geração de código WhatsApp, bloqueio de workers sem JWT/segredo interno (incluindo quote-feed-worker) e isolamento entre dois usuários.
 - O teste PostgreSQL aplica migrations 001–010 e verifica RLS, grants, Storage privado, consentimento WhatsApp, concorrência de metas, confirmação WhatsApp, datas de recorrência, geração concorrente e reativação Radar. A integração local verifica exportação autenticada e bloqueios da exclusão sem confirmação.
 
 A aprovação final exige CI integral verde no HEAD final, auditoria, configuração remota somente autorizada e validação manual do aplicativo pelo usuário. Não relaxar asserts para obter CI verde.
