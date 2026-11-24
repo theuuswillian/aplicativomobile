@@ -27,7 +27,7 @@ Deno.serve(async (request: Request) => {
   try {
     if (body.action === "consultar" && Object.keys(body).length === 1) {
       const { data, error } = await db.from("push_subscriptions")
-        .select("id, user_agent, created_at, updated_at")
+        .select("id, endpoint, user_agent, created_at, updated_at")
         .eq("user_id", userId).order("created_at", { ascending: false });
       if (error) return internalError(origin);
       return jsonResponse({ data: data ?? [] }, 200, origin);
