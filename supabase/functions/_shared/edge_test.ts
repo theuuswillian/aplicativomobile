@@ -310,6 +310,8 @@ Deno.test("Radar evaluator rejects stale, mismatched and incomplete quotes", () 
   };
   const quote = { symbol: "HGLG11", price: 90, previous_close: 100, asset_class: "fii", source: "test", saved_at: "2026-11-24T11:59:00Z" };
   strictEqual(evaluateRadarAlert(alert, { ...quote, saved_at: "2026-11-24T10:00:00Z" }, Date.parse("2026-11-24T12:00:00Z")).reason, "stale_quote");
+  strictEqual(evaluateRadarAlert(alert, { ...quote, saved_at: "2026-11-24T11:20:00Z" }, Date.parse("2026-11-24T12:00:00Z")).reason, "daily_drop");
+  strictEqual(evaluateRadarAlert(alert, { ...quote, saved_at: "2026-11-24T11:14:00Z" }, Date.parse("2026-11-24T12:00:00Z")).reason, "stale_quote");
   strictEqual(evaluateRadarAlert(alert, { ...quote, asset_class: "stock" }, Date.parse("2026-11-24T12:00:00Z")).reason, "asset_mismatch");
   strictEqual(evaluateRadarAlert(alert, { ...quote, previous_close: null }, Date.parse("2026-11-24T12:00:00Z")).reason, "invalid_quote");
 });
