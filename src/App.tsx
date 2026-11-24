@@ -1297,7 +1297,7 @@ export default function App() {
                 </label>
                 <button className="quiet-button danger-button" type="button" onClick={() => void deletePersonalAccount()} disabled={busy || deleteConfirmText !== "EXCLUIR_CONTA"}>Excluir minha conta permanentemente</button>
               </div>
-              <p className="helper-text">A exclusão exige autenticação recente (últimos 15 minutos), remove comprovantes do Storage e apaga os dados vinculados à conta. Essa ação não pode ser desfeita.</p>
+              <p className="helper-text">A exportação inclui metadados dos comprovantes; os arquivos podem ser abertos individualmente no histórico. A exclusão exige autenticação recente (últimos 15 minutos), remove comprovantes do Storage e apaga os dados vinculados à conta. Essa ação não pode ser desfeita.</p>
             </section>
             <section className="panel" aria-labelledby="radar-title">
               <div className="panel-heading"><div><span className="principles-label">ACOMPANHAMENTO DE ATIVOS</span><h2 id="radar-title">Radar de preços</h2><p>Crie alertas para acompanhar seus ativos. O disparo usa somente cotações recentes de uma fonte validada; nenhuma fonte de preços está conectada ainda.</p></div></div>
