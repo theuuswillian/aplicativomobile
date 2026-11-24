@@ -179,7 +179,7 @@ Deno.test("Radar validates symbols, thresholds, conditions and rejects privilege
 
 Deno.test("push subscriptions require HTTPS endpoints and valid browser keys", () => {
   const valid = validatePushSubscription({
-    endpoint: "https://push.example.test/send/opaque-token",
+    endpoint: "https://fcm.googleapis.com/fcm/send/opaque-token",
     p256dh: "A".repeat(87),
     auth_key: "B".repeat(22),
     user_agent: "Test Browser",
@@ -194,7 +194,7 @@ Deno.test("push subscriptions require HTTPS endpoints and valid browser keys", (
     p256dh: "A".repeat(87), auth_key: "B".repeat(22),
   }).ok, false);
   strictEqual(validatePushSubscription({
-    endpoint: "https://push.example.test/send/token",
+    endpoint: "https://fcm.googleapis.com/fcm/send/token",
     p256dh: "A".repeat(10), auth_key: "B".repeat(22),
   }).ok, false);
   strictEqual(isPushSubscriptionId("20000000-0000-4000-8000-000000000001"), true);
