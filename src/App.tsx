@@ -125,8 +125,8 @@ export default function App() {
         setAlerts(Array.isArray(radar.data?.data) ? radar.data.data as RadarAlert[] : []);
         setAccounts((accountRows.data ?? []) as AccountRow[]);
         setTransactions((transactionRows.data ?? []) as TransactionRow[]);
-        if (!txAccountId && accountRows.data?.[0]?.id) setTxAccountId(accountRows.data[0].id);
-        if (!receiptAccountId && accountRows.data?.[0]?.id) setReceiptAccountId(accountRows.data[0].id);
+        if (accountRows.data?.[0]?.id) setTxAccountId((current) => current || accountRows.data[0].id);
+        if (accountRows.data?.[0]?.id) setReceiptAccountId((current) => current || accountRows.data[0].id);
       } catch (error) {
         if (active) setNotice(errorMessage(error));
       }
