@@ -1,8 +1,9 @@
 import { strictEqual } from "node:assert/strict";
 import { parseBrapiQuote } from "./brapi-quotes.ts";
 
+const observedAt = new Date(Date.now() - 60_000).toISOString();
 const sample = {
-  requestedAt: "2026-11-24T10:00:00.000Z",
+  requestedAt: new Date().toISOString(),
   results: [{
     symbol: "PETR4",
     data: {
@@ -10,7 +11,7 @@ const sample = {
       currency: "BRL",
       regularMarketPrice: 38.5,
       regularMarketPreviousClose: 37.9,
-      regularMarketTime: "2026-11-24T09:00:00.000Z",
+      regularMarketTime: observedAt,
     },
   }],
 };
@@ -21,7 +22,7 @@ Deno.test("normalizes a valid Brapi quote and preserves source observation time"
   strictEqual(quote?.price, 38.5);
   strictEqual(quote?.previous_close, 37.9);
   strictEqual(quote?.currency, "BRL");
-  strictEqual(quote?.observed_at, "2026-11-24T09:00:00.000Z");
+  strictEqual(quote?.observed_at, observedAt);
 });
 
 Deno.test("rejects malformed, mismatched, non-BRL and future quotes", () => {
