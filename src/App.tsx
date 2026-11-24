@@ -1406,10 +1406,10 @@ export default function App() {
           </section>
         ) : (
           <section className="dashboard" aria-labelledby="dashboard-title">
-            <div className="dashboard-heading" id="inicio">
+            {activeTab === "inicio" && <div className="dashboard-heading" id="inicio">
               <div><span className="eyebrow"><span className="live-dot" /> ÁREA PESSOAL</span><h1 id="dashboard-title">Olá{profile?.display_name ? `, ${profile.display_name}` : ""}.</h1><p>Seus dados estão sincronizados com sua conta.</p></div>
               <div className="metric-card"><strong>{alerts.length}</strong><span>alertas no Radar</span><small>{enabledAlerts} ativos</small></div>
-            </div>
+            </div>}
             {activeTab === "inicio" && <section className="overview-grid" aria-label="Resumo financeiro">
               <article className="overview-balance">
                 <div className="overview-label">Saldo disponível <span aria-hidden="true">◉</span></div>
