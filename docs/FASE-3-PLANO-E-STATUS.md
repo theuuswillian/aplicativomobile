@@ -286,3 +286,17 @@ O CI verde valida o código e as migrações em ambiente local; não comprova ch
 - [ ] A cadência de 15 minutos do workflow significa até 10 resumos semanais por execução agendada; validar backlog e capacidade com dados sintéticos antes de ativar `WORKERS_ENABLED`.
 - [ ] CI do código atualizado está em execução; não considerar aprovado até todos os jobs do HEAD final terminarem com sucesso.
 - Nenhuma migration nova foi criada/aplicada, nenhuma Edge Function publicada, nenhum worker ativado e nenhum ambiente Production alterado.
+
+## Confiabilidade dos workers — checkpoint e retry seguro (24/11/2026)
+
+- [x] Nova migration 20261124195000_worker_checkpoint_and_whatsapp_summary_jobs.sql: checkpoint durável do Radar, lease com fencing token, estado isolado por varredura/símbolo e fila persistente de resumos semanais.
+- [x] radar-worker processa uma página limitada por invocação e grava o cursor apenas após concluir a página. Se a execução cair antes do checkpoint, a próxima invocação retoma do cursor anterior após expirar o lease.
+- [x] Se o Radar já gravou radar_fires mas a notificação falhou ou a execução caiu, a retomada tenta novamente a entrega com a mesma delivery_key; o push-worker é responsável pela idempotência de entrega.
+- [x] Resumos WhatsApp persistem telefone e texto antes do envio; a outbox Meta usa a mesma chave idempotente em cada tentativa. failed_safe/busy podem ser tentados novamente; uncertain não é reenviado automaticamente; falhas definitivas são encerradas.
+- [x] Jobs de resumo usam lease e fencing; o consentimento é verificado novamente imediatamente antes do envio. last_summary_week só avança após estado terminal ou opt-out.
+- [x] Migração recupera da outbox os resumos antigos marcados failed_safe, preservando texto, telefone e chave idempotente.
+- [x] Testes de concorrência SQL adicionados para lease exclusivo, cursor retomável, rejeição de fencing token antigo e retry/finalização de resumo semanal.
+- [ ] A migration é somente código versionado na branch; ainda não foi aplicada ao Supabase remoto.
+- [ ] CI dos novos arquivos deve concluir integralmente no HEAD final antes de considerar a correção validada.
+- [ ] Fazer teste de carga/tempo real em ambiente local ou Preview; manter workers desativados até aceite.
+- Nenhuma Edge Function foi publicada, nenhum worker foi ativado e nenhum ambiente Production foi alterado.
