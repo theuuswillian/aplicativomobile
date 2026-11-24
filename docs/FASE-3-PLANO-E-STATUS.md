@@ -304,3 +304,20 @@ O CI verde valida o código e as migrações em ambiente local; não comprova ch
 - [x] O Radar mantém o checkpoint na página enquanto houver retry seguro de push pendente; quando todos os dispositivos forem confirmados, removidos ou ficarem em estado ambíguo terminal, a página pode avançar.
 - [x] Teste SQL adicional cobre retry de HTTP 429 e idempotência após entrega confirmada por assinatura.
 - [x] Chaves de push antigas, sem resultado individual por assinatura, são migradas para estado uncertain; isso evita duplicar notificações já possivelmente entregues durante a transição.
+
+
+## Atualização de execução — migration 013 e drenagem do Radar (24/11/2026)
+
+- [x] Migration `worker_checkpoint_and_whatsapp_summary_jobs` aplicada ao Supabase Brasil (`dvddqexnvllrxogbwmdf`); o histórico remoto confirma 13 migrations.
+- [x] Estruturas de checkpoint Radar, jobs de resumo WhatsApp e tentativas Push verificadas no banco. As três tabelas têm RLS; acesso direto de `anon`/`authenticated` revogado; as oito RPCs novas estão restritas a `service_role`.
+- [x] `APP_ORIGIN=https://granaviva-rust.vercel.app` cadastrado no Supabase conforme confirmação do operador. O conector não permite ler o valor dos secrets, portanto essa confirmação não é uma verificação por leitura.
+- [x] Auditoria Supabase de saúde: sem findings. Permanecem avisos informativos de tabelas backend-only com RLS sem políticas e avisos de índices/FKs para avaliação com carga real.
+- [x] Revisão identificou que o worker Radar processa uma página de 20 alertas por invocação, mas o workflow não consumia `has_more`.
+- [x] Workflow `Scheduled workers` atualizado para percorrer até três páginas do Radar por execução, interromper se detectar lease ocupado ou ausência de próxima página e usar timeout de 130 segundos por chamada. O limite do job foi ampliado para 10 minutos. A execução continua opt-in e não foi disparada.
+- [ ] CI do novo workflow e dos documentos atualizados precisa concluir no HEAD final antes de considerar esta alteração validada.
+- [ ] O processamento WhatsApp ainda usa uma chamada única com limite de 45 segundos no cron; deve ser validado com carga sintética antes de habilitar workers.
+- [ ] Edge Functions ainda não publicadas; secrets restantes de backend/OpenAI/Meta/VAPID ainda precisam ser configurados e validados nos painéis oficiais.
+- [ ] Teste remoto real e aceite Safari/PWA dependem de publicação controlada, credenciais e Preview atualizado.
+- Nenhum worker foi ativado, nenhum endpoint foi publicado, nenhuma Brapi foi ativada e nenhuma alteração foi feita em Vercel Production.
+
+**Esta atualização prevalece sobre notas históricas acima que digam que a migration 013 ainda não foi aplicada, que `APP_ORIGIN` está pendente ou que o Radar não possui checkpoint persistente.**
