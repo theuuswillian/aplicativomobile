@@ -10,6 +10,36 @@ const CACHE_TTL_MS = 30 * 60_000;
 const MAX_QUOTES_PER_RUN = 4;
 const ROLLING_30_DAY_SAFE_LIMIT = 12_000;
 
+async function readBoundedResponse(response: Response, maxBytes: number): Promise<string | null> {
+  const contentLength = Number(response.headers.get("content-length") ?? 0);
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) return null;
+  if (!response.body) return null;
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(value);
+    }
+  } catch {
+    return null;
+  } finally {
+    reader.releaseLock();
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+  try { return new TextDecoder("utf-8", { fatal: true }).decode(bytes); }
+  catch { return null; }
+}
+
 function safeEqual(left: string, right: string): boolean {
   const a = new TextEncoder().encode(left), b = new TextEncoder().encode(right);
   let difference = a.length ^ b.length;
@@ -104,8 +134,8 @@ Deno.serve(async (request: Request) => {
         if (!response.ok) { failed++; continue; }
         const contentType = response.headers.get("content-type") ?? "";
         if (!contentType.toLowerCase().includes("application/json")) { failed++; continue; }
-        const raw = await response.text();
-        if (raw.length > 64 * 1024) { failed++; continue; }
+        const raw = await readBoundedResponse(response, 64 * 1024);
+        if (raw === null) { failed++; continue; }
         let payload: unknown;
         try { payload = JSON.parse(raw); } catch { failed++; continue; }
         const quote = parseBrapiQuote(payload, symbol);
