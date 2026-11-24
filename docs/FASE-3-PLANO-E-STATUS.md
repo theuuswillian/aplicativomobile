@@ -73,8 +73,10 @@ Implementar backend e integração gradual da interface do GranaViva conforme `d
 - [x] Tela do Radar conectada ao endpoint no frontend.
 - [x] Aditivo de arquitetura aprovado para cotações externas, limitado a dados públicos de mercado; dados bancários/pessoais continuam sem agregador externo.
 - [x] Adaptador brapi.dev para B3 (ações/FIIs/ETFs/BDRs), parser validado, cache 30 min, limite atômico móvel de 12.000 chamadas em 30 dias, rotação justa, fonte e timestamp persistidos e exibidos.
-- [x] Worker de atualização de cotações protegido por JWT + segredo interno e incluído no cron antes da avaliação do Radar.
-- [ ] Habilitar exibição após confirmação escrita de licença da brapi para o uso no GranaViva; a flag `BRAPI_PUBLIC_DISPLAY_APPROVED` permanece falsa/ausente até isso.
+- [x] Worker de atualização de cotações protegido por JWT + segredo interno e incluído no cron antes da avaliação do Radar; permanece bloqueado por licença ausente.
+- [x] Preço de referência manual por ativo, com validação decimal, origem e horário; não altera livro de operações/custo médio e não alimenta o Radar.
+- [x] Coluna `price_source` distingue preço manual de fonte automática; preços legados sem origem ficam identificados como desconhecidos.
+- [ ] Habilitar cotações automáticas/exibição após licença adequada; `BRAPI_PUBLIC_DISPLAY_APPROVED` permanece falsa/ausente. Preço manual é a alternativa ativa e não aciona o Radar.
 - [ ] Feed automático de cripto e renda fixa: não incluído no plano gratuito/licença pública validada; não serão usados feeds pagos sem autorização de custo.
 
 ### Push
@@ -89,7 +91,7 @@ Implementar backend e integração gradual da interface do GranaViva conforme `d
 ### WhatsApp
 - [x] Schema de vínculo, tentativas, inbox, transações pendentes e outbox na Fase 2.
 - [x] RPCs de rate limit, vínculo, leases/fencing e envio idempotente na Fase 2.
-- [ ] Adaptador de provedor e validação HMAC do webhook sobre corpo bruto.
+- [x] Adaptador Meta Cloud API e validação HMAC do webhook sobre o corpo bruto.
 - [x] Endpoint autenticado de geração de código temporário, hash SHA-256, expiração de 10 minutos e rate limit de 3 códigos por hora.
 - [x] UI de vínculo, desvinculação e consentimento explícito do resumo semanal; gerar código não ativa o resumo.
 - [x] RPC `whatsapp_pending_confirm` valida vínculo, referências e payload e cria o lançamento uma única vez sob lock transacional.
@@ -107,7 +109,7 @@ Implementar backend e integração gradual da interface do GranaViva conforme `d
 - [x] Registro manual de dividendos, JCP e outros proventos com estados anunciado/previsto/recebido/cancelado.
 - [x] Consentimento por uso da IA e prévia editável de comprovante; arquivo persiste em Storage privado somente após confirmação.
 - [x] Push no frontend e Service Worker; UI de vínculo WhatsApp, geração de código e consentimento explícito do resumo semanal conectados.
-- [ ] Auditoria de acessibilidade e testes reais do usuário após a integração dos módulos.
+- [ ] Auditoria final de acessibilidade e testes reais do usuário no Safari e no app instalado na Tela de Início do iPhone.
 
 ## Configuração necessária do backend (ainda não aplicada)
 
@@ -139,7 +141,7 @@ O commit `bd53ebfc18aedeadf992aeaa5c75de7802291dd4` passou integralmente na exec
 - `sql`: migrations, RLS, grants, isolamento e concorrência no PostgreSQL 17.
 - `edge-integration`: Auth local, perfil, preferências, CORS, Radar, Push e isolamento entre dois usuários.
 
-O CI verde não significa que a Fase 3 esteja concluída. Permanecem escolha/configuração de provedor WhatsApp, webhook HMAC e workers WhatsApp, fonte de cotação compatível com a arquitetura, secrets remotos autorizados e validação manual no dispositivo. O workflow `Scheduled workers` já está preparado, mas começa desativado até a variável `WORKERS_ENABLED=true` e os secrets necessários serem configurados no GitHub.
+O CI verde não significa que a Fase 3 esteja concluída. Permanecem credenciais/configuração Meta, secrets remotos, testes reais de integrações externas e validação manual no Safari e no app instalado no iPhone. A fonte automática de cotações segue bloqueada por licença; preço manual está disponível. O workflow `Scheduled workers` já está preparado, mas começa desativado até a variável `WORKERS_ENABLED=true` e os secrets necessários serem configurados no GitHub.
 
 - Última validação integral concluída: HEAD `824bd9d059555a667b91002d987d2c8e673f45c7`; GitHub Actions [#45366029779](https://github.com/theuuswillian/aplicativomobile/actions/runs/45366029779) passou em todos os jobs: Edge Runtime/Deno, PostgreSQL 17 com migrations 001–010, integração local Supabase, lint, policy, secrets, TypeScript, testes, build, Playwright, responsividade, offline e acessibilidade.
 - [Branch Fase 3](https://github.com/theuuswillian/aplicativomobile/tree/fase-3-backend).
