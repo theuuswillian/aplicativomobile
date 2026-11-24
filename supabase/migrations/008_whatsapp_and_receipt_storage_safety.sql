@@ -165,7 +165,19 @@ begin
      or v_description is null or length(v_description) not between 1 and 240
      or (v_account_id is null and v_card_id is null)
      or (v_account_id is not null and v_card_id is not null)
-     or (v_card_id is not null and v_kind <> 'expense') then
+     or (v_card_id is not null and v_kind <> 'expense')
+     or (v_account_id is not null and not exists (
+       select 1 from public.accounts a
+        where a.user_id=v_pending.user_id and a.id=v_account_id and not a.is_archived
+     ))
+     or (v_card_id is not null and not exists (
+       select 1 from public.cards c
+        where c.user_id=v_pending.user_id and c.id=v_card_id and not c.is_archived
+     ))
+     or (v_category_id is not null and not exists (
+       select 1 from public.categories c
+        where c.user_id=v_pending.user_id and c.id=v_category_id and c.kind=v_kind
+     )) then
     return query select 'invalid_payload'::text, null::uuid;
     return;
   end if;
