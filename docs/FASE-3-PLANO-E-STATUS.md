@@ -219,3 +219,11 @@ Somente depois de obter confirmação escrita da brapi.dev para exibição limit
 O plano Gratuito divulgado pela brapi tem 15.000 chamadas/mês e um ticker por chamada. O worker aplica teto próprio de 12.000 em qualquer janela móvel de 30 dias, no máximo quatro consultas por execução a cada 15 minutos, cache de 30 minutos e cursor rotativo. O plano Gratuito não habilita o endpoint de cripto documentado; cripto permanece sem feed.
 
 A migration 010 ainda está apenas na branch; precisa ser aplicada ao Supabase remoto somente após autorização específica e validação do ambiente.
+
+## Preparação para ativação remota
+
+- Guia operacional de configuração e aceite: [CONFIGURACAO-REMOTA-FASE-3.md](./CONFIGURACAO-REMOTA-FASE-3.md).
+- O código foi revisado para não marcar preço manual antigo como cotação de mercado desatualizada; o aviso de atraso de 45 minutos aplica-se somente à fonte automática Brapi.
+- Preview Vercel atualizado para o commit `911fe20ec6ca73fbae60a240572ac30baffb8761`: [abrir Preview](https://granaviva-p6s8ubj1c-grana6.vercel.app). É uma implantação Preview, não produção; o acesso web automatizado não confirmou o funcionamento com backend, pois não há projeto Supabase acessível pela conexão atual.
+- A conexão Supabase consultada mostra a organização, mas nenhum projeto disponível. Antes de qualquer migration/deploy remoto, é necessário selecionar/vincular o projeto correto ou conceder acesso à conexão. Não criar projeto nem assumir custo sem confirmação.
+- CI para o commit de código `911fe20ec6ca73fbae60a240572ac30baffb8761`: [#45377392284](https://github.com/theuuswillian/aplicativomobile/actions/runs/45377392284); Edge Runtime passou, enquanto validação, SQL e integração local estavam em execução na última consulta. O commit seguinte atualiza somente documentação.
