@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
+import { generateOccurrences, type RecurrenceFrequency } from "./domain/recurrence";
 
 type Theme = "dark" | "light";
 type RadarAlert = {
@@ -17,7 +18,7 @@ type Profile = { display_name: string | null; email?: string };
 type AccountRow = { id: string; name: string; account_type: string; opening_balance: string; is_primary: boolean };
 type CardRow = { id: string; name: string; institution_name: string; last_four: string; brand: string | null; credit_limit: string; closing_day: number; due_day: number; is_archived: boolean };
 type CategoryRow = { id: string; name: string; kind: "income" | "expense"; color: string | null; icon: string | null };
-type RecurrenceRow = { id: string; name: string; kind: "income" | "expense"; amount: string; frequency: "daily" | "weekly" | "biweekly" | "monthly" | "yearly" | "interval"; interval_count: number; weekday: number | null; month_day: number | null; month_of_year: number | null; starts_on: string; ends_on: string | null; next_occurrence_on: string; account_id: string | null; card_id: string | null; is_active: boolean };
+type RecurrenceRow = { id: string; name: string; kind: "income" | "expense"; amount: string; frequency: RecurrenceFrequency; interval_count: number; weekday: number | null; month_day: number | null; month_of_year: number | null; starts_on: string; ends_on: string | null; next_occurrence_on: string; account_id: string | null; card_id: string | null; is_active: boolean };
 type TransactionRow = { id: string; kind: "income" | "expense" | "transfer"; status: "paid" | "planned" | "cancelled"; amount: string; transaction_date: string; description: string; account_id: string | null };
 type ReceiptDraft = { sufficient: boolean; kind: "income" | "expense" | null; amount: string | null; date: string | null; description: string | null; category: string | null; payment_method: string | null; installment_count: number | null; card_last_four: string | null; confidence: number; warnings: string[] };
 const THEME_STORAGE_KEY = "granaviva:theme:v1";
@@ -36,51 +37,6 @@ function todayInBrazil(): string {
   const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
   const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return `${values.year}-${values.month}-${values.day}`;
-}
-
-function nextRecurrenceDate(start: string, frequency: RecurrenceRow["frequency"], intervalCount: number, weekday: number | null, monthDay: number | null, monthOfYear: number | null): string {
-  const parse = (value: string) => new Date(`${value}T00:00:00.000Z`);
-  const format = (date: Date) => date.toISOString().slice(0, 10);
-  const today = parse(todayInBrazil());
-  const initial = parse(start);
-  if (frequency === "daily" || frequency === "interval") {
-    const step = frequency === "daily" ? 1 : intervalCount;
-    const days = Math.max(0, Math.ceil((today.getTime() - initial.getTime()) / 86400000));
-    const offset = Math.ceil(days / step) * step;
-    initial.setUTCDate(initial.getUTCDate() + offset);
-    return format(initial);
-  }
-  if (frequency === "weekly" || frequency === "biweekly") {
-    const targetDay = weekday ?? initial.getUTCDay();
-    const first = new Date(initial);
-    first.setUTCDate(first.getUTCDate() + ((targetDay - first.getUTCDay() + 7) % 7));
-    const period = frequency === "weekly" ? 7 : 14;
-    const days = Math.max(0, Math.ceil((today.getTime() - first.getTime()) / 86400000));
-    first.setUTCDate(first.getUTCDate() + Math.ceil(days / period) * period);
-    return format(first);
-  }
-  const targetDay = monthDay ?? initial.getUTCDate();
-  if (frequency === "monthly") {
-    let year = initial.getUTCFullYear();
-    let month = initial.getUTCMonth();
-    for (let attempt = 0; attempt < 1200; attempt += 1) {
-      const last = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-      const candidate = new Date(Date.UTC(year, month, Math.min(targetDay, last)));
-      if (candidate >= today && candidate >= parse(start)) return format(candidate);
-      month += 1;
-      if (month > 11) { month = 0; year += 1; }
-    }
-  }
-  if (frequency === "yearly") {
-    let year = Math.max(initial.getUTCFullYear(), today.getUTCFullYear());
-    const month = (monthOfYear ?? initial.getUTCMonth() + 1) - 1;
-    for (let attempt = 0; attempt < 400; attempt += 1, year += 1) {
-      const last = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-      const candidate = new Date(Date.UTC(year, month, Math.min(targetDay, last)));
-      if (candidate >= today && candidate >= parse(start)) return format(candidate);
-    }
-  }
-  return start;
 }
 
 function normalizeBrlAmount(value: string, allowZero = false, allowNegative = false): string | null {
@@ -367,12 +323,17 @@ export default function App() {
       setNotice("Confira nome, valor, frequência, data inicial/final e os parâmetros do calendário.");
       return;
     }
-    const nextDate = nextRecurrenceDate(recurrenceStart, recurrenceFrequency, interval || 1,
-      recurrenceFrequency === "weekly" || recurrenceFrequency === "biweekly" ? weekday : null,
-      recurrenceFrequency === "monthly" || recurrenceFrequency === "yearly" ? monthDay : null,
-      recurrenceFrequency === "yearly" ? month : null);
-    if (recurrenceEnd && nextDate > recurrenceEnd) {
-      setNotice("A data final é anterior à próxima ocorrência calculada.");
+    const horizon = new Date(`${todayInBrazil()}T12:00:00.000Z`);
+    horizon.setUTCFullYear(horizon.getUTCFullYear() + 10);
+    const nextDate = generateOccurrences({
+      id: "recurrence-preview", frequency: recurrenceFrequency, startsOn: recurrenceStart,
+      endsOn: recurrenceEnd || null, intervalCount: recurrenceFrequency === "interval" ? interval : 1,
+      weekday: recurrenceFrequency === "weekly" || recurrenceFrequency === "biweekly" ? weekday : undefined,
+      monthDay: recurrenceFrequency === "monthly" || recurrenceFrequency === "yearly" ? monthDay : undefined,
+      monthOfYear: recurrenceFrequency === "yearly" ? month : undefined,
+    }, todayInBrazil(), horizon.toISOString().slice(0, 10))[0];
+    if (!nextDate) {
+      setNotice("Esta regra não possui uma próxima ocorrência dentro do período definido.");
       return;
     }
     setBusy(true); setNotice("");
