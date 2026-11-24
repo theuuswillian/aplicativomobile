@@ -362,9 +362,10 @@ begin
     raise exception 'Outbox aceitou confirmação com fencing token expirado';
   end if;
 
-  insert into public.whatsapp_links(user_id, phone)
-  values (v_user, '+5511777777777')
-  on conflict (user_id) do nothing;
+  update public.settings set whatsapp_weekly_summary=true where user_id=v_user;
+  insert into public.whatsapp_links(user_id, phone, weekly_summary_enabled)
+  values (v_user, '+5511777777777', true)
+  on conflict (user_id) do update set weekly_summary_enabled=true;
   if not public.whatsapp_summary_reserve(v_user, date '2026-11-23')
      or public.whatsapp_summary_reserve(v_user, date '2026-11-23') then
     raise exception 'Resumo semanal não preservou reserva idempotente';
