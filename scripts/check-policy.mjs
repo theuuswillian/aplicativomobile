@@ -6,7 +6,7 @@ const sourceRoots = ["src", "supabase"];
 const forbidden = [
   ["Pluggy", /pluggy/i],
   ["Mercado Pago", /mercado\s*pago|mercadopago/i],
-  ["billing/paid subscription", /\\bbilling\\b|\\bpaid[\\s_-]+subscriptions?\\b|\\bsubscription_plan\\b/i]
+  ["billing/paid subscription", /\bbilling\b|\bpaid[\s_-]+subscriptions?\b|\bsubscription_plan\b/i]
 ];
 const forbiddenRootFiles = ["app.js", "app.min.js", "app.min.js.map"];
 
