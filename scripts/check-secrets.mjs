@@ -30,7 +30,7 @@ for (const root of roots) {
     // Referenciar um secret do GitHub Actions não versiona seu valor; só esta
     // expressão exata é permitida. Valores literais continuam bloqueados.
     const content = rawContent.replace(
-      /SUPABASE_SERVICE_ROLE_KEY\\s*:\\s*\\$\\{\\{\\s*secrets\\.SUPABASE_SERVICE_ROLE_KEY\\s*\\}\\}/g,
+      /SUPABASE_SERVICE_ROLE_KEY\s*:\s*\$\{\{\s*secrets\.SUPABASE_SERVICE_ROLE_KEY\s*\}\}/g,
       "",
     );
     for (const [label, pattern] of forbidden) {
