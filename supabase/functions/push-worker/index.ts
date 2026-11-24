@@ -20,7 +20,7 @@ function safeEqual(left: string, right: string): boolean {
 function isTrustedEndpoint(value: string): boolean {
   try {
     const url = new URL(value);
-    return url.protocol === "https:" && !url.username && !url.password && !url.hash &&
+    return url.protocol === "https:" && !url.username && !url.password && !url.port && !url.hash &&
       (url.hostname === "fcm.googleapis.com" ||
        url.hostname === "updates.push.services.mozilla.com" ||
        url.hostname === "web.push.apple.com" ||
@@ -65,6 +65,12 @@ Deno.serve(async (request: Request) => {
   });
   const userId = body.user_id;
   const deliveryKey = body.delivery_key;
+  const { data: settings, error: settingsError } = await db.from("settings")
+    .select("push_enabled").eq("user_id", userId).maybeSingle();
+  if (settingsError) return internalError(origin);
+  if (!settings?.push_enabled) {
+    return jsonResponse({ data: { suppressed: true, reason: "push_disabled" } }, 200, origin);
+  }
   const { error: reserveError } = await db.from("push_deliveries").insert({
     user_id: userId, delivery_key: deliveryKey,
   });
