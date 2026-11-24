@@ -123,3 +123,39 @@ body { min-height: 100vh; }
   .alert-actions { width: 100%; }
   .alert-actions button { flex: 1; }
 }
+
+
+.finance-form { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: end; gap: 10px; margin-top: 20px; }
+.finance-form label, .assistant-form label, .receipt-preview label { display: grid; gap: 7px; min-width: 0; color: var(--color-muted); font-size: 12px; font-weight: 650; }
+.finance-form input, .finance-form select, .assistant-form textarea, .assistant-form input[type="file"], .receipt-preview select { width: 100%; min-width: 0; min-height: 44px; padding: 10px 12px; border: 1px solid var(--color-line); border-radius: var(--radius-control); background: var(--color-surface-raised); color: var(--color-text); font: inherit; }
+.finance-form .wide-field { grid-column: span 2; }
+.account-list, .transaction-list { display: grid; gap: 0; margin: 17px 0 0; padding: 0; list-style: none; }
+.account-list li, .transaction-list li { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 13px 0; border-top: 1px solid var(--color-line); }
+.account-list li { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; }
+.account-list strong, .transaction-list strong { color: var(--color-text); font-size: 13px; }
+.account-list span, .account-list small, .transaction-list span, .transaction-list small, .transaction-heading span { color: var(--color-muted); font-size: 11px; }
+.account-list small { grid-column: 1 / -1; }
+.transaction-form { margin-top: 23px; padding-top: 19px; border-top: 1px solid var(--color-line); }
+.transaction-heading { display: flex; justify-content: space-between; gap: 12px; margin-top: 24px; color: var(--color-text); font-size: 12px; }
+.transaction-list li > div:first-child { display: grid; gap: 4px; }
+.income-value { color: var(--color-accent) !important; white-space: nowrap; }
+.expense-value { color: var(--color-text) !important; white-space: nowrap; }
+.assistant-form { display: grid; gap: 13px; margin-top: 18px; }
+.assistant-form textarea { resize: vertical; }
+.assistant-form .consent-row { display: flex; align-items: flex-start; gap: 10px; color: var(--color-muted); font-size: 12px; font-weight: 450; line-height: 1.55; }
+.consent-row input { flex: 0 0 auto; width: 18px; height: 18px; margin: 0; accent-color: var(--color-accent-strong); }
+.assistant-answer, .receipt-preview { margin-top: 16px; padding: 15px; border: 1px solid var(--color-line); border-radius: 13px; background: var(--color-surface-raised); color: var(--color-text); font-size: 13px; line-height: 1.6; }
+.receipt-preview { display: grid; gap: 12px; }
+.receipt-preview dl { display: grid; grid-template-columns: minmax(100px, .35fr) 1fr; gap: 7px 12px; margin: 0; }
+.receipt-preview dt { color: var(--color-muted); font-size: 11px; }
+.receipt-preview dd { margin: 0; color: var(--color-text); font-size: 12px; overflow-wrap: anywhere; }
+.receipt-preview ul { margin: 0; padding-left: 18px; color: var(--color-muted); font-size: 11px; }
+@media (max-width: 760px) {
+  .finance-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .finance-form .wide-field { grid-column: 1 / -1; }
+}
+@media (max-width: 460px) {
+  .finance-form { grid-template-columns: 1fr; }
+  .finance-form .wide-field { grid-column: auto; }
+  .transaction-list li { align-items: flex-start; }
+}
