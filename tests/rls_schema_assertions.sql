@@ -83,7 +83,8 @@ begin
      or not exists (select 1 from pg_policies where schemaname='storage' and tablename='objects' and policyname='receipt_files_delete_own_transaction') then
     raise exception 'Policies de Storage privado de comprovantes incompletas';
   end if;
-  if (select whatsapp_weekly_summary from public.settings where user_id='10000000-0000-4000-8000-000000000001') is distinct from false then
+  if (select column_default from information_schema.columns
+       where table_schema='public' and table_name='settings' and column_name='whatsapp_weekly_summary') <> 'false' then
     raise exception 'Consentimento WhatsApp deve iniciar desativado';
   end if;
 
