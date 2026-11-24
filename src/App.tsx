@@ -28,7 +28,7 @@ type RecurrenceRow = { id: string; name: string; kind: "income" | "expense"; amo
 type BudgetRow = { id: string; category_id: string; year: number; month: number; limit_amount: string };
 type GoalRow = { id: string; name: string; target_amount: string; current_amount: string; monthly_contribution: string; target_month: string | null };
 type GoalContributionRow = { id: string; goal_id: string; amount: string; contribution_date: string; source: string; created_at: string };
-type InvestmentAssetRow = { id: string; symbol: string; name: string; asset_class: "stock" | "fii" | "etf" | "bdr" | "fixed_income" | "crypto"; currency: "BRL" | "USD"; current_price?: string | number | null; price_as_of?: string | null };
+type InvestmentAssetRow = { id: string; symbol: string; name: string; asset_class: "stock" | "fii" | "etf" | "bdr" | "fixed_income" | "crypto"; currency: "BRL" | "USD"; current_price?: string | number | null; price_as_of?: string | null; price_source?: "manual" | "brapi.dev" | null };
 type InvestmentOperationRow = { id: string; asset_id: string; operation_type: "opening" | "buy" | "sell"; operation_date: string; quantity: string; unit_price: string; gross_amount: string; fees: string };
 type IncomeEventRow = { id: string; asset_id: string; event_type: "dividend" | "jcp" | "distribution" | "coupon" | "interest" | "amortization" | "other"; reference_date: string; payment_date: string | null; announced_amount: string; received_amount: string; status: "announced" | "planned" | "received" | "cancelled" };
 type BudgetSpendRow = { category_id: string | null; settled_amount: string };
@@ -133,6 +133,7 @@ export default function App() {
   const [investmentName, setInvestmentName] = useState("");
   const [investmentClass, setInvestmentClass] = useState<InvestmentAssetRow["asset_class"]>("stock");
   const [investmentCurrency, setInvestmentCurrency] = useState<"BRL" | "USD">("BRL");
+  const [manualPriceInputs, setManualPriceInputs] = useState<Record<string, string>>({});
   const [investmentAssetId, setInvestmentAssetId] = useState("");
   const [investmentOperationType, setInvestmentOperationType] = useState<"opening" | "buy" | "sell">("buy");
   const [investmentQuantity, setInvestmentQuantity] = useState("");
@@ -249,7 +250,7 @@ export default function App() {
           client.from("transactions").select("category_id,settled_amount").eq("user_id", session.user.id).eq("kind", "expense").eq("status", "paid").gte("transaction_date", currentBudgetMonthStart).lt("transaction_date", nextBudgetMonthStart).limit(10000),
           client.from("goals").select("id,name,target_amount,current_amount,monthly_contribution,target_month").eq("user_id", session.user.id).order("created_at", { ascending: true }),
           client.from("goal_contributions").select("id,goal_id,amount,contribution_date,source,created_at").eq("user_id", session.user.id).order("created_at", { ascending: false }).limit(100),
-          client.from("investment_assets").select("id,symbol,name,asset_class,currency,current_price,price_as_of").eq("user_id", session.user.id).order("symbol", { ascending: true }),
+          client.from("investment_assets").select("id,symbol,name,asset_class,currency,current_price,price_as_of,price_source").eq("user_id", session.user.id).order("symbol", { ascending: true }),
           client.from("investment_operations").select("id,asset_id,operation_type,operation_date,quantity,unit_price,gross_amount,fees").eq("user_id", session.user.id).in("operation_type", ["opening","buy","sell"]).order("operation_date", { ascending: true }),
           client.from("income_events").select("id,asset_id,event_type,reference_date,payment_date,announced_amount,received_amount,status").eq("user_id", session.user.id).order("reference_date", { ascending: false }),
         ]);
@@ -791,6 +792,31 @@ export default function App() {
       setInvestmentAssetId(created.id);
       setInvestmentSymbol(""); setInvestmentName("");
       setNotice("Ativo adicionado à carteira. A cotação ainda não está conectada.");
+    } catch (error) { setNotice(errorMessage(error)); }
+    finally { setBusy(false); }
+  }
+
+  async function updateManualInvestmentPrice(event: FormEvent<HTMLFormElement>, asset: InvestmentAssetRow) {
+    event.preventDefault();
+    if (!supabase || !session) return;
+    const raw = (manualPriceInputs[asset.id] ?? "").trim().replace(",", ".");
+    if (!/^\\d{1,10}(?:\\.\\d{1,8})?$/.test(raw) || !Number.isFinite(Number(raw)) || Number(raw) <= 0) {
+      setNotice("Informe um preço positivo com até 8 casas decimais.");
+      return;
+    }
+    setBusy(true); setNotice("");
+    try {
+      const observedAt = new Date().toISOString();
+      const { data, error } = await supabase.from("investment_assets")
+        .update({ current_price: raw, price_as_of: observedAt, price_source: "manual" })
+        .eq("id", asset.id).eq("user_id", session.user.id)
+        .select("id,current_price,price_as_of,price_source").single();
+      if (error) throw error;
+      setInvestmentAssets((current) => current.map((item) => item.id === asset.id
+        ? { ...item, current_price: data.current_price, price_as_of: data.price_as_of, price_source: "manual" }
+        : item));
+      setManualPriceInputs((current) => ({ ...current, [asset.id]: "" }));
+      setNotice("Preço de referência manual atualizado. Ele não altera operações, custo médio ou alertas do Radar.");
     } catch (error) { setNotice(errorMessage(error)); }
     finally { setBusy(false); }
   }
@@ -1433,9 +1459,13 @@ export default function App() {
                   const summary = investmentSummary(asset.id);
                   const receivedCents = incomeEvents.filter((item) => item.asset_id === asset.id && item.status === "received")
                     .reduce((total, item) => total + decimalToCents(item.received_amount), 0n);
-                  return <li key={asset.id}><strong>{asset.symbol} · {asset.name}</strong><span>{asset.asset_class} · {asset.currency}</span><small>Quantidade: {summary.quantity.toLocaleString("pt-BR", { maximumFractionDigits: 8 })} · Custo: {formatInvestmentCents(BigInt(summary.costBasisCents), asset.currency)} · Custo médio: {formatInvestmentCents(BigInt(summary.averageCostCents), asset.currency)}</small><small>Resultado realizado: {formatInvestmentCents(BigInt(summary.realizedProfitCents), asset.currency)}{summary.error ? ` · ${summary.error}` : ""}</small><small>Proventos recebidos: {formatInvestmentCents(receivedCents, asset.currency)}</small>{asset.current_price != null && asset.price_as_of ? <small>Preço de referência: {formatInvestmentCents(decimalToCents(String(asset.current_price)), asset.currency)} · Fonte: brapi.dev · atraso de origem aproximado de 30 min{Date.now() - Date.parse(asset.price_as_of) > 45 * 60_000 ? " · dado possivelmente desatualizado" : ""} · observada em {new Date(asset.price_as_of).toLocaleString("pt-BR")}</small> : <small>Preço de mercado indisponível para esta classe ou ticker.</small>}</li>;
+                  return <li key={asset.id}><strong>{asset.symbol} · {asset.name}</strong><span>{asset.asset_class} · {asset.currency}</span><small>Quantidade: {summary.quantity.toLocaleString("pt-BR", { maximumFractionDigits: 8 })} · Custo: {formatInvestmentCents(BigInt(summary.costBasisCents), asset.currency)} · Custo médio: {formatInvestmentCents(BigInt(summary.averageCostCents), asset.currency)}</small><small>Resultado realizado: {formatInvestmentCents(BigInt(summary.realizedProfitCents), asset.currency)}{summary.error ? ` · ${summary.error}` : ""}</small><small>Proventos recebidos: {formatInvestmentCents(receivedCents, asset.currency)}</small>{asset.current_price != null && asset.price_as_of ? <small>Preço de referência: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: asset.currency, minimumFractionDigits: 2, maximumFractionDigits: 8 }).format(Number(asset.current_price))} · Fonte: {asset.price_source === "brapi.dev" ? "brapi.dev" : "informado manualmente"}{asset.price_source === "brapi.dev" ? " · atraso de origem aproximado de 30 min" : " · não é cotação automática"}{Date.now() - Date.parse(asset.price_as_of) > 45 * 60_000 ? " · dado possivelmente desatualizado" : ""} · registrado em {new Date(asset.price_as_of).toLocaleString("pt-BR")}</small> : <small>Sem preço de referência cadastrado.</small>}
+                    <form className="finance-form" onSubmit={(event) => void updateManualInvestmentPrice(event, asset)}>
+                      <label>Preço de referência manual ({asset.currency})<input inputMode="decimal" value={manualPriceInputs[asset.id] ?? ""} onChange={(event) => setManualPriceInputs((current) => ({ ...current, [asset.id]: event.target.value }))} placeholder="Ex.: 32,45" disabled={busy} /></label>
+                      <button className="quiet-button" type="submit" disabled={busy || !(manualPriceInputs[asset.id] ?? "").trim()}>Salvar preço</button>
+                    </form></li>;
                 })}</ul>}
-                <p className="helper-text">Os preços de referência da B3 vêm da brapi.dev, podem ter atraso aproximado de 30 minutos e sempre exibem a data/hora da fonte. Não são preços em tempo real nem recomendação de investimento. Cripto e renda fixa ainda não têm feed habilitado.</p>
+                <p className="helper-text">Preços informados manualmente são apenas referências e não alteram operações, saldos, custo médio ou resultado realizado, nem alimentam o Radar. Cotações automáticas da B3 permanecem desativadas até existir licença adequada. Cripto e renda fixa não têm feed automático.</p>
               </section>
               <section className="subpanel" aria-labelledby="income-events-title">
                 <div className="transaction-heading"><strong id="income-events-title">Dividendos e proventos</strong><span>{incomeEvents.filter((item) => item.status === "received").length} recebidos</span></div>
