@@ -287,3 +287,57 @@
 .investment-suggestions button { display:flex; width:100%; min-height:42px; align-items:center; justify-content:space-between; gap:12px; padding:9px 11px; border:0; border-radius:9px; background:transparent; color:var(--color-text); text-align:left; font:inherit; font-size:12px; cursor:pointer; }
 .investment-suggestions button:hover, .investment-suggestions button:focus-visible { outline:2px solid var(--gv-accent); outline-offset:-2px; background:var(--color-accent-soft); }
 .investment-suggestions small { color:var(--color-muted); font-size:10px; font-weight:700; letter-spacing:.04em; }
+
+
+/* Cinco frentes do painel: leitura rápida, planejamento e relatórios. */
+.overview-flow, .area-summary article, .report-metrics article {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--color-line) 82%, transparent);
+  border-radius: 18px;
+  background: linear-gradient(155deg, var(--color-surface), var(--color-surface-raised));
+  box-shadow: var(--gv-card-shadow);
+}
+.overview-flow { padding: 18px; }
+.overview-flow .overview-recent-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.overview-flow .overview-recent-heading strong { font-size:14px; }
+.overview-flow .overview-recent-heading span { color:var(--color-muted); font-size:10px; }
+.cashflow-chart { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); align-items:end; gap:10px; min-height:142px; margin-top:17px; padding:12px 4px 0; border-bottom:1px solid var(--color-line); }
+.cashflow-month { display:grid; grid-template-rows:108px auto; align-items:end; gap:8px; min-width:0; text-align:center; }
+.cashflow-bars { height:100%; display:flex; align-items:end; justify-content:center; gap:4px; }
+.cashflow-bars span { display:block; width:min(34%,16px); min-height:3px; border-radius:6px 6px 2px 2px; }
+.cashflow-income { background:#36c985; }
+.cashflow-expense { background:#e58b72; }
+.cashflow-month small { color:var(--color-muted); font-size:10px; text-transform:capitalize; }
+.cashflow-legend { display:flex; flex-wrap:wrap; gap:16px; margin-top:13px; }
+.cashflow-legend span { display:inline-flex; align-items:center; gap:7px; color:var(--color-muted); font-size:10px; }
+.cashflow-legend i { width:8px; height:8px; display:inline-block; border-radius:3px; }
+.area-summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; margin:4px 0 20px; }
+.area-summary article { padding:13px; border-radius:15px; }
+.area-summary article > span, .report-metrics article > span { display:block; color:var(--color-muted); font-size:10px; line-height:1.4; }
+.area-summary article > strong { display:block; margin-top:8px; color:var(--color-text); font-size:clamp(17px,4.2vw,22px); letter-spacing:-.04em; overflow-wrap:anywhere; }
+.area-summary article > small { display:block; margin-top:4px; color:var(--color-muted); font-size:9px; line-height:1.4; }
+.planning-panel, .reports-panel { display:grid; gap:14px; }
+.planning-content { margin-top:2px; padding-top:4px; }
+.planning-content > .transaction-heading { margin-top:4px; }
+.planning-content > .account-list > li { padding:17px 0; }
+.planning-content .budget-progress { margin:8px 0; }
+.report-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; margin:10px 0 18px; }
+.report-metrics article { padding:13px; border-radius:15px; }
+.report-metrics article strong { display:block; margin-top:8px; font-size:clamp(13px,3.7vw,18px); letter-spacing:-.035em; overflow-wrap:anywhere; }
+.reports-panel .account-list { margin-top:10px; }
+.bottom-nav { grid-template-columns:repeat(5,minmax(0,1fr)); }
+.bottom-nav button { min-width:0; padding-inline:2px; }
+.bottom-nav button span { font-size:9px; }
+#planejamento-metas, #conta-relatorios { scroll-margin-top:22px; }
+@media (max-width:390px) {
+  .area-summary { gap:6px; }
+  .area-summary article, .report-metrics article { padding:10px 8px; }
+  .area-summary article > span, .report-metrics article > span { font-size:9px; }
+  .cashflow-chart { gap:5px; }
+  .cashflow-month { grid-template-rows:96px auto; }
+  .bottom-nav { padding-inline:5px; }
+  .bottom-nav button { gap:4px; }
+  .bottom-nav button svg { width:18px; height:18px; }
+  .bottom-nav button span { font-size:8px; }
+}
