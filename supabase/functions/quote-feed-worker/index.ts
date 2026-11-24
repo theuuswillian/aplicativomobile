@@ -8,7 +8,7 @@ import { parseBrapiQuote } from "../_shared/brapi-quotes.ts";
 const SUPPORTED_CLASSES = new Set(["stock", "fii", "etf", "bdr"]);
 const CACHE_TTL_MS = 30 * 60_000;
 const MAX_QUOTES_PER_RUN = 4;
-const MONTHLY_SAFE_LIMIT = 12_000;
+const ROLLING_30_DAY_SAFE_LIMIT = 12_000;
 
 function safeEqual(left: string, right: string): boolean {
   const a = new TextEncoder().encode(left), b = new TextEncoder().encode(right);
@@ -89,7 +89,7 @@ Deno.serve(async (request: Request) => {
     let fetched = 0, failed = 0, quotaExhausted = false;
     for (const symbol of due) {
       const { data: reserved, error: reserveError } = await db.rpc("market_data_reserve", {
-        p_provider: "brapi", p_symbol: symbol, p_limit: MONTHLY_SAFE_LIMIT,
+        p_provider: "brapi", p_symbol: symbol, p_limit: ROLLING_30_DAY_SAFE_LIMIT,
       });
       if (reserveError) return internalError(origin);
       if (reserved !== true) { quotaExhausted = true; break; }
