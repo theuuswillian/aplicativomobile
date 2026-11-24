@@ -193,6 +193,16 @@ insert into public.transactions(
 
 
 set local role authenticated;
+do $assert_market_data_private$
+begin
+  begin
+    perform 1 from public.market_data_usage;
+    raise exception 'Usuário autenticado conseguiu ler a cota global do provedor';
+  exception when insufficient_privilege then
+    null;
+  end;
+end
+$assert_market_data_private$;
 select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000001',true);
 
 do $$
@@ -313,6 +323,11 @@ begin
   end if;
   if public.ai_usage_reserve(v_other, 'receipt', 1, 1) is null then
     raise exception 'Reserva liberada não devolveu a cota de IA';
+  end if;
+
+  if not public.market_data_reserve('brapi', 1)
+     or public.market_data_reserve('brapi', 1) then
+    raise exception 'Quota mensal do provedor não foi reservada atomicamente';
   end if;
 
   if not public.rate_limit_allow(v_user, 'sql-assertion', 20261122, 1)
