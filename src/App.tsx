@@ -97,10 +97,15 @@ export default function App() {
     void supabase.auth.getSession().then(({ data }) => {
       if (active) { setSession(data.session); setAuthReady(true); }
     }).catch(() => { if (active) setAuthReady(true); });
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
       setSession(nextSession);
       setNotice("");
-      if (!nextSession) { setProfile(null); setAlerts([]); setAccounts([]); setTransactions([]); setAssistantAnswer(""); setAssistantQuestion(""); setAssistantConsent(false); setReceiptDraft(null); setReceiptFile(null); setReceiptConsent(false); }
+      if (!nextSession || event === "SIGNED_IN") {
+        setProfile(null); setAlerts([]); setAccounts([]); setTransactions([]);
+        setTxAccountId(""); setReceiptAccountId(""); setEditingTransactionId(null);
+        setAssistantAnswer(""); setAssistantQuestion(""); setAssistantConsent(false);
+        setReceiptDraft(null); setReceiptFile(null); setReceiptConsent(false);
+      }
     });
     return () => { active = false; listener.subscription.unsubscribe(); };
   }, []);
