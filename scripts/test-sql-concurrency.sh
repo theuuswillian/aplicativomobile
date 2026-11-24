@@ -240,6 +240,30 @@ if [[ "$radar_complete" != "t" ]]; then
   echo "Falha: Radar não finalizou ciclo: $radar_complete"; exit 1
 fi
 
+# Push por assinatura: falha segura pode ser repetida sem reenviar para dispositivos concluídos.
+push_subscription_id="80000000-0000-4000-8000-000000000001"
+push_claim="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select reservation_status || '|' || fencing_token::text from public.push_delivery_reserve('$user_id','radar:test','$push_subscription_id',60)")"
+push_status="${push_claim%%|*}"
+push_token="${push_claim#*|}"
+if [[ "$push_status" != "reserved" || -z "$push_token" ]]; then
+  echo "Falha: push não foi reservado: $push_claim"; exit 1
+fi
+push_finalize="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select public.push_delivery_finalize('$user_id','radar:test','$push_subscription_id','$push_token','failed_safe','HTTP 429 de teste')")"
+if [[ "$push_finalize" != "t" ]]; then
+  echo "Falha: não foi possível registrar falha segura push: $push_finalize"; exit 1
+fi
+push_retry="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select reservation_status || '|' || fencing_token::text from public.push_delivery_reserve('$user_id','radar:test','$push_subscription_id',60)")"
+push_retry_status="${push_retry%%|*}"
+push_retry_token="${push_retry#*|}"
+if [[ "$push_retry_status" != "reserved" || -z "$push_retry_token" ]]; then
+  echo "Falha: push não permitiu retry seguro: $push_retry"; exit 1
+fi
+push_sent="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select public.push_delivery_finalize('$user_id','radar:test','$push_subscription_id','$push_retry_token','sent',null)")"
+push_duplicate="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select reservation_status from public.push_delivery_reserve('$user_id','radar:test','$push_subscription_id',60)")"
+if [[ "$push_sent" != "t" || "$push_duplicate" != "sent" ]]; then
+  echo "Falha: push concluído não ficou idempotente: sent=$push_sent status=$push_duplicate"; exit 1
+fi
+
 # Resumo WhatsApp: payload persistido, lease exclusivo e finalização com fencing.
 week_start="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select current_date")"
 psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
