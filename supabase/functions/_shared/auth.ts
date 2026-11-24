@@ -145,6 +145,26 @@ export type Database = {
         Update: { phone?: string; weekly_summary_enabled?: boolean; last_summary_week?: string | null };
         Relationships: [];
       };
+      whatsapp_weekly_summary_jobs: {
+        Row: {
+          user_id: string; week_start: string; phone: string; message: string;
+          status: "pending" | "processing" | "sent" | "uncertain" | "failed" | "skipped";
+          lease_token: string | null; lease_until: string | null; attempts: number;
+          last_error: string | null; created_at: string; updated_at: string;
+        };
+        Insert: {
+          user_id: string; week_start: string; phone: string; message: string;
+          status?: "pending" | "processing" | "sent" | "uncertain" | "failed" | "skipped";
+          lease_token?: string | null; lease_until?: string | null; attempts?: number;
+          last_error?: string | null;
+        };
+        Update: {
+          status?: "pending" | "processing" | "sent" | "uncertain" | "failed" | "skipped";
+          lease_token?: string | null; lease_until?: string | null; attempts?: number;
+          last_error?: string | null;
+        };
+        Relationships: [];
+      };
       whatsapp_inbox: {
         Row: { message_id: string; payload: Json; status: "queued" | "processing" | "completed" | "failed" | "exhausted"; lease_token: string | null; lease_until: string | null; attempts: number; created_at: string };
         Insert: { message_id: string; payload: Json; status?: "queued" | "processing" | "completed" | "failed" | "exhausted" };
@@ -221,6 +241,10 @@ export type Database = {
       whatsapp_inbox_finalize: { Args: { p_message_id: string; p_fencing_token: string; p_success: boolean; p_error?: string | null }; Returns: boolean };
       whatsapp_pending_confirm: { Args: { p_pending_id: string }; Returns: { result: string; transaction_id: string | null }[] };
       whatsapp_summary_reserve: { Args: { p_user_id: string; p_week: string }; Returns: boolean };
+      whatsapp_summary_job_enqueue: { Args: { p_user_id: string; p_week: string; p_phone: string; p_message: string }; Returns: boolean };
+      whatsapp_summary_job_skip: { Args: { p_user_id: string; p_week: string }; Returns: boolean };
+      whatsapp_summary_job_claim: { Args: { p_user_id: string; p_week: string; p_lease_seconds?: number }; Returns: { reservation_status: string; fencing_token: string | null; phone: string | null; message: string | null; attempt_number: number }[] };
+      whatsapp_summary_job_finalize: { Args: { p_user_id: string; p_week: string; p_fencing_token: string; p_status: string; p_error?: string | null }; Returns: boolean };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
