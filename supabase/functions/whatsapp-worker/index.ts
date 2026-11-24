@@ -59,7 +59,7 @@ async function sendWeeklySummaries(
   const { data: links, error: linksError } = await db.from("whatsapp_links")
     .select("user_id,phone").eq("weekly_summary_enabled", true)
     .or(`last_summary_week.is.null,last_summary_week.lt.${range.monday}`)
-    .order("user_id", { ascending: true }).limit(4);
+    .order("user_id", { ascending: true }).limit(2);
   if (linksError) return { sent: 0, skipped: 0, failed: 1, queued: 0 };
 
   let sent = 0, skipped = 0, failed = 0, queued = 0;
@@ -101,7 +101,7 @@ async function sendWeeklySummaries(
   }
 
   const now = new Date().toISOString();
-  const { data: jobs, error: jobsError } = await db.from("whatsapp_weekly_summary_jobs")
+  // Keep the total outbound calls bounded per invocation: two inbox replies and two summaries at most.\n  const { data: jobs, error: jobsError } = await db.from("whatsapp_weekly_summary_jobs")
     .select("user_id,week_start")
     .eq("week_start", range.monday)
     .or(`status.eq.pending,and(status.eq.processing,lease_until.lt.${now})`)
@@ -176,7 +176,7 @@ Deno.serve(async (request: Request) => {
   const { data: rows, error } = await db.from("whatsapp_inbox")
     .select("message_id,payload")
     .or(`status.eq.queued,status.eq.failed,and(status.eq.processing,lease_until.lt.${expiredLease})`)
-    .order("created_at", { ascending: true }).limit(25);
+    .order("created_at", { ascending: true }).limit(2);
   if (error) return Response.json({ error: "inbox_read_failed" }, { status: 503 });
   let processed = 0, failed = 0;
   for (const row of rows ?? []) {
