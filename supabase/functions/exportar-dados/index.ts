@@ -8,19 +8,6 @@ import {
 const PAGE_SIZE = 1_000;
 const MAX_ROWS_PER_TABLE = 50_000;
 
-async function ownRows(db: ReturnType<typeof createClient>, table: string, userId: string) {
-  const rows: unknown[] = [];
-  for (let offset = 0; offset <= MAX_ROWS_PER_TABLE; offset += PAGE_SIZE) {
-    const { data, error } = await db.from(table).select("*")
-      .eq("user_id", userId).range(offset, offset + PAGE_SIZE - 1);
-    if (error) throw error;
-    rows.push(...(data ?? []));
-    if (rows.length > MAX_ROWS_PER_TABLE) throw new RangeError("Exportação excede o limite de linhas por tabela.");
-    if ((data?.length ?? 0) < PAGE_SIZE) return rows;
-  }
-  throw new Error("Exportação excede o limite de linhas por tabela.");
-}
-
 Deno.serve(async (request: Request) => {
   const origin = request.headers.get("origin");
   if (!isAllowedOrigin(origin)) return originNotAllowedResponse(origin);
@@ -56,7 +43,18 @@ Deno.serve(async (request: Request) => {
       db.from("settings").select("*").eq("user_id", userId).maybeSingle(),
     ]);
     if (profile.error || settings.error) return internalError(origin);
-    const tables = await Promise.all(tableNames.map((table) => ownRows(db, table, userId)));
+    const tables = await Promise.all(tableNames.map(async (table) => {
+      const rows: unknown[] = [];
+      for (let offset = 0; offset <= MAX_ROWS_PER_TABLE; offset += PAGE_SIZE) {
+        const { data, error } = await db.from(table).select("*")
+          .eq("user_id", userId).range(offset, offset + PAGE_SIZE - 1);
+        if (error) throw error;
+        rows.push(...(data ?? []));
+        if (rows.length > MAX_ROWS_PER_TABLE) throw new RangeError("Exportação excede o limite de linhas por tabela.");
+        if ((data?.length ?? 0) < PAGE_SIZE) return rows;
+      }
+      throw new RangeError("Exportação excede o limite de linhas por tabela.");
+    }));
     const exportedTables: Record<string, unknown[]> = Object.fromEntries(
       tableNames.map((name, index) => [name, tables[index]]),
     );
