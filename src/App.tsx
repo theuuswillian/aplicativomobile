@@ -104,7 +104,7 @@ export default function App() {
       } else {
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(), password,
-          options: { data: { display_name: displayName.trim() } },
+          options: { data: { name: displayName.trim() } },
         });
         if (error) throw error;
         if (!data.session) setNotice("Cadastro recebido. Confirme seu e-mail para entrar.");
