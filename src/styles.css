@@ -205,3 +205,6 @@ body { min-height: 100vh; }
 .budget-progress::-webkit-progress-bar { border-radius: 999px; background: var(--color-surface-raised); }
 .budget-progress::-webkit-progress-value { border-radius: 999px; background: var(--color-accent); }
 .budget-progress::-moz-progress-bar { border-radius: 999px; background: var(--color-accent); }
+
+.inline-checkbox { display: flex; align-items: flex-start; gap: 10px; margin: 14px 0; color: var(--color-muted); font-size: 12px; line-height: 1.5; }
+.inline-checkbox input { width: 18px; height: 18px; flex: 0 0 18px; accent-color: var(--color-accent); }
