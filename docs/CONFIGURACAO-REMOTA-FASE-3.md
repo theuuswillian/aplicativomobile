@@ -4,8 +4,7 @@ Este guia é um checklist operacional. **Não coloque valores de secrets neste a
 
 ## 1. Estado e pré-requisitos
 
-- [ ] Selecionar ou criar um projeto Supabase da organização proprietária.
-- [ ] Confirmar região, plano, limites e custo antes de criar projeto ou ativar recursos pagos.
+- [x] Projeto selecionado: `Aplicativo Mobile`, ref `dvddqexnvllrxogbwmdf`, região São Paulo (`sa-east-1`), PostgreSQL 17. Não criar outro projeto.
 - [ ] Definir a URL pública canônica do GranaViva (origem HTTPS exata).
 - [ ] Confirmar acesso administrativo ao repositório GitHub e ao projeto Vercel.
 - [ ] Manter `WORKERS_ENABLED` ausente/falso durante a configuração.
@@ -18,7 +17,7 @@ Depois de confirmar o projeto correto:
 
 1. Conferir o project ref, URL e chaves publicáveis no painel Supabase.
 2. Revisar o estado atual das migrations antes de aplicar qualquer DDL.
-3. Aplicar migrations versionadas `001` a `011` em ordem, sem reaplicar manualmente uma migration já registrada.
+3. Conferir migrations `001` a `012` em ordem. No projeto brasileiro, as 12 já estão aplicadas e registradas; não reaplicar manualmente.
 4. Confirmar RLS, grants, bucket privado `receipt-files` e políticas de Storage.
 5. Em **Integrations → Data API**, confirmar que `public` está incluído nos schemas expostos. Projetos novos não expõem automaticamente tabelas novas à Data API por padrão; a inclusão do schema não substitui grants mínimos nem RLS.
 6. Implantar as Edge Functions desta branch após revisão e confirmação do projeto de destino.
@@ -115,7 +114,7 @@ Configurar para os ambientes adequados:
 
 Nunca adicionar `SUPABASE_SERVICE_ROLE_KEY`, tokens Meta/OpenAI, chaves privadas VAPID ou secrets de workers em variáveis `VITE_*`.
 
-Depois de configurar, gerar um único Preview para validar o frontend com o projeto Supabase escolhido. Não promover para produção sem aprovação específica.
+As variáveis `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` já estão cadastradas no projeto Vercel `granaviva` para Preview da branch `fase-3-backend` e Development. Production permanece sem essas variáveis. O Preview do commit validado ainda precisa ser gerado e testado; a última tentativa encontrou limite temporário de builds. Não promover para produção sem aprovação específica.
 
 ## 5. Testes de aceite remoto
 
@@ -134,10 +133,19 @@ Depois de configurar, gerar um único Preview para validar o frontend com o proj
 ## 6. Critérios para habilitar operação
 
 Somente habilitar `WORKERS_ENABLED=true` depois que:
-- migrations 001–011 estiverem aplicadas e verificadas no projeto certo;
+- migrations 001–012 estiverem aplicadas e verificadas no projeto certo;
 - todas as Edge Functions estiverem implantadas;
 - secrets e origem CORS estiverem validados;
 - testes remotos controlados tiverem passado;
 - consentimentos e limites estiverem configurados.
 
 Cotações automáticas permanecem desativadas independentemente do cron até autorização de licença. Não fazer merge, deploy de produção, compra de plano ou ativação de worker como parte deste checklist sem aprovação específica.
+
+
+## Estado já realizado em 24/11/2026
+
+- Supabase Brasil: migrations 001–012 aplicadas; RLS habilitado em todas as tabelas públicas e bucket de comprovantes privado.
+- GitHub Actions: CI integral verde no commit `1c141f53ad4062aad41a78e09763fe02563aedf2`.
+- Vercel: variáveis públicas de URL e publishable key do Supabase Brasil cadastradas para Preview da branch `fase-3-backend` e Development. Nenhuma variável de produção ou secret foi adicionado.
+- Ainda não implantadas: Edge Functions; ainda não configurados: secrets de backend, OpenAI, Meta, VAPID e workers.
+- `WORKERS_ENABLED` permanece ausente/falso; Brapi permanece desligada por decisão de licença.
