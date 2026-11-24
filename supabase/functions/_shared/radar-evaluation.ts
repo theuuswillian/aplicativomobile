@@ -30,7 +30,7 @@ export function evaluateRadarAlert(
 ): RadarEvaluationResult {
   if (!quote || quote.symbol.toUpperCase() !== alert.symbol.toUpperCase() ||
       !Number.isFinite(Number(quote.price)) || Number(quote.price) <= 0 ||
-      !quote.source || !Number.isFinite(Number(alert.threshold)) || Number(alert.threshold) <= 0) {
+      typeof quote.source !== "string" || quote.source.trim().length < 1 || quote.source.length > 80 || !Number.isFinite(Number(alert.threshold)) || Number(alert.threshold) <= 0) {
     return { shouldFire: false, price: null, reason: "invalid_quote" };
   }
   if (quote.asset_class && quote.asset_class !== alert.asset_class) {
