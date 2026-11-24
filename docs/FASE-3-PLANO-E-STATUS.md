@@ -191,7 +191,7 @@ A fonte de cotações está detalhada no aditivo aprovado abaixo. A ativação p
 
 - A autorização do usuário revisou o contrato apenas para dados públicos de mercado; não autoriza cobranças nem conexão de contas bancárias.
 - Provedor inicial escolhido: brapi.dev, plano Gratuito, ações/FIIs/ETFs/BDRs em BRL, uma chamada por ticker, atraso de aproximadamente 30 minutos.
-- Migration `010_market_data_provider.sql`: contador mensal privado e reserva atômica exclusiva da service role; teto interno de 12.000 chamadas/mês.
+- Migration `010_market_data_provider.sql`: contador diário privado com limite agregado móvel de 30 dias e reserva atômica exclusiva da service role; teto interno de 12.000 chamadas em qualquer janela móvel de 30 dias.
 - Edge Function `quote-feed-worker`: no máximo quatro tickers por execução a cada 15 minutos, cache de 30 minutos, cursor rotativo, timeout, limite de resposta, validação de ticker/moeda/preço/horário e persistência em `quote_cache`/preço de referência dos ativos.
 - Radar tolera até 45 minutos para cotações B3 atrasadas; cripto mantém janela própria de 15 minutos. Disparos e notificações guardam/exibem fonte e horário da observação.
 - A API key é somente `BRAPI_API_KEY` no Supabase. O worker exige `QUOTE_WORKER_SECRET` e `BRAPI_PUBLIC_DISPLAY_APPROVED=true`.
