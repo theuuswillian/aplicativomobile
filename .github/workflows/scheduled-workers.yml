@@ -1,0 +1,69 @@
+name: Scheduled workers
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      run_workers:
+        description: "Executar os workers agora"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: granaviva-scheduled-workers
+  cancel-in-progress: false
+
+jobs:
+  run-workers:
+    if: ${{ vars.WORKERS_ENABLED == 'true' || inputs.run_workers == true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      RECURRENCE_WORKER_SECRET: ${{ secrets.RECURRENCE_WORKER_SECRET }}
+      RADAR_WORKER_SECRET: ${{ secrets.RADAR_WORKER_SECRET }}
+    steps:
+      - name: Validate worker configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY RECURRENCE_WORKER_SECRET RADAR_WORKER_SECRET; do
+            if [[ -z "${!name}" ]]; then
+              echo "Missing required repository secret: $name"
+              exit 1
+            fi
+          done
+          if [[ "$RECURRENCE_WORKER_SECRET" == "$RADAR_WORKER_SECRET" ]]; then
+            echo "Worker secrets must be different."
+            exit 1
+          fi
+
+      - name: Generate planned recurring transactions
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error --max-time 45 \
+            --retry 2 --retry-delay 3 --retry-all-errors \
+            -X POST "$SUPABASE_URL/functions/v1/recurrence-worker" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "x-recurrence-worker-secret: $RECURRENCE_WORKER_SECRET" \
+            -H "Content-Type: application/json" \
+            --data '{}'
+
+      - name: Evaluate Radar alerts from fresh quote cache
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error --max-time 45 \
+            --retry 2 --retry-delay 3 --retry-all-errors \
+            -X POST "$SUPABASE_URL/functions/v1/radar-worker" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "x-radar-worker-secret: $RADAR_WORKER_SECRET" \
+            -H "Content-Type: application/json" \
+            --data '{}'
