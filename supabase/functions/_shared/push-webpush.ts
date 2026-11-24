@@ -10,7 +10,7 @@ function decodeBase64Url(value: string): Uint8Array {
 function encodeBase64Url(value: Uint8Array): string {
   let binary = "";
   for (const byte of value) binary += String.fromCharCode(byte);
-  return btoa(binary).replace(/\\+/g, "-").replace(/\\//g, "_").replace(/=+$/g, "");
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
 function concatBytes(...parts: Uint8Array[]): Uint8Array {
@@ -48,7 +48,7 @@ export async function createVapidAuthorization(
   const target = new URL(endpoint);
   if (target.protocol !== "https:" || !["fcm.googleapis.com", "updates.push.services.mozilla.com", "web.push.apple.com"].includes(target.hostname) &&
       !target.hostname.endsWith(".notify.windows.com")) throw new TypeError("Untrusted push endpoint");
-  if (!/^(mailto:[^\\s@]+@[^\\s@]+|https:\\/\\/[^\\s]+)$/.test(subject)) throw new TypeError("Invalid VAPID subject");
+  if (!/^(mailto:[^\s@]+@[^\s@]+|https:\/\/[^\s]+)$/.test(subject)) throw new TypeError("Invalid VAPID subject");
   const header = encodeBase64Url(encoder.encode(JSON.stringify({ typ: "JWT", alg: "ES256" })));
   const payload = encodeBase64Url(encoder.encode(JSON.stringify({
     aud: target.origin, exp: Math.floor(Date.now() / 1000) + 12 * 60 * 60, sub: subject,
@@ -86,12 +86,12 @@ export async function encryptWebPushPayload(
   ));
   const serverPublic = new Uint8Array(await crypto.subtle.exportKey("raw", ephemeral.publicKey));
   const authPrk = await hkdfExtract(authSecret, sharedSecret);
-  const info = concatBytes(encoder.encode("WebPush: info\\0"), clientPublic, serverPublic);
+  const info = concatBytes(encoder.encode("WebPush: info\0"), clientPublic, serverPublic);
   const inputKeyMaterial = await hkdfExpand(authPrk, info, 32);
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const contentPrk = await hkdfExtract(salt, inputKeyMaterial);
-  const contentKey = await hkdfExpand(contentPrk, encoder.encode("Content-Encoding: aes128gcm\\0"), 16);
-  const nonce = await hkdfExpand(contentPrk, encoder.encode("Content-Encoding: nonce\\0"), 12);
+  const contentKey = await hkdfExpand(contentPrk, encoder.encode("Content-Encoding: aes128gcm\0"), 16);
+  const nonce = await hkdfExpand(contentPrk, encoder.encode("Content-Encoding: nonce\0"), 12);
   const aesKey = await crypto.subtle.importKey("raw", contentKey, { name: "AES-GCM" }, false, ["encrypt"]);
   const padded = concatBytes(plaintext, new Uint8Array([2]));
   const ciphertext = new Uint8Array(await crypto.subtle.encrypt(
