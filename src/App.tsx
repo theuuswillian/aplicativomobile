@@ -1416,23 +1416,33 @@ export default function App() {
               <section className="subpanel" id="patrimonio-investimentos" aria-labelledby="investments-title">
                 <div className="transaction-heading"><strong id="investments-title">Carteira de investimentos</strong><span>{investmentAssets.length} ativos</span></div>
                 {investmentAssets.length > 0 && <div className="investment-allocation" aria-label="Distribuição da carteira">
-                  <div className="transaction-heading"><strong>Alocação da carteira</strong><span>Por ativo</span></div>
+                  <div className="transaction-heading"><strong>Alocação da carteira</strong><span>Por ativo e classe</span></div>
                   {(() => {
-                    const rows = investmentAssets.map((asset) => {
+                    const baseRows = investmentAssets.map((asset) => {
                       const summary = investmentSummary(asset.id);
                       const manualValue = asset.current_price != null ? Math.max(0, Number(asset.current_price) * summary.quantity) : 0;
-                      const amount = summary.quantity > 0 ? (manualValue > 0 ? manualValue : summary.costBasisCents / 100) : 0;
-                      return { asset, amount, estimated: asset.current_price == null };
+                      return { asset, amount: summary.quantity > 0 ? (manualValue > 0 ? manualValue : summary.costBasisCents / 100) : 0, estimated: asset.current_price == null };
                     }).filter((item) => Number.isFinite(item.amount) && item.amount > 0);
-                    const total = rows.reduce((sum, item) => sum + item.amount, 0);
                     const colors = ["#36e38b","#64a6ff","#c28cff","#f5bd5c","#ff8c8c","#55d6c2","#a6b7c7","#d6dc72"];
-                    let cursor = 0;
-                    const gradient = rows.map((item, index) => {
-                      const start = cursor; cursor += item.amount / total * 100;
-                      return `${colors[index % colors.length]} ${start}% ${cursor}%`;
-                    }).join(", ");
-                    return total > 0 ? <><div className="allocation-chart-row"><div className="allocation-donut" role="img" aria-label={`Gráfico de alocação total de ${new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(total)}`} style={{ background: `conic-gradient(${gradient})` }}><span>{new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL",notation:"compact",maximumFractionDigits:1}).format(total)}</span></div><ul className="allocation-legend">{rows.sort((a,b)=>b.amount-a.amount).map(({asset,amount,estimated},index)=><li key={asset.id}><span className="allocation-dot" style={{background:colors[investmentAssets.findIndex((entry)=>entry.id===asset.id)%colors.length]}}/><span><strong>{asset.symbol}</strong><small>{estimated ? "Custo investido (sem cotação)" : "Preço de referência manual"}</small></span><b>{(amount/total*100).toLocaleString("pt-BR",{maximumFractionDigits:1})}%</b></li>)}</ul></div><p className="helper-text">A distribuição usa preço de referência manual quando disponível; nos demais ativos, usa o custo investido. Não representa cotação de mercado nem rentabilidade atual.</p></> : <p className="empty-state">Registre operações para visualizar a distribuição da carteira.</p>;
+                    const renderDonut = (title: string, rows: Array<{key:string;label:string;amount:number;hint?:string}>, currency: "BRL"|"USD", id: string) => {
+                      const total = rows.reduce((sum,item)=>sum+item.amount,0);
+                      if (!total) return null;
+                      let cursor = 0;
+                      const gradient = rows.map((item,index)=>{const from=cursor;cursor+=item.amount/total*100;return `${colors[index%colors.length]} ${from}% ${cursor}%`;}).join(", ");
+                      return <div className="allocation-group" key={id}><strong>{title} · {currency}</strong><div className="allocation-chart-row"><div className="allocation-donut" role="img" aria-label={`Gráfico ${title}, total ${new Intl.NumberFormat("pt-BR",{style:"currency",currency}).format(total)}`} style={{background:`conic-gradient(${gradient})`}}><span>{new Intl.NumberFormat("pt-BR",{style:"currency",currency,notation:"compact",maximumFractionDigits:1}).format(total)}</span></div><ul className="allocation-legend">{[...rows].sort((a,b)=>b.amount-a.amount).map((item,index)=><li key={item.key}><span className="allocation-dot" style={{background:colors[index%colors.length]}}/><span><strong>{item.label}</strong>{item.hint && <small>{item.hint}</small>}</span><b>{(item.amount/total*100).toLocaleString("pt-BR",{maximumFractionDigits:1})}%</b></li>)}</ul></div></div>;
+                    };
+                    const currencies = (["BRL","USD"] as const).map((currency) => {
+                      const rows = baseRows.filter((item)=>item.asset.currency===currency);
+                      const byAsset = rows.map((item)=>({key:item.asset.id,label:item.asset.symbol,amount:item.amount,hint:item.estimated?"Custo investido · sem cotação":"Preço de referência manual"}));
+                      const byClassMap = new Map<string,number>();
+                      rows.forEach((item)=>byClassMap.set(item.asset.asset_class,(byClassMap.get(item.asset.asset_class)??0)+item.amount));
+                      const classNames: Record<string,string> = {stock:"Ações",fii:"Fundos imobiliários",etf:"ETFs",bdr:"BDRs",fixed_income:"Renda fixa",crypto:"Cripto"};
+                      const byClass = [...byClassMap.entries()].map(([key,amount])=>({key,label:classNames[key]??key,amount}));
+                      return <div className="allocation-currency" key={currency}>{renderDonut("Por ativo",byAsset,currency,currency+"-asset")}{renderDonut("Por classe",byClass,currency,currency+"-class")}</div>;
+                    });
+                    return currencies.some((item)=>item.props.children.some(Boolean)) ? <>{currencies}</> : <p className="empty-state">Registre operações para visualizar a distribuição da carteira.</p>;
                   })()}
+                  <p className="helper-text">A distribuição usa preço de referência manual quando disponível; nos demais ativos, usa o custo investido. Valores em BRL e USD são separados para não misturar moedas. Não representa cotação de mercado nem rentabilidade atual.</p>
                 </div>}
                 <form className="finance-form" onSubmit={(event) => void createInvestmentAsset(event)}>
                   <label>Ticker ou nome<input list="investment-symbol-suggestions" value={investmentSymbol} onChange={(event) => { const value = event.target.value.toUpperCase(); setInvestmentSymbol(value); const match = INVESTMENT_CATALOG[value.trim()]; if (match) { setInvestmentName(match.name); setInvestmentClass(match.assetClass); setInvestmentCurrency("BRL"); } }} maxLength={32} placeholder="Digite PETR4, MXRF11..." required /><datalist id="investment-symbol-suggestions">{Object.entries(INVESTMENT_CATALOG).filter(([ticker]) => investmentSymbol.length < 2 || ticker.includes(investmentSymbol.toUpperCase())).map(([ticker, item]) => <option key={ticker} value={ticker}>{item.name}</option>)}</datalist></label>
@@ -1442,7 +1452,7 @@ export default function App() {
                   <button className="primary-button" type="submit" disabled={busy}>Adicionar ativo</button>
                 </form>
                 {investmentAssets.length > 0 && <form className="finance-form" onSubmit={(event) => void createInvestmentOperation(event)}>
-                  <label>Ativo<select value={investmentAssetId} onChange={(event) => setInvestmentAssetId(event.target.value)} required>{investmentAssets.map((asset) => <option key={asset.id} value={asset.id}>{asset.symbol} · {asset.name}</option>)}</select></label>
+                  <label>Ativo<select value={investmentAssetId} onChange={(event) => { const id = event.target.value; setInvestmentAssetId(id); const selected = investmentAssets.find((asset) => asset.id === id); if (selected?.current_price != null) setInvestmentUnitPrice(String(selected.current_price).replace(".", ",")); }} required>{investmentAssets.map((asset) => <option key={asset.id} value={asset.id}>{asset.symbol} · {asset.name}</option>)}</select></label>
                   <label>Operação<select value={investmentOperationType} onChange={(event) => setInvestmentOperationType(event.target.value as "opening" | "buy" | "sell")}><option value="buy">Compra</option><option value="sell">Venda</option><option value="opening">Posição inicial</option></select></label>
                   <label>Quantidade<input inputMode="decimal" value={investmentQuantity} onChange={(event) => setInvestmentQuantity(event.target.value)} placeholder="Ex.: 10" required /></label>
                   <label>Preço unitário ({investmentAssets.find((item) => item.id === investmentAssetId)?.currency ?? "BRL"})<input inputMode="decimal" value={investmentUnitPrice} onChange={(event) => setInvestmentUnitPrice(event.target.value)} placeholder="Informe o preço de referência" required /></label>
