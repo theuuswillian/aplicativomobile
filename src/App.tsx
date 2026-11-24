@@ -1357,8 +1357,9 @@ export default function App() {
               </article>
               <button className="overview-action" type="button" onClick={() => setActiveTab("gastos")}><span aria-hidden="true">＋</span> Organizar contas e cartões</button>
             </section>}
-            <section className="panel privacy-panel" hidden={activeTab !== "conta"} id="conta" aria-labelledby="privacy-title">
+            <section className="panel privacy-panel" hidden={activeTab !== "conta"} id="conta-dados" aria-labelledby="privacy-title">
               <div className="panel-heading"><div><span className="principles-label">PRIVACIDADE E CONTROLE</span><h2 id="privacy-title">Seus dados e sua conta</h2><p>Exporte uma cópia dos seus dados ou solicite a exclusão permanente da conta e dos comprovantes privados.</p></div></div>
+              <nav className="section-jump" aria-label="Atalhos da área da conta"><a href="#conta-dados">Dados e privacidade</a><a href="#conta-assistente">Assistente</a><a href="#conta-comprovante">Leitor de comprovantes</a><a href="#conta-proximos-passos">Próximos recursos</a></nav>
               <div className="privacy-actions">
                 <button className="primary-button" type="button" onClick={() => void exportPersonalData()} disabled={busy}>Exportar meus dados (JSON)</button>
                 <label>Para excluir, digite EXCLUIR_CONTA
@@ -1370,7 +1371,10 @@ export default function App() {
             </section>
             <section className="panel" id="patrimonio" hidden={activeTab !== "patrimonio"} aria-labelledby="radar-title">
               <div className="panel-heading"><div><span className="principles-label">ACOMPANHAMENTO DE ATIVOS</span><h2 id="radar-title">Radar de preços</h2><p>Crie alertas para acompanhar seus ativos. O disparo usa somente cotações recentes de uma fonte validada; nenhuma fonte de preços está conectada ainda.</p></div></div>
-              <form className="radar-form" onSubmit={(event) => void createAlert(event)}>
+              <nav className="section-jump" aria-label="Atalhos do patrimônio">
+                <a href="#patrimonio-investimentos">Carteira</a><a href="#patrimonio-proventos">Proventos</a><a href="#patrimonio-metas">Metas</a><a href="#patrimonio-radar">Radar</a>
+              </nav>
+              <form className="radar-form" id="patrimonio-radar" onSubmit={(event) => void createAlert(event)}>
                 <label>Classe<select value={assetClass} onChange={(event) => setAssetClass(event.target.value as RadarAlert["asset_class"])}><option value="stock">Ação</option><option value="fii">FII</option><option value="etf">ETF</option><option value="bdr">BDR</option><option value="crypto">Cripto</option></select></label>
                 <label>Ativo<input value={symbol} onChange={(event) => setSymbol(event.target.value.toUpperCase())} placeholder="Ex.: PETR4" maxLength={32} required /></label>
                 <label>Condição<select value={condition} onChange={(event) => setCondition(event.target.value as RadarAlert["condition_type"])}><option value="above">Preço acima de</option><option value="below">Preço abaixo de</option><option value="daily_drop">Queda no dia (%)</option></select></label>
@@ -1396,11 +1400,90 @@ export default function App() {
                   return <li key={fire.alert_key}><strong>{alert?.symbol ?? "Ativo"} · {alert?.condition_type === "daily_drop" ? "Queda diária" : alert?.condition_type === "above" ? "Preço acima" : "Preço abaixo"}</strong><span>Preço observado: {Number(fire.observed_price).toLocaleString("pt-BR", { maximumFractionDigits: 8 })}</span><small>Fonte: {fire.source ?? "não informada"} · Cotação de {fire.quote_observed_at ? new Date(fire.quote_observed_at).toLocaleString("pt-BR") : "horário indisponível"} · Alerta registrado {new Date(fire.fired_at).toLocaleString("pt-BR")}</small></li>;
                 })}</ul>}
               </div>
+            
+              <section className="subpanel" id="patrimonio-investimentos" aria-labelledby="investments-title">
+                <div className="transaction-heading"><strong id="investments-title">Carteira de investimentos</strong><span>{investmentAssets.length} ativos</span></div>
+                <form className="finance-form" onSubmit={(event) => void createInvestmentAsset(event)}>
+                  <label>Ticker<input value={investmentSymbol} onChange={(event) => setInvestmentSymbol(event.target.value.toUpperCase())} maxLength={32} placeholder="Ex.: PETR4" required /></label>
+                  <label>Nome do ativo<input value={investmentName} onChange={(event) => setInvestmentName(event.target.value)} maxLength={120} placeholder="Nome ou descrição" required /></label>
+                  <label>Classe<select value={investmentClass} onChange={(event) => setInvestmentClass(event.target.value as InvestmentAssetRow["asset_class"])}><option value="stock">Ação</option><option value="fii">FII</option><option value="etf">ETF</option><option value="bdr">BDR</option><option value="fixed_income">Renda fixa</option><option value="crypto">Cripto</option></select></label>
+                  <label>Moeda<select value={investmentCurrency} onChange={(event) => setInvestmentCurrency(event.target.value as "BRL" | "USD")}><option value="BRL">BRL</option><option value="USD">USD</option></select></label>
+                  <button className="primary-button" type="submit" disabled={busy}>Adicionar ativo</button>
+                </form>
+                {investmentAssets.length > 0 && <form className="finance-form" onSubmit={(event) => void createInvestmentOperation(event)}>
+                  <label>Ativo<select value={investmentAssetId} onChange={(event) => setInvestmentAssetId(event.target.value)} required>{investmentAssets.map((asset) => <option key={asset.id} value={asset.id}>{asset.symbol} · {asset.name}</option>)}</select></label>
+                  <label>Operação<select value={investmentOperationType} onChange={(event) => setInvestmentOperationType(event.target.value as "opening" | "buy" | "sell")}><option value="buy">Compra</option><option value="sell">Venda</option><option value="opening">Posição inicial</option></select></label>
+                  <label>Quantidade<input inputMode="decimal" value={investmentQuantity} onChange={(event) => setInvestmentQuantity(event.target.value)} placeholder="Ex.: 10" required /></label>
+                  <label>Preço unitário ({investmentAssets.find((item) => item.id === investmentAssetId)?.currency ?? "BRL"})<input inputMode="decimal" value={investmentUnitPrice} onChange={(event) => setInvestmentUnitPrice(event.target.value)} placeholder="0,00" required /></label>
+                  <label>Taxas ({investmentAssets.find((item) => item.id === investmentAssetId)?.currency ?? "BRL"})<input inputMode="decimal" value={investmentFees} onChange={(event) => setInvestmentFees(event.target.value)} required /></label>
+                  <label>Data<input type="date" value={investmentDate} onChange={(event) => setInvestmentDate(event.target.value)} required /></label>
+                  <button className="primary-button" type="submit" disabled={busy}>Registrar operação</button>
+                </form>}
+                {investmentAssets.length === 0 ? <p className="empty-state">Adicione seus ativos e registre posições iniciais, compras e vendas.</p> : <ul className="account-list">{investmentAssets.map((asset) => {
+                  const summary = investmentSummary(asset.id);
+                  const receivedCents = incomeEvents.filter((item) => item.asset_id === asset.id && item.status === "received")
+                    .reduce((total, item) => total + decimalToCents(item.received_amount), 0n);
+                  return <li key={asset.id}><strong>{asset.symbol} · {asset.name}</strong><span>{asset.asset_class} · {asset.currency}</span><small>Quantidade: {summary.quantity.toLocaleString("pt-BR", { maximumFractionDigits: 8 })} · Custo: {formatInvestmentCents(BigInt(summary.costBasisCents), asset.currency)} · Custo médio: {formatInvestmentCents(BigInt(summary.averageCostCents), asset.currency)}</small><small>Resultado realizado: {formatInvestmentCents(BigInt(summary.realizedProfitCents), asset.currency)}{summary.error ? ` · ${summary.error}` : ""}</small><small>Proventos recebidos: {formatInvestmentCents(receivedCents, asset.currency)}</small>{asset.current_price != null && asset.price_as_of ? <small>Preço de referência: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: asset.currency, minimumFractionDigits: 2, maximumFractionDigits: 8 }).format(Number(asset.current_price))} · Fonte: {asset.price_source === "brapi.dev" ? "brapi.dev" : asset.price_source === "manual" ? "informado manualmente" : "origem não identificada"}{asset.price_source === "brapi.dev" ? " · atraso de origem aproximado de 30 min" : " · não é cotação automática"}{asset.price_source === "brapi.dev" && Date.now() - Date.parse(asset.price_as_of) > 45 * 60_000 ? " · cotação possivelmente desatualizada" : ""} · registrado em {new Date(asset.price_as_of).toLocaleString("pt-BR")}</small> : <small>Sem preço de referência cadastrado.</small>}
+                    <form className="finance-form" onSubmit={(event) => void updateManualInvestmentPrice(event, asset)}>
+                      <label>Preço de referência manual ({asset.currency})<input inputMode="decimal" value={manualPriceInputs[asset.id] ?? ""} onChange={(event) => setManualPriceInputs((current) => ({ ...current, [asset.id]: event.target.value }))} placeholder="Ex.: 32,45" disabled={busy} /></label>
+                      <button className="quiet-button" type="submit" disabled={busy || !(manualPriceInputs[asset.id] ?? "").trim()}>Salvar preço</button>
+                    </form></li>;
+                })}</ul>}
+                <p className="helper-text">Preços informados manualmente são apenas referências e não alteram operações, saldos, custo médio ou resultado realizado, nem alimentam o Radar. Cotações automáticas da B3 permanecem desativadas até existir licença adequada. Cripto e renda fixa não têm feed automático.</p>
+              </section>
+              <section className="subpanel" id="patrimonio-proventos" aria-labelledby="income-events-title">
+                <div className="transaction-heading"><strong id="income-events-title">Dividendos e proventos</strong><span>{incomeEvents.filter((item) => item.status === "received").length} recebidos</span></div>
+                {investmentAssets.length === 0 ? <p className="empty-state">Cadastre um ativo para registrar dividendos, JCP e outros proventos.</p> : <>
+                  <form className="finance-form" onSubmit={(event) => void createIncomeEvent(event)}>
+                    <label>Ativo<select value={incomeAssetId} onChange={(event) => setIncomeAssetId(event.target.value)} required>{investmentAssets.map((asset) => <option key={asset.id} value={asset.id}>{asset.symbol} · {asset.name}</option>)}</select></label>
+                    <label>Tipo<select value={incomeEventType} onChange={(event) => setIncomeEventType(event.target.value as IncomeEventRow["event_type"])}><option value="dividend">Dividendo</option><option value="jcp">Juros sobre capital próprio</option><option value="distribution">Distribuição</option><option value="coupon">Cupom</option><option value="interest">Juros</option><option value="amortization">Amortização</option><option value="other">Outro</option></select></label>
+                    <label>Valor (R$)<input inputMode="decimal" value={incomeAmount} onChange={(event) => setIncomeAmount(event.target.value)} placeholder="0,00" required /></label>
+                    <label>Data de referência<input type="date" value={incomeReferenceDate} onChange={(event) => setIncomeReferenceDate(event.target.value)} required /></label>
+                    <label>Data de pagamento<input type="date" min={incomeReferenceDate} value={incomePaymentDate} onChange={(event) => setIncomePaymentDate(event.target.value)} /></label>
+                    <label>Situação<select value={incomeStatus} onChange={(event) => setIncomeStatus(event.target.value as IncomeEventRow["status"])}><option value="announced">Anunciado</option><option value="planned">Previsto</option><option value="received">Recebido</option><option value="cancelled">Cancelado</option></select></label>
+                    <button className="primary-button" type="submit" disabled={busy}>Registrar provento</button>
+                  </form>
+                </>}
+                {incomeEvents.length > 0 && <ul className="account-list">{incomeEvents.slice(0, 20).map((item) => {
+                  const asset = investmentAssets.find((entry) => entry.id === item.asset_id);
+                  const amount = item.status === "received" ? item.received_amount : item.announced_amount;
+                  return <li key={item.id}><strong>{asset?.symbol ?? "Ativo"} · {item.event_type.toUpperCase()}</strong><span>{formatInvestmentCents(decimalToCents(amount), asset?.currency ?? "BRL")} · {item.status === "received" ? "Recebido" : item.status === "cancelled" ? "Cancelado" : item.status === "planned" ? "Previsto" : "Anunciado"}</span><small>Referência: {item.reference_date}{item.payment_date ? ` · Pagamento: ${item.payment_date}` : ""}</small></li>;
+                })}</ul>}
+                <p className="helper-text">Os valores são lançados manualmente e não são previsões automáticas de mercado. Somente itens marcados como recebidos entram no total recebido; o histórico não altera automaticamente o saldo da conta.</p>
+              </section>
+              <section className="subpanel" id="patrimonio-metas" aria-labelledby="goals-title">
+                <div className="transaction-heading"><strong id="goals-title">Metas financeiras</strong><span>{goals.length} cadastradas</span></div>
+                <form className="finance-form" onSubmit={(event) => void createGoal(event)}>
+                  <label>Nome da meta<input value={goalName} onChange={(event) => setGoalName(event.target.value)} maxLength={100} placeholder="Ex.: Reserva de emergência" required /></label>
+                  <label>Valor desejado (R$)<input inputMode="decimal" value={goalTarget} onChange={(event) => setGoalTarget(event.target.value)} placeholder="0,00" required /></label>
+                  <label>Contribuição mensal planejada (R$)<input inputMode="decimal" value={goalMonthly} onChange={(event) => setGoalMonthly(event.target.value)} placeholder="0,00" required /></label>
+                  <label>Mês desejado (opcional)<input type="month" value={goalTargetMonth} onChange={(event) => setGoalTargetMonth(event.target.value)} /></label>
+                  <button className="primary-button" type="submit" disabled={busy}>Criar meta</button>
+                </form>
+                {goals.length === 0 ? <p className="empty-state">Crie uma meta e registre contribuições para acompanhar sua evolução.</p> : <ul className="account-list">{goals.map((goal) => {
+                  const current = decimalToCents(goal.current_amount);
+                  const target = decimalToCents(goal.target_amount);
+                  const percent = target > 0n ? Number((current * 100n) / target) : 0;
+                  const reached = current >= target;
+                  return <li key={goal.id}>
+                    <strong>{goal.name}</strong>
+                    <span>{formatCents(current)} de {formatCents(target)}</span>
+                    <progress className="budget-progress" max={100} value={Math.min(100, percent)} aria-label={`Progresso da meta ${goal.name}`} />
+                    <small>{Math.min(100, percent)}% concluído{reached ? " · Meta alcançada" : goal.target_month ? ` · Prazo: ${new Date(`${goal.target_month}T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}` : ""} · Planejado por mês: {formatCents(decimalToCents(goal.monthly_contribution))}</small>
+                    {goalContributions.some((item) => item.goal_id === goal.id) && <div className="goal-contribution-history"><small>Últimas contribuições</small>{goalContributions.filter((item) => item.goal_id === goal.id).slice(0, 5).map((item) => <small key={item.id}>{item.contribution_date} · {formatCents(decimalToCents(item.amount))}</small>)}</div>}
+                    <form className="finance-form" onSubmit={(event) => { event.preventDefault(); void contributeToGoal(goal); }}>
+                      <label>Adicionar contribuição (R$)<input inputMode="decimal" value={goalContributionAmounts[goal.id] ?? ""} onChange={(event) => setGoalContributionAmounts((currentAmounts) => ({ ...currentAmounts, [goal.id]: event.target.value }))} placeholder="0,00" required /></label>
+                      <button className="primary-button" type="submit" disabled={busy}>Registrar contribuição</button>
+                    </form>
+                  </li>;
+                })}</ul>}
+                <p className="helper-text">As contribuições são registradas em histórico e atualizam o total de forma atômica. O valor planejado mensal não é contabilizado como dinheiro guardado.</p>
+              </section>
             </section>
             <section className="panel" id="gastos" hidden={activeTab !== "gastos"} aria-labelledby="accounts-title">
               <div className="panel-heading"><div><span className="principles-label">BASE FINANCEIRA</span><h2 id="accounts-title">Contas e lançamentos</h2><p>Cadastre suas contas e registre receitas e despesas. Valores previstos permanecem separados dos realizados.</p></div></div>
               <nav className="section-jump" aria-label="Atalhos da área de gastos">
-                <a href="#gastos-contas">Contas</a><a href="#gastos-cartoes">Cartões</a><a href="#gastos-categorias">Categorias</a><a href="#gastos-orcamentos">Orçamentos</a><a href="#gastos-recorrencias">Recorrências</a><a href="#gastos-lancamentos">Lançamentos</a><a href="#gastos-importacao">Importar</a><a href="#gastos-investimentos">Investimentos</a><a href="#gastos-metas">Metas</a><a href="#gastos-integracoes">Integrações</a>
+                <a href="#gastos-contas">Contas</a><a href="#gastos-cartoes">Cartões</a><a href="#gastos-categorias">Categorias</a><a href="#gastos-orcamentos">Orçamentos</a><a href="#gastos-recorrencias">Recorrências</a><a href="#gastos-lancamentos">Lançamentos</a><a href="#gastos-importacao">Importar</a><a href="#gastos-integracoes">Integrações</a>
               </nav>
               <form className="finance-form" id="gastos-contas" onSubmit={(event) => void createAccount(event)}>
                 <label>Nome da conta<input value={accountName} onChange={(event) => setAccountName(event.target.value)} maxLength={100} placeholder="Ex.: Conta principal" required /></label>
@@ -1483,84 +1566,9 @@ export default function App() {
                   <div className="alert-actions"><button className="primary-button" type="button" onClick={() => void confirmStatementImport()} disabled={busy || importPreview.every((row) => row.duplicate)}>Confirmar importação</button><button className="quiet-button" type="button" onClick={() => { setImportPreview([]); setImportFileName(""); setNotice("Prévia descartada."); }} disabled={busy}>Descartar prévia</button></div>
                 </>}
               </section>
-              <section className="subpanel" id="gastos-investimentos" aria-labelledby="investments-title">
-                <div className="transaction-heading"><strong id="investments-title">Carteira de investimentos</strong><span>{investmentAssets.length} ativos</span></div>
-                <form className="finance-form" onSubmit={(event) => void createInvestmentAsset(event)}>
-                  <label>Ticker<input value={investmentSymbol} onChange={(event) => setInvestmentSymbol(event.target.value.toUpperCase())} maxLength={32} placeholder="Ex.: PETR4" required /></label>
-                  <label>Nome do ativo<input value={investmentName} onChange={(event) => setInvestmentName(event.target.value)} maxLength={120} placeholder="Nome ou descrição" required /></label>
-                  <label>Classe<select value={investmentClass} onChange={(event) => setInvestmentClass(event.target.value as InvestmentAssetRow["asset_class"])}><option value="stock">Ação</option><option value="fii">FII</option><option value="etf">ETF</option><option value="bdr">BDR</option><option value="fixed_income">Renda fixa</option><option value="crypto">Cripto</option></select></label>
-                  <label>Moeda<select value={investmentCurrency} onChange={(event) => setInvestmentCurrency(event.target.value as "BRL" | "USD")}><option value="BRL">BRL</option><option value="USD">USD</option></select></label>
-                  <button className="primary-button" type="submit" disabled={busy}>Adicionar ativo</button>
-                </form>
-                {investmentAssets.length > 0 && <form className="finance-form" onSubmit={(event) => void createInvestmentOperation(event)}>
-                  <label>Ativo<select value={investmentAssetId} onChange={(event) => setInvestmentAssetId(event.target.value)} required>{investmentAssets.map((asset) => <option key={asset.id} value={asset.id}>{asset.symbol} · {asset.name}</option>)}</select></label>
-                  <label>Operação<select value={investmentOperationType} onChange={(event) => setInvestmentOperationType(event.target.value as "opening" | "buy" | "sell")}><option value="buy">Compra</option><option value="sell">Venda</option><option value="opening">Posição inicial</option></select></label>
-                  <label>Quantidade<input inputMode="decimal" value={investmentQuantity} onChange={(event) => setInvestmentQuantity(event.target.value)} placeholder="Ex.: 10" required /></label>
-                  <label>Preço unitário ({investmentAssets.find((item) => item.id === investmentAssetId)?.currency ?? "BRL"})<input inputMode="decimal" value={investmentUnitPrice} onChange={(event) => setInvestmentUnitPrice(event.target.value)} placeholder="0,00" required /></label>
-                  <label>Taxas ({investmentAssets.find((item) => item.id === investmentAssetId)?.currency ?? "BRL"})<input inputMode="decimal" value={investmentFees} onChange={(event) => setInvestmentFees(event.target.value)} required /></label>
-                  <label>Data<input type="date" value={investmentDate} onChange={(event) => setInvestmentDate(event.target.value)} required /></label>
-                  <button className="primary-button" type="submit" disabled={busy}>Registrar operação</button>
-                </form>}
-                {investmentAssets.length === 0 ? <p className="empty-state">Adicione seus ativos e registre posições iniciais, compras e vendas.</p> : <ul className="account-list">{investmentAssets.map((asset) => {
-                  const summary = investmentSummary(asset.id);
-                  const receivedCents = incomeEvents.filter((item) => item.asset_id === asset.id && item.status === "received")
-                    .reduce((total, item) => total + decimalToCents(item.received_amount), 0n);
-                  return <li key={asset.id}><strong>{asset.symbol} · {asset.name}</strong><span>{asset.asset_class} · {asset.currency}</span><small>Quantidade: {summary.quantity.toLocaleString("pt-BR", { maximumFractionDigits: 8 })} · Custo: {formatInvestmentCents(BigInt(summary.costBasisCents), asset.currency)} · Custo médio: {formatInvestmentCents(BigInt(summary.averageCostCents), asset.currency)}</small><small>Resultado realizado: {formatInvestmentCents(BigInt(summary.realizedProfitCents), asset.currency)}{summary.error ? ` · ${summary.error}` : ""}</small><small>Proventos recebidos: {formatInvestmentCents(receivedCents, asset.currency)}</small>{asset.current_price != null && asset.price_as_of ? <small>Preço de referência: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: asset.currency, minimumFractionDigits: 2, maximumFractionDigits: 8 }).format(Number(asset.current_price))} · Fonte: {asset.price_source === "brapi.dev" ? "brapi.dev" : asset.price_source === "manual" ? "informado manualmente" : "origem não identificada"}{asset.price_source === "brapi.dev" ? " · atraso de origem aproximado de 30 min" : " · não é cotação automática"}{asset.price_source === "brapi.dev" && Date.now() - Date.parse(asset.price_as_of) > 45 * 60_000 ? " · cotação possivelmente desatualizada" : ""} · registrado em {new Date(asset.price_as_of).toLocaleString("pt-BR")}</small> : <small>Sem preço de referência cadastrado.</small>}
-                    <form className="finance-form" onSubmit={(event) => void updateManualInvestmentPrice(event, asset)}>
-                      <label>Preço de referência manual ({asset.currency})<input inputMode="decimal" value={manualPriceInputs[asset.id] ?? ""} onChange={(event) => setManualPriceInputs((current) => ({ ...current, [asset.id]: event.target.value }))} placeholder="Ex.: 32,45" disabled={busy} /></label>
-                      <button className="quiet-button" type="submit" disabled={busy || !(manualPriceInputs[asset.id] ?? "").trim()}>Salvar preço</button>
-                    </form></li>;
-                })}</ul>}
-                <p className="helper-text">Preços informados manualmente são apenas referências e não alteram operações, saldos, custo médio ou resultado realizado, nem alimentam o Radar. Cotações automáticas da B3 permanecem desativadas até existir licença adequada. Cripto e renda fixa não têm feed automático.</p>
-              </section>
-              <section className="subpanel" aria-labelledby="income-events-title">
-                <div className="transaction-heading"><strong id="income-events-title">Dividendos e proventos</strong><span>{incomeEvents.filter((item) => item.status === "received").length} recebidos</span></div>
-                {investmentAssets.length === 0 ? <p className="empty-state">Cadastre um ativo para registrar dividendos, JCP e outros proventos.</p> : <>
-                  <form className="finance-form" onSubmit={(event) => void createIncomeEvent(event)}>
-                    <label>Ativo<select value={incomeAssetId} onChange={(event) => setIncomeAssetId(event.target.value)} required>{investmentAssets.map((asset) => <option key={asset.id} value={asset.id}>{asset.symbol} · {asset.name}</option>)}</select></label>
-                    <label>Tipo<select value={incomeEventType} onChange={(event) => setIncomeEventType(event.target.value as IncomeEventRow["event_type"])}><option value="dividend">Dividendo</option><option value="jcp">Juros sobre capital próprio</option><option value="distribution">Distribuição</option><option value="coupon">Cupom</option><option value="interest">Juros</option><option value="amortization">Amortização</option><option value="other">Outro</option></select></label>
-                    <label>Valor (R$)<input inputMode="decimal" value={incomeAmount} onChange={(event) => setIncomeAmount(event.target.value)} placeholder="0,00" required /></label>
-                    <label>Data de referência<input type="date" value={incomeReferenceDate} onChange={(event) => setIncomeReferenceDate(event.target.value)} required /></label>
-                    <label>Data de pagamento<input type="date" min={incomeReferenceDate} value={incomePaymentDate} onChange={(event) => setIncomePaymentDate(event.target.value)} /></label>
-                    <label>Situação<select value={incomeStatus} onChange={(event) => setIncomeStatus(event.target.value as IncomeEventRow["status"])}><option value="announced">Anunciado</option><option value="planned">Previsto</option><option value="received">Recebido</option><option value="cancelled">Cancelado</option></select></label>
-                    <button className="primary-button" type="submit" disabled={busy}>Registrar provento</button>
-                  </form>
-                </>}
-                {incomeEvents.length > 0 && <ul className="account-list">{incomeEvents.slice(0, 20).map((item) => {
-                  const asset = investmentAssets.find((entry) => entry.id === item.asset_id);
-                  const amount = item.status === "received" ? item.received_amount : item.announced_amount;
-                  return <li key={item.id}><strong>{asset?.symbol ?? "Ativo"} · {item.event_type.toUpperCase()}</strong><span>{formatInvestmentCents(decimalToCents(amount), asset?.currency ?? "BRL")} · {item.status === "received" ? "Recebido" : item.status === "cancelled" ? "Cancelado" : item.status === "planned" ? "Previsto" : "Anunciado"}</span><small>Referência: {item.reference_date}{item.payment_date ? ` · Pagamento: ${item.payment_date}` : ""}</small></li>;
-                })}</ul>}
-                <p className="helper-text">Os valores são lançados manualmente e não são previsões automáticas de mercado. Somente itens marcados como recebidos entram no total recebido; o histórico não altera automaticamente o saldo da conta.</p>
-              </section>
-              <section className="subpanel" id="gastos-metas" aria-labelledby="goals-title">
-                <div className="transaction-heading"><strong id="goals-title">Metas financeiras</strong><span>{goals.length} cadastradas</span></div>
-                <form className="finance-form" onSubmit={(event) => void createGoal(event)}>
-                  <label>Nome da meta<input value={goalName} onChange={(event) => setGoalName(event.target.value)} maxLength={100} placeholder="Ex.: Reserva de emergência" required /></label>
-                  <label>Valor desejado (R$)<input inputMode="decimal" value={goalTarget} onChange={(event) => setGoalTarget(event.target.value)} placeholder="0,00" required /></label>
-                  <label>Contribuição mensal planejada (R$)<input inputMode="decimal" value={goalMonthly} onChange={(event) => setGoalMonthly(event.target.value)} placeholder="0,00" required /></label>
-                  <label>Mês desejado (opcional)<input type="month" value={goalTargetMonth} onChange={(event) => setGoalTargetMonth(event.target.value)} /></label>
-                  <button className="primary-button" type="submit" disabled={busy}>Criar meta</button>
-                </form>
-                {goals.length === 0 ? <p className="empty-state">Crie uma meta e registre contribuições para acompanhar sua evolução.</p> : <ul className="account-list">{goals.map((goal) => {
-                  const current = decimalToCents(goal.current_amount);
-                  const target = decimalToCents(goal.target_amount);
-                  const percent = target > 0n ? Number((current * 100n) / target) : 0;
-                  const reached = current >= target;
-                  return <li key={goal.id}>
-                    <strong>{goal.name}</strong>
-                    <span>{formatCents(current)} de {formatCents(target)}</span>
-                    <progress className="budget-progress" max={100} value={Math.min(100, percent)} aria-label={`Progresso da meta ${goal.name}`} />
-                    <small>{Math.min(100, percent)}% concluído{reached ? " · Meta alcançada" : goal.target_month ? ` · Prazo: ${new Date(`${goal.target_month}T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}` : ""} · Planejado por mês: {formatCents(decimalToCents(goal.monthly_contribution))}</small>
-                    {goalContributions.some((item) => item.goal_id === goal.id) && <div className="goal-contribution-history"><small>Últimas contribuições</small>{goalContributions.filter((item) => item.goal_id === goal.id).slice(0, 5).map((item) => <small key={item.id}>{item.contribution_date} · {formatCents(decimalToCents(item.amount))}</small>)}</div>}
-                    <form className="finance-form" onSubmit={(event) => { event.preventDefault(); void contributeToGoal(goal); }}>
-                      <label>Adicionar contribuição (R$)<input inputMode="decimal" value={goalContributionAmounts[goal.id] ?? ""} onChange={(event) => setGoalContributionAmounts((currentAmounts) => ({ ...currentAmounts, [goal.id]: event.target.value }))} placeholder="0,00" required /></label>
-                      <button className="primary-button" type="submit" disabled={busy}>Registrar contribuição</button>
-                    </form>
-                  </li>;
-                })}</ul>}
-                <p className="helper-text">As contribuições são registradas em histórico e atualizam o total de forma atômica. O valor planejado mensal não é contabilizado como dinheiro guardado.</p>
-              </section>
+              
+              
+              
               <section className="subpanel" id="gastos-recorrencias" aria-labelledby="recurrences-title">
                 <div className="transaction-heading"><strong id="recurrences-title">Recorrências</strong><span>{recurrences.filter((rule) => rule.is_active).length} ativas</span></div>
                 <form className="finance-form" onSubmit={(event) => void createRecurrence(event)}>
@@ -1597,7 +1605,7 @@ export default function App() {
               {transactions.length === 0 ? <p className="empty-state">Seus lançamentos aparecerão aqui.</p> : <ul className="transaction-list">{transactions.map((item) => <li key={item.id}><div className="transaction-main"><div><strong>{item.description}</strong><span>{item.kind === "income" ? "Receita" : item.kind === "expense" ? "Despesa" : "Transferência"} · {item.status === "paid" ? "Realizado" : item.status === "planned" ? "Previsto" : "Cancelado"}</span><small>{new Date(item.transaction_date + "T12:00:00").toLocaleDateString("pt-BR")}</small></div><strong className={item.kind === "income" ? "income-value" : "expense-value"}>{item.kind === "income" ? "+" : item.kind === "expense" ? "−" : ""}{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(item.amount))}</strong></div><div className="transaction-row-actions">{receiptFiles.some((file) => file.transaction_id === item.id) && <button className="quiet-button" type="button" disabled={busy} onClick={() => void openReceiptFile(item.id)}>Abrir comprovante</button>}<button className="quiet-button" type="button" disabled={busy} onClick={() => beginTransactionEdit(item)}>Editar</button><button className="quiet-button danger-button" type="button" disabled={busy} onClick={() => void deleteTransaction(item)}>Excluir</button></div>{editingTransactionId === item.id && <form className="transaction-edit-form" onSubmit={(event) => { event.preventDefault(); void saveTransactionEdit(item); }}><label>Descrição<input value={editDescription} onChange={(event) => setEditDescription(event.target.value)} maxLength={240} required /></label><label>Valor (R$)<input inputMode="decimal" value={editAmount} onChange={(event) => setEditAmount(event.target.value)} required /></label><label>Data<input type="date" value={editDate} onChange={(event) => setEditDate(event.target.value)} required /></label><label>Situação<select value={editStatus} onChange={(event) => setEditStatus(event.target.value as "paid" | "planned")}><option value="paid">Realizado</option><option value="planned">Previsto</option></select></label><button className="primary-button" type="submit" disabled={busy}>Salvar alterações</button><button className="quiet-button" type="button" disabled={busy} onClick={() => setEditingTransactionId(null)}>Cancelar</button></form>}</li>)}</ul>}
             </section>
 
-            <section className="panel" hidden={activeTab !== "conta"} aria-labelledby="assistant-title">
+            <section className="panel" id="conta-assistente" hidden={activeTab !== "conta"} aria-labelledby="assistant-title">
               <span className="principles-label">INTELIGÊNCIA ARTIFICIAL COM CONTROLE</span>
               <h2 id="assistant-title">Assistente financeiro</h2>
               <p>Faça uma pergunta sobre seus lançamentos recentes. Nenhum dado é enviado sem sua confirmação explícita nesta solicitação.</p>
@@ -1609,7 +1617,7 @@ export default function App() {
               {assistantAnswer && <p className="assistant-answer" role="status">{assistantAnswer}</p>}
             </section>
 
-            <section className="panel" hidden={activeTab !== "conta"} aria-labelledby="receipt-title">
+            <section className="panel" id="conta-comprovante" hidden={activeTab !== "conta"} aria-labelledby="receipt-title">
               <span className="principles-label">LEITURA ASSISTIDA</span>
               <h2 id="receipt-title">Ler comprovante</h2>
               <p>Envie um PDF ou imagem para extrair uma prévia. O arquivo é processado em memória; esta etapa não armazena o anexo.</p>
@@ -1634,7 +1642,7 @@ export default function App() {
               <p className="muted-copy">A confirmação cria somente o lançamento. O armazenamento privado do arquivo e o vínculo do anexo ainda serão implementados separadamente.</p>
             </section>
 
-            <section className="panel coming-panel" hidden={activeTab !== "conta"}><span className="principles-label">PRÓXIMAS CONEXÕES</span><h2>Seu financeiro em expansão</h2><p>Importação CSV/OFX, notificações e automações serão conectadas em etapas testadas, preservando a separação entre valores realizados e previstos.</p></section>
+            <section className="panel coming-panel" id="conta-proximos-passos" hidden={activeTab !== "conta"}><span className="principles-label">PRÓXIMAS CONEXÕES</span><h2>Seu financeiro em expansão</h2><p>Importação CSV/OFX, notificações e automações serão conectadas em etapas testadas, preservando a separação entre valores realizados e previstos.</p></section>
             {notice && <p className="notice" role="status">{notice}</p>}
           </section>
         )}
