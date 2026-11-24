@@ -57,6 +57,24 @@ Deno.serve(async (request: Request) => {
       const { data, error } = await db.from("push_subscriptions")
         .insert({ ...validated.value, user_id: userId })
         .select("id, created_at, updated_at").single();
+      if (error?.code === "23505") {
+        // Uma segunda requisição concorrente do mesmo usuário pode vencer o INSERT.
+        // Só atualiza se a linha duplicada pertencer à sessão atual; endpoints de
+        // outro usuário nunca são revelados nem transferidos.
+        const raced = await db.from("push_subscriptions").select("id")
+          .eq("user_id", userId).eq("endpoint", validated.value.endpoint).maybeSingle();
+        if (raced.error) return internalError(origin);
+        if (!raced.data) {
+          return jsonResponse({ error: { code: "SUBSCRIPTION_CONFLICT", message: "Esta inscrição já está vinculada a outra conta." } }, 409, origin);
+        }
+        const retried = await db.from("push_subscriptions")
+          .update({ p256dh: validated.value.p256dh, auth_key: validated.value.auth_key,
+            user_agent: validated.value.user_agent })
+          .eq("id", raced.data.id).eq("user_id", userId)
+          .select("id, created_at, updated_at").single();
+        if (retried.error || !retried.data) return internalError(origin);
+        return jsonResponse({ data: retried.data }, 200, origin);
+      }
       if (error || !data) return internalError(origin);
       return jsonResponse({ data }, 201, origin);
     }
