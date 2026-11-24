@@ -21,7 +21,7 @@ begin
 end
 $assert_manual_price_source$;
 
-do $
+do $$
 declare
   v_missing text;
 begin
