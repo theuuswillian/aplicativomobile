@@ -78,6 +78,7 @@ export default function App() {
   const [categoryName, setCategoryName] = useState("");
   const [categoryKind, setCategoryKind] = useState<"income" | "expense">("expense");
   const [txCategoryId, setTxCategoryId] = useState("");
+  const [txCardId, setTxCardId] = useState("");
   const [accountName, setAccountName] = useState("");
   const [accountType, setAccountType] = useState("checking");
   const [openingBalance, setOpeningBalance] = useState("0,00");
@@ -115,7 +116,7 @@ export default function App() {
       setNotice("");
       if (!nextSession || event === "SIGNED_IN") {
         setProfile(null); setAlerts([]); setAccounts([]); setCards([]); setCategories([]); setTransactions([]); setTxCategoryId("");
-        setTxAccountId(""); setReceiptAccountId(""); setEditingTransactionId(null);
+        setTxAccountId(""); setTxCardId(""); setReceiptAccountId(""); setEditingTransactionId(null);
         setAssistantAnswer(""); setAssistantQuestion(""); setAssistantConsent(false);
         setReceiptDraft(null); setReceiptFile(null); setReceiptConsent(false);
       }
@@ -289,7 +290,7 @@ export default function App() {
     event.preventDefault();
     if (!supabase || !session) return;
     const amount = normalizeBrlAmount(txAmount);
-    if (!amount || !txDescription.trim() || !txAccountId || !txDate) {
+    if (!amount || !txDescription.trim() || (!txAccountId && !txCardId) || !txDate) {
       setNotice("Preencha descrição, valor, data e conta. Use vírgula nos centavos."); return;
     }
     setBusy(true); setNotice("");
@@ -297,7 +298,7 @@ export default function App() {
       const { data, error } = await supabase.from("transactions").insert({
         user_id: session.user.id, kind: txKind, status: txStatus, amount,
         transaction_date: txDate, description: txDescription.trim(),
-        account_id: txAccountId, category_id: txCategoryId || null, settled_amount: txStatus === "paid" ? amount : "0.00",
+        account_id: txCardId ? null : txAccountId, card_id: txCardId || null, category_id: txCategoryId || null, settled_amount: txStatus === "paid" ? amount : "0.00",
         settled_at: txStatus === "paid" ? txDate : null, source: "manual",
       }).select("id,kind,status,amount,transaction_date,description,account_id").single();
       if (error) throw error;
@@ -591,7 +592,8 @@ export default function App() {
                 <label>Situação<select value={txStatus} onChange={(event) => setTxStatus(event.target.value as "paid" | "planned")}><option value="paid">Realizado</option><option value="planned">Previsto</option></select></label>
                 <label>Valor (R$)<input inputMode="decimal" value={txAmount} onChange={(event) => setTxAmount(event.target.value)} placeholder="0,00" required /></label>
                 <label>Data<input type="date" value={txDate} onChange={(event) => setTxDate(event.target.value)} required /></label>
-                <label>Conta<select value={txAccountId} onChange={(event) => setTxAccountId(event.target.value)} required><option value="">Selecione</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
+                <label>Conta<select value={txAccountId} onChange={(event) => { setTxAccountId(event.target.value); if (event.target.value) setTxCardId(""); }}><option value="">Não usar conta</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
+                <label>Cartão<select value={txCardId} onChange={(event) => { setTxCardId(event.target.value); if (event.target.value) setTxAccountId(""); }}><option value="">Não usar cartão</option>{cards.map((card) => <option key={card.id} value={card.id}>{card.name} · final {card.last_four}</option>)}</select></label>
                 <label>Categoria<select value={txCategoryId} onChange={(event) => setTxCategoryId(event.target.value)}><option value="">Sem categoria</option>{categories.filter((category) => category.kind === txKind).map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
                 <label className="wide-field">Descrição<input value={txDescription} onChange={(event) => setTxDescription(event.target.value)} maxLength={240} placeholder="Ex.: Mercado" required /></label>
                 <button className="primary-button" type="submit" disabled={busy || accounts.length === 0}>Salvar lançamento</button>
