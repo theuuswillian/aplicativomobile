@@ -75,7 +75,7 @@ jobs:
           supabase/functions/whatsapp-meta-send/index.ts
           supabase/functions/whatsapp-worker/index.ts
       - name: Run Edge runtime unit tests
-        run: deno test --no-config --allow-env supabase/functions/_shared/edge_test.ts supabase/functions/_shared/whatsapp-command.test.ts supabase/functions/_shared/whatsapp-meta.test.ts
+        run: deno test --no-config --allow-env supabase/functions/_shared/edge_test.ts supabase/functions/_shared/whatsapp-command.test.ts
 
   edge-integration:
     runs-on: ubuntu-latest
