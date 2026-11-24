@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { Bell, ChartNoAxesColumnIncreasing, Home, ReceiptText, TrendingUp, UserRound } from "lucide-react";
+import { Home, ReceiptText, TrendingUp, UserRound } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import { clearFinancialRecordsForUser } from "./lib/secure-storage";
 import { generateOccurrences, type RecurrenceFrequency } from "./domain/recurrence";
