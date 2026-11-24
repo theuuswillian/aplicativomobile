@@ -219,3 +219,86 @@ body { min-height: 100vh; }
   .privacy-actions { grid-template-columns: 1fr; }
   .privacy-actions button { width: 100%; }
 }
+
+
+/* Redesign mobile-first inspirado na referência visual do GranaViva */
+:root { color-scheme: dark; scroll-behavior: smooth; }
+.app-shell {
+  min-height: 100svh;
+  padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) calc(92px + env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+  background: radial-gradient(ellipse at 50% -12%, rgba(34,197,94,.13), transparent 42%), #07090b;
+}
+.app-frame { width: min(100%, 1080px); }
+.topbar { min-height: 48px; margin-bottom: 10px; }
+.brand { font-size: 18px; }
+.brand-mark { width: 34px; height: 34px; border: 0; border-radius: 10px; background: transparent; color: #35df8b; font-size: 24px; }
+.theme-toggle { width: 40px; min-height: 40px; padding: 0; border-radius: 50%; background: #111519; }
+.theme-toggle span:last-child { display: none; }
+.dashboard { gap: 14px; padding: 18px 0 28px; }
+.dashboard-heading { align-items: center; padding: 8px 2px 10px; }
+.dashboard-heading h1 { margin: 7px 0 4px; font-size: clamp(27px, 7vw, 38px); letter-spacing: -.055em; }
+.dashboard-heading p { font-size: 12px; }
+.dashboard-heading .eyebrow { font-size: 9px; }
+.metric-card { min-width: 86px; padding: 11px 12px; border-radius: 14px; background: #11171a; }
+.metric-card strong { font-size: 24px; }
+.panel, .auth-card, .metric-card { border-color: rgba(255,255,255,.065); background: linear-gradient(145deg, #151a1e, #0e1215); box-shadow: 0 10px 28px rgba(0,0,0,.22); }
+.panel { padding: 17px; border-radius: 19px; scroll-margin-top: 18px; }
+.panel-heading { align-items: flex-start; }
+.panel-heading h2, .panel h2 { margin: 7px 0 5px; font-size: 19px; letter-spacing: -.045em; }
+.panel-heading p, .panel > p { font-size: 12px; line-height: 1.55; }
+.principles-label { font-size: 9px; letter-spacing: .12em; }
+.finance-form, .radar-form { gap: 9px; }
+.finance-form input, .finance-form select, .radar-form input, .radar-form select { min-height: 46px; border-radius: 12px; background: #0a0e11; }
+.primary-button { min-height: 46px; border-radius: 13px; }
+.quiet-button { border-radius: 11px; }
+.account-list li, .transaction-list li { padding: 14px 0; }
+.notice { background: #12191c; }
+.app-footer { display: none; }
+.bottom-nav {
+  position: fixed;
+  z-index: 50;
+  right: 0; bottom: 0; left: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  padding: 9px max(14px, env(safe-area-inset-right)) calc(9px + env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+  border-top: 1px solid rgba(255,255,255,.08);
+  background: rgba(8,11,13,.94);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+}
+.bottom-nav a {
+  display: flex;
+  min-height: 48px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-radius: 12px;
+  color: #87918d;
+  font-size: 10px;
+  font-weight: 650;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.bottom-nav a:focus-visible { outline: 2px solid #35df8b; outline-offset: 2px; }
+.bottom-nav a:hover, .bottom-nav a:active { color: #35df8b; }
+#inicio, #gastos, #patrimonio, #conta { scroll-margin-top: 18px; }
+@media (min-width: 761px) {
+  .app-shell { padding-bottom: 112px; }
+  .dashboard { gap: 18px; }
+  .bottom-nav { right: 50%; left: auto; width: min(560px, calc(100% - 32px)); transform: translateX(50%); border: 1px solid rgba(255,255,255,.1); border-bottom: 0; border-radius: 18px 18px 0 0; }
+}
+@media (max-width: 520px) {
+  .app-shell { padding-left: 13px; padding-right: 13px; }
+  .dashboard-heading { gap: 10px; }
+  .dashboard-heading h1 { font-size: clamp(25px, 7vw, 32px); }
+  .metric-card { min-width: 72px; }
+  .metric-card strong { font-size: 21px; }
+  .panel { padding: 15px; border-radius: 17px; }
+  .finance-form { grid-template-columns: 1fr 1fr; }
+  .finance-form .wide-field { grid-column: 1 / -1; }
+}
+@media (display-mode: standalone) {
+  .app-shell { padding-top: max(16px, calc(env(safe-area-inset-top) + 5px)); }
+}
