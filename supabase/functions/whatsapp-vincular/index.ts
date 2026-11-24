@@ -5,9 +5,6 @@ import {
   methodNotAllowed, originNotAllowedResponse, readJsonObject,
 } from "../_shared/http.ts";
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
 async function sha256Hex(value: string): Promise<string> {
   const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)));
   return [...digest].map((byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -77,7 +74,8 @@ Deno.serve(async (request: Request) => {
       const { error: settingsError } = await auth.context.supabase.from("settings")
         .update({ whatsapp_weekly_summary: false }).eq("user_id", userId);
       if (settingsError) return internalError(origin);
-      await admin.from("whatsapp_links").update({ weekly_summary_enabled: false }).eq("user_id", userId);
+      const { error: linkPreferenceError } = await admin.from("whatsapp_links").update({ weekly_summary_enabled: false }).eq("user_id", userId);
+      if (linkPreferenceError) return internalError(origin);
       return jsonResponse({ data: { code, expires_at: expiresAt, provider_ready: false } }, 201, origin);
     }
 
