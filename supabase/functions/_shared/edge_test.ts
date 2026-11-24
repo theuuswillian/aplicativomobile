@@ -286,3 +286,29 @@ Deno.test("Web Push payload encryption creates an aes128gcm record", async () =>
   strictEqual(new TextDecoder().decode(plaintext.slice(0, -1)), '{"title":"GranaViva"}');
   strictEqual(plaintext[plaintext.length - 1], 2);
 });
+
+
+Deno.test("Radar evaluator applies thresholds and daily drop percentage", () => {
+  const now = Date.parse("2026-11-24T12:00:00Z");
+  const base = {
+    id: "alert-1", generation: 2, asset_class: "stock", symbol: "PETR4",
+    condition_type: "above" as const, threshold: "30.00",
+  };
+  const fresh = { symbol: "PETR4", price: "30.00", source: "test", saved_at: "2026-11-24T11:59:00Z" };
+  strictEqual(evaluateRadarAlert(base, fresh, now).shouldFire, true);
+  strictEqual(evaluateRadarAlert({ ...base, condition_type: "below", threshold: 25 }, fresh, now).shouldFire, false);
+  strictEqual(evaluateRadarAlert({ ...base, condition_type: "daily_drop", threshold: 5 }, {
+    ...fresh, price: 90, previous_close: 100,
+  }, now).shouldFire, true);
+});
+
+Deno.test("Radar evaluator rejects stale, mismatched and incomplete quotes", () => {
+  const alert = {
+    id: "alert-2", generation: 1, asset_class: "fii", symbol: "HGLG11",
+    condition_type: "daily_drop" as const, threshold: 5,
+  };
+  const quote = { symbol: "HGLG11", price: 90, previous_close: 100, asset_class: "fii", source: "test", saved_at: "2026-11-24T11:59:00Z" };
+  strictEqual(evaluateRadarAlert(alert, { ...quote, saved_at: "2026-11-24T10:00:00Z" }, Date.parse("2026-11-24T12:00:00Z")).reason, "stale_quote");
+  strictEqual(evaluateRadarAlert(alert, { ...quote, asset_class: "stock" }, Date.parse("2026-11-24T12:00:00Z")).reason, "asset_mismatch");
+  strictEqual(evaluateRadarAlert(alert, { ...quote, previous_close: null }, Date.parse("2026-11-24T12:00:00Z")).reason, "invalid_quote");
+});
