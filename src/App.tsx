@@ -459,7 +459,14 @@ export default function App() {
           if (error) throw error;
         }
         await current.unsubscribe();
-        setPushSubscriptions((items) => items.filter((item) => item.endpoint !== current.endpoint));
+        const remaining = pushSubscriptions.filter((item) => item.endpoint !== current.endpoint);
+        setPushSubscriptions(remaining);
+        if (remaining.length === 0) {
+          const { error } = await supabase.functions.invoke("minhas-preferencias", {
+            body: { action: "atualizar", push_enabled: false },
+          });
+          if (error) throw error;
+        }
         setNotice("Notificações desativadas neste dispositivo.");
         return;
       }
@@ -479,12 +486,23 @@ export default function App() {
       const authKey = subscription.getKey("auth");
       if (!p256dh || !authKey) { await subscription.unsubscribe(); throw new Error("O navegador não forneceu as chaves da inscrição Push."); }
       const encode = (buffer: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(buffer)))
-        .replace(/\\+/g, "-").replace(/\\//g, "_").replace(/=+$/g, "");
+        .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
       const { data, error } = await supabase.functions.invoke("push-inscricoes", {
         body: { action: "registrar", endpoint: subscription.endpoint,
           p256dh: encode(p256dh), auth_key: encode(authKey), user_agent: navigator.userAgent },
       });
-      if (error) { await subscription.unsubscribe(); throw error; }
+      if (error || !data?.data?.id) {
+        await subscription.unsubscribe();
+        throw error ?? new Error("O backend não confirmou a inscrição.");
+      }
+      const { error: settingsError } = await supabase.functions.invoke("minhas-preferencias", {
+        body: { action: "atualizar", push_enabled: true },
+      });
+      if (settingsError) {
+        await supabase.functions.invoke("push-inscricoes", { body: { action: "remover", id: data.data.id } });
+        await subscription.unsubscribe();
+        throw settingsError;
+      }
       setPushSubscriptions((items) => [...items.filter((item) => item.endpoint !== subscription.endpoint), data.data]);
       setNotice("Notificações ativadas neste dispositivo.");
     } catch (error) { setNotice(errorMessage(error)); }
