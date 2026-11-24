@@ -1299,7 +1299,7 @@ export default function App() {
           </a>
           <div className="topbar-actions">
             {signedIn && <span className="account-chip">{profile?.display_name || session?.user.email}</span>}
-            <button className="theme-toggle" type="button" aria-pressed={theme === "light"} onClick={() => void toggleTheme()}>
+            <button className="theme-toggle" type="button" aria-label={theme === "dark" ? "Tema claro" : "Tema escuro"} aria-pressed={theme === "light"} onClick={() => void toggleTheme()}>
               <span aria-hidden="true">{theme === "dark" ? "☼" : "◐"}</span>
               <span>{theme === "dark" ? "Tema claro" : "Tema escuro"}</span>
             </button>
