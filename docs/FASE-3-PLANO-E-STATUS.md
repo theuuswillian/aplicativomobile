@@ -92,7 +92,8 @@ Implementar backend e integração gradual da interface do GranaViva conforme `d
 - [x] Frontend permite criar/listar contas e criar/listar/editar/excluir lançamentos sob RLS.
 - [x] Cartões, categorias, recorrências e orçamentos mensais conectados à interface.
 - [x] Metas financeiras conectadas: cadastro, progresso e contribuições com histórico; RPC invoker transacional bloqueia a meta, insere o evento e atualiza o acumulado atomicamente.
-- [ ] Investimentos e importação CSV/OFX ainda pendentes.
+- [x] Carteira de investimentos conectada: cadastro de ativos, posições iniciais, compras e vendas, cálculo de quantidade, custo médio e resultado realizado a partir do livro de operações.
+- [ ] Importação CSV/OFX com prévia, deduplicação e confirmação ainda pendente.
 - [x] Consentimento por uso da IA e prévia editável de comprovante no frontend; arquivo não persistido.
 - [ ] Push e WhatsApp no frontend.
 - [ ] Auditoria de acessibilidade e testes reais do usuário após a integração dos módulos.
@@ -119,9 +120,9 @@ O commit `bd53ebfc18aedeadf992aeaa5c75de7802291dd4` passou integralmente na exec
 - `sql`: migrations, RLS, grants, isolamento e concorrência no PostgreSQL 17.
 - `edge-integration`: Auth local, perfil, preferências, CORS, Radar, Push e isolamento entre dois usuários.
 
-O CI verde não significa que a Fase 3 esteja concluída. Permanecem integrações de cotação, envio Push, WhatsApp, investimentos, importação CSV/OFX, armazenamento privado de comprovantes, configuração remota autorizada e validação manual no dispositivo.
+O CI verde não significa que a Fase 3 esteja concluída. Permanecem integrações de cotação, envio Push, WhatsApp, importação CSV/OFX, armazenamento privado de comprovantes, configuração remota autorizada e validação manual no dispositivo.
 
-- HEAD consultado anteriormente: `bd53ebfc18aedeadf992aeaa5c75de7802291dd4`. A implementação de metas e a migration `007_goal_contribution_atomic.sql` foram adicionadas depois; a CI desse novo HEAD ainda precisa concluir.
+- HEAD consultado anteriormente: `bd53ebfc18aedeadf992aeaa5c75de7802291dd4`. A implementação de metas, a migration `007_goal_contribution_atomic.sql`, a carteira de investimentos e a validação do livro de operações foram adicionadas depois; a CI do HEAD final ainda precisa concluir.
 - [Branch Fase 3](https://github.com/theuuswillian/aplicativomobile/tree/fase-3-backend).
 - [PR #2](https://github.com/theuuswillian/aplicativomobile/pull/2), ainda draft e sem merge.
 - O teste local de integração cobre perfil, preferências, Radar e inscrições Push entre dois usuários.
