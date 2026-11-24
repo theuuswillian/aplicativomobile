@@ -1,4 +1,4 @@
--- Assertions de segurança para executar após as seis migrations em Supabase/PostgreSQL isolado.
+-- Assertions de segurança para executar após as migrations em Supabase/PostgreSQL isolado.
 -- Executar como postgres/superuser. Tudo é revertido ao final.
 begin;
 
@@ -13,7 +13,7 @@ begin
     ('accounts'),('cards'),('recurrence_rules'),('import_batches'),('transactions'),
     ('budgets'),('goals'),('goal_contributions'),('tangible_assets'),('liabilities'),
     ('net_worth_snapshots'),('receivables'),('import_items'),('receipt_files'),
-    ('investment_assets'),('investment_operations'),('income_events'),('quote_cache'),
+    ('investment_assets'),('investment_operations'),('income_events'),('quote_cache'),('market_data_usage'),
     ('radar_alerts'),('radar_fires'),('push_subscriptions'),('push_deliveries'),
     ('ai_usage'),('ai_usage_reservations'),('rate_limit_buckets'),('function_errors'),
     ('whatsapp_links'),('whatsapp_link_codes'),('whatsapp_link_attempts'),
@@ -51,6 +51,8 @@ do $$
 begin
   if has_table_privilege('anon','public.quote_cache','select')
      or has_table_privilege('authenticated','public.quote_cache','select')
+     or has_table_privilege('anon','public.market_data_usage','select')
+     or has_table_privilege('authenticated','public.market_data_usage','select')
      or has_table_privilege('anon','public.ai_usage','select')
      or has_table_privilege('authenticated','public.ai_usage','select')
      or has_table_privilege('anon','public.ai_usage_reservations','select')
@@ -111,7 +113,8 @@ begin
     'public.whatsapp_summary_reserve(uuid,date)'::regprocedure,
     'public.whatsapp_pending_confirm(text)'::regprocedure,
     'public.recurrence_next_date(text,integer,date,smallint,smallint)'::regprocedure,
-    'public.recurrence_generate_due(date,integer)'::regprocedure
+    'public.recurrence_generate_due(date,integer)'::regprocedure,
+    'public.market_data_reserve(text,text,integer)'::regprocedure
   ] loop
     if not (select p.prosecdef and p.proconfig @> array['search_path=pg_catalog, public']
             from pg_proc p where p.oid = v_fn) then
