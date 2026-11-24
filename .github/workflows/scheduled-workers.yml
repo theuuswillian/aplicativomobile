@@ -102,7 +102,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail-with-body --silent --show-error --max-time 45 \
+          curl --fail-with-body --silent --show-error --max-time 130 \
             -X POST "$SUPABASE_URL/functions/v1/whatsapp-worker" \
             -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
             -H "x-whatsapp-worker-secret: $WHATSAPP_WORKER_SECRET" \
