@@ -211,3 +211,11 @@ body { min-height: 100vh; }
 
 .goal-contribution-history { display: grid; gap: 4px; margin: 8px 0 12px; padding: 10px; border-radius: 10px; background: var(--surface-subtle, rgba(127,127,127,.08)); }
 .goal-contribution-history small:first-child { font-weight: 700; color: var(--text-primary); }
+
+.privacy-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 1fr) auto; align-items: end; gap: 12px; }
+.privacy-actions label { display: grid; gap: 7px; color: var(--text-muted, #92999f); font-size: 12px; }
+.privacy-actions input { width: 100%; min-width: 0; }
+@media (max-width: 680px) {
+  .privacy-actions { grid-template-columns: 1fr; }
+  .privacy-actions button { width: 100%; }
+}
