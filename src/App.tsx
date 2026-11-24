@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
+import { Bell, ChartNoAxesColumnIncreasing, Home, ReceiptText, TrendingUp, UserRound } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import { clearFinancialRecordsForUser } from "./lib/secure-storage";
 import { generateOccurrences, type RecurrenceFrequency } from "./domain/recurrence";
@@ -1336,11 +1337,11 @@ export default function App() {
           </section>
         ) : (
           <section className="dashboard" aria-labelledby="dashboard-title">
-            <div className="dashboard-heading">
+            <div className="dashboard-heading" id="inicio">
               <div><span className="eyebrow"><span className="live-dot" /> ÁREA PESSOAL</span><h1 id="dashboard-title">Olá{profile?.display_name ? `, ${profile.display_name}` : ""}.</h1><p>Seus dados estão sincronizados com sua conta.</p></div>
               <div className="metric-card"><strong>{alerts.length}</strong><span>alertas no Radar</span><small>{enabledAlerts} ativos</small></div>
             </div>
-            <section className="panel privacy-panel" aria-labelledby="privacy-title">
+            <section className="panel privacy-panel" id="conta" aria-labelledby="privacy-title">
               <div className="panel-heading"><div><span className="principles-label">PRIVACIDADE E CONTROLE</span><h2 id="privacy-title">Seus dados e sua conta</h2><p>Exporte uma cópia dos seus dados ou solicite a exclusão permanente da conta e dos comprovantes privados.</p></div></div>
               <div className="privacy-actions">
                 <button className="primary-button" type="button" onClick={() => void exportPersonalData()} disabled={busy}>Exportar meus dados (JSON)</button>
@@ -1351,7 +1352,7 @@ export default function App() {
               </div>
               <p className="helper-text">A exportação inclui metadados dos comprovantes; os arquivos podem ser abertos individualmente no histórico. A exclusão exige autenticação recente (últimos 15 minutos), remove comprovantes do Storage e apaga os dados vinculados à conta. Essa ação não pode ser desfeita.</p>
             </section>
-            <section className="panel" aria-labelledby="radar-title">
+            <section className="panel" id="patrimonio" aria-labelledby="radar-title">
               <div className="panel-heading"><div><span className="principles-label">ACOMPANHAMENTO DE ATIVOS</span><h2 id="radar-title">Radar de preços</h2><p>Crie alertas para acompanhar seus ativos. O disparo usa somente cotações recentes de uma fonte validada; nenhuma fonte de preços está conectada ainda.</p></div></div>
               <form className="radar-form" onSubmit={(event) => void createAlert(event)}>
                 <label>Classe<select value={assetClass} onChange={(event) => setAssetClass(event.target.value as RadarAlert["asset_class"])}><option value="stock">Ação</option><option value="fii">FII</option><option value="etf">ETF</option><option value="bdr">BDR</option><option value="crypto">Cripto</option></select></label>
@@ -1380,7 +1381,7 @@ export default function App() {
                 })}</ul>}
               </div>
             </section>
-            <section className="panel" aria-labelledby="accounts-title">
+            <section className="panel" id="gastos" aria-labelledby="accounts-title">
               <div className="panel-heading"><div><span className="principles-label">BASE FINANCEIRA</span><h2 id="accounts-title">Contas e lançamentos</h2><p>Cadastre suas contas e registre receitas e despesas. Valores previstos permanecem separados dos realizados.</p></div></div>
               <form className="finance-form" onSubmit={(event) => void createAccount(event)}>
                 <label>Nome da conta<input value={accountName} onChange={(event) => setAccountName(event.target.value)} maxLength={100} placeholder="Ex.: Conta principal" required /></label>
@@ -1619,6 +1620,12 @@ export default function App() {
           </section>
         )}
 
+        {signedIn && <nav className="bottom-nav" aria-label="Navegação principal">
+          <a href="#inicio"><Home size={19} strokeWidth={2.2} /><span>Início</span></a>
+          <a href="#gastos"><ReceiptText size={19} strokeWidth={2.2} /><span>Gastos</span></a>
+          <a href="#patrimonio"><TrendingUp size={19} strokeWidth={2.2} /><span>Patrimônio</span></a>
+          <a href="#conta"><UserRound size={19} strokeWidth={2.2} /><span>Conta</span></a>
+        </nav>}
         <footer className="app-footer"><span>GRANAVIVA</span><span>Privacidade · Clareza · Gratuito para todos</span></footer>
       </div>
     </main>
