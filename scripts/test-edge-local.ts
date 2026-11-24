@@ -192,6 +192,12 @@ try {
   const unauthenticatedRadarWorker = await invoke("radar-worker", null, {});
   assert(unauthenticatedRadarWorker.response.status === 401,
     "Worker Radar deve exigir JWT de serviço antes do segredo interno.");
+  const pushWorkerWithoutSecret = await invoke("push-worker", serviceRoleKey, {});
+  assert(pushWorkerWithoutSecret.response.status === 401,
+    "Worker Push deve rejeitar JWT válido sem o segredo interno.");
+  const radarWorkerWithoutSecret = await invoke("radar-worker", serviceRoleKey, {});
+  assert(radarWorkerWithoutSecret.response.status === 401,
+    "Worker Radar deve rejeitar JWT válido sem o segredo interno.");
 
   const radarCreated = await invoke("radar-alertas", tokenA, {
     action: "criar",
