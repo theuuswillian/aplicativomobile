@@ -59,11 +59,17 @@ async function sendWeeklySummaries(
   const { data: links, error: linksError } = await db.from("whatsapp_links")
     .select("user_id,phone").eq("weekly_summary_enabled", true)
     .or(`last_summary_week.is.null,last_summary_week.lt.${range.monday}`)
-    .order("user_id", { ascending: true }).limit(2);
+    .order("user_id", { ascending: true }).limit(100);
   if (linksError) return { sent: 0, skipped: 0, failed: 1, queued: 0 };
 
+  const { data: existingJobs, error: existingJobsError } = await db.from("whatsapp_weekly_summary_jobs")
+    .select("user_id").eq("week_start", range.monday);
+  if (existingJobsError) return { sent: 0, skipped: 0, failed: 1, queued: 0 };
+  const usersWithJobs = new Set((existingJobs ?? []).map((job) => job.user_id));
+
   let sent = 0, skipped = 0, failed = 0, queued = 0;
-  for (const link of links ?? []) {
+  const linksToEnqueue = (links ?? []).filter((link) => !usersWithJobs.has(link.user_id)).slice(0, 2);
+  for (const link of linksToEnqueue) {
     try {
       const { data: settings, error: settingsError } = await db.from("settings")
         .select("whatsapp_weekly_summary").eq("user_id", link.user_id).maybeSingle();
@@ -106,7 +112,7 @@ async function sendWeeklySummaries(
     .select("user_id,week_start")
     .eq("week_start", range.monday)
     .or(`status.eq.pending,and(status.eq.processing,lease_until.lt.${now})`)
-    .order("user_id", { ascending: true }).limit(2);
+    .order("updated_at", { ascending: true }).order("user_id", { ascending: true }).limit(2);
   if (jobsError) return { sent, skipped, failed: failed + 1, queued };
 
   for (const job of jobs ?? []) {
