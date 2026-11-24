@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.whatsapp-worker]
 verify_jwt = true
+
+[functions.quote-feed-worker]
+verify_jwt = true
