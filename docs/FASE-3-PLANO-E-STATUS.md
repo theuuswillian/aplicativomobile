@@ -162,3 +162,22 @@ A Fase 2 continua preservada como base e a PR #1 não será mesclada por esta et
 - O webhook tem `verify_jwt = false` porque a autenticação de origem é a assinatura HMAC da Meta. O endpoint de envio continua protegido por JWT de serviço e segredo interno.
 - Testes automatizados cobrem assinatura HMAC, challenge e extração/validação de mensagens.
 - Ainda depende de criar/configurar o app Meta, obter credenciais permanentes, configurar callback HTTPS e assinar o campo `messages`. A inbox ainda requer worker de processamento semântico para conversas, confirmações de lançamentos e resumo semanal antes de operação completa com usuários.
+
+
+### Atualização — worker Meta Cloud API
+
+- [x] Parser estrito de comandos: `AJUDA`, código de vínculo, `DESPESA`, `RECEITA`, `CONFIRMAR` e `CANCELAR`; mensagens ambíguas não geram lançamento.
+- [x] Worker de inbox com reserva atômica, lease/fencing, recuperação de filas com falha/lease expirado e deduplicação por ID de mensagem.
+- [x] Vínculo de número por hash SHA-256 do código temporário e telefone Meta.
+- [x] Lançamentos recebidos são inseridos somente como pendentes, expiram em 15 minutos e exigem comando de confirmação; a confirmação chama a RPC transacional já existente.
+- [x] Conta de destino só é selecionada quando há conta principal ou uma única conta ativa; em caso ambíguo, o worker não escolhe uma conta.
+- [x] Cancelamento de pendência por telefone e usuário vinculados.
+- [x] Resumo semanal de receitas/despesas realizadas, somente às segundas-feiras, após conferir o opt-in simultâneo em `settings` e `whatsapp_links`; reserva atômica por semana e chave idempotente na outbox.
+- [x] Worker incluído no `deno check`, nos testes de parser e no workflow agendado; `verify_jwt = true` no endpoint interno.
+- [ ] Validar a execução do worker com Supabase local e credenciais de teste da Meta; nenhum envio real foi feito.
+- [ ] Configurar secrets Meta/Supabase/GitHub e webhook HTTPS após o usuário concluir a configuração das contas.
+- [ ] Revisar limites/paginação do resumo semanal para escala antes de habilitar para uma base grande.
+
+O workflow agendado requer também o secret GitHub `WHATSAPP_WORKER_SECRET`, diferente dos secrets de recorrência e Radar. No Supabase, o mesmo valor deve existir como Edge Function secret. O worker de WhatsApp usa o mesmo segredo para a chamada interna do endpoint `whatsapp-meta-send`. O cron de 15 minutos processa a inbox; o resumo semanal é tentado às segundas-feiras e a RPC impede repetição da mesma semana.
+
+A fonte de cotações do Radar continua bloqueada por contrato: não foi aprovada revisão da arquitetura para integrar provedor financeiro externo. Não apresentar preços como atuais sem fonte e timestamp.
