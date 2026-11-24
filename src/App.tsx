@@ -100,7 +100,7 @@ export default function App() {
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
       setNotice("");
-      if (!nextSession) { setProfile(null); setAlerts([]); setAccounts([]); setTransactions([]); setAssistantAnswer(""); setReceiptDraft(null); }
+      if (!nextSession) { setProfile(null); setAlerts([]); setAccounts([]); setTransactions([]); setAssistantAnswer(""); setAssistantQuestion(""); setAssistantConsent(false); setReceiptDraft(null); setReceiptFile(null); setReceiptConsent(false); }
     });
     return () => { active = false; listener.subscription.unsubscribe(); };
   }, []);
@@ -504,7 +504,7 @@ export default function App() {
               <p>Faça uma pergunta sobre seus lançamentos recentes. Nenhum dado é enviado sem sua confirmação explícita nesta solicitação.</p>
               <form className="assistant-form" onSubmit={(event) => void askAssistant(event)}>
                 <label>Pergunta<textarea value={assistantQuestion} onChange={(event) => setAssistantQuestion(event.target.value)} maxLength={1000} rows={3} placeholder="Ex.: Quais despesas recentes devo revisar?" required /></label>
-                <label className="consent-row"><input type="checkbox" checked={assistantConsent} onChange={(event) => setAssistantConsent(event.target.checked)} /> Li e autorizo o envio da pergunta e dos até 20 lançamentos recentes à IA para gerar esta resposta. O envio ocorre somente ao tocar em Perguntar.</label>
+                <label className="consent-row"><input type="checkbox" checked={assistantConsent} disabled={busy} onChange={(event) => setAssistantConsent(event.target.checked)} /> Li e autorizo o envio da pergunta e dos até 20 lançamentos recentes à IA para gerar esta resposta. O envio ocorre somente ao tocar em Perguntar.</label>
                 <button className="primary-button" type="submit" disabled={busy || !assistantConsent || assistantQuestion.trim().length < 2}>Perguntar</button>
               </form>
               {assistantAnswer && <p className="assistant-answer" role="status">{assistantAnswer}</p>}
@@ -515,8 +515,8 @@ export default function App() {
               <h2 id="receipt-title">Ler comprovante</h2>
               <p>Envie um PDF ou imagem para extrair uma prévia. O arquivo é processado em memória; esta etapa não armazena o anexo.</p>
               <form className="assistant-form" onSubmit={(event) => void readReceipt(event)}>
-                <label>Arquivo<input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(event) => { setReceiptFile(event.target.files?.[0] ?? null); setReceiptDraft(null); setReceiptConsent(false); }} /></label>
-                <label className="consent-row"><input type="checkbox" checked={receiptConsent} onChange={(event) => setReceiptConsent(event.target.checked)} /> Autorizo o envio deste arquivo à IA para leitura e extração de uma prévia.</label>
+                <label>Arquivo<input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" disabled={busy} onChange={(event) => { setReceiptFile(event.target.files?.[0] ?? null); setReceiptDraft(null); setReceiptConsent(false); }} /></label>
+                <label className="consent-row"><input type="checkbox" checked={receiptConsent} disabled={busy} onChange={(event) => setReceiptConsent(event.target.checked)} /> Autorizo o envio deste arquivo à IA para leitura e extração de uma prévia.</label>
                 <button className="primary-button" type="submit" disabled={busy || !receiptFile || !receiptConsent}>Analisar comprovante</button>
               </form>
               {receiptDraft && <div className="receipt-preview">
@@ -535,7 +535,7 @@ export default function App() {
               <p className="muted-copy">A confirmação cria somente o lançamento. O armazenamento privado do arquivo e o vínculo do anexo ainda serão implementados separadamente.</p>
             </section>
 
-            <section className="panel coming-panel"><span className="principles-label">PRÓXIMAS CONEXÕES</span><h2>Seu financeiro em expansão</h2><p>Contas, lançamentos, investimentos, comprovantes, notificações e automações serão conectados em etapas testadas, preservando a separação entre valores realizados e previstos.</p></section>
+            <section className="panel coming-panel"><span className="principles-label">PRÓXIMAS CONEXÕES</span><h2>Seu financeiro em expansão</h2><p>Investimentos, importações, metas, cartões, notificações e automações serão conectados em etapas testadas, preservando a separação entre valores realizados e previstos.</p></section>
             {notice && <p className="notice" role="status">{notice}</p>}
           </section>
         )}
