@@ -31,6 +31,7 @@ for attempt in $(seq 1 60); do
   status="$(curl --silent --show-error --max-time 5 --output /dev/null --write-out '%{http_code}' \
     --request POST \
     --header 'apikey: '"$SUPABASE_ANON_KEY" \
+    --header 'Authorization: Bearer '"$SUPABASE_ANON_KEY" \
     --header 'Origin: http://localhost:5173' \
     --header 'Content-Type: application/json' \
     --data '{"action":"consultar"}' \
