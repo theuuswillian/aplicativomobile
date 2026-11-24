@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import type { Database } from "../_shared/auth.ts";
 import { parseWhatsAppCommand } from "../_shared/whatsapp-command.ts";
+import { shouldRetryWhatsAppInbox } from "../_shared/whatsapp-delivery.ts";
 
 function safeEqual(left: string, right: string): boolean {
   const a = new TextEncoder().encode(left), b = new TextEncoder().encode(right);
@@ -308,7 +309,7 @@ Deno.serve(async (request: Request) => {
       // 429 (failed_safe) é uma rejeição segura e busy significa que outra
       // tentativa ainda está resolvendo a mesma chave. Manter a inbox em retry
       // permite tentar novamente sem duplicar: a outbox reserva a mesma chave.
-      if (deliveryStatus === "failed_safe" || deliveryStatus === "busy") {
+      if (shouldRetryWhatsAppInbox(deliveryStatus)) {
         if (!await finish(false, "Meta outbox: " + deliveryStatus)) throw new Error("inbox_fencing_lost");
         failed++;
         continue;
