@@ -480,6 +480,7 @@ export default function App() {
     setBusy(true); setNotice("");
     let batchId: string | null = null;
     const createdTransactionIds: string[] = [];
+    const createdTransactionRows: TransactionRow[] = [];
     try {
       const { data: batch, error: batchError } = await supabase.from("import_batches").insert({
         user_id: session.user.id, format: importFormat, destination_type: importDestinationType,
@@ -506,6 +507,7 @@ export default function App() {
           .insert(transactionInput).select("id,kind,status,amount,transaction_date,description,account_id").single();
         if (transactionError || !transaction) throw transactionError ?? new Error("Não foi possível criar um lançamento importado.");
         createdTransactionIds.push(transaction.id);
+        createdTransactionRows.push(transaction as TransactionRow);
         const { error: itemError } = await supabase.from("import_items").insert({
           user_id: session.user.id, batch_id: batchId, transaction_id: transaction.id,
           destination_type: importDestinationType, destination_id: importDestinationId,
@@ -517,6 +519,7 @@ export default function App() {
             .eq("id", transaction.id).eq("user_id", session.user.id);
           if (removeError) throw removeError;
           createdTransactionIds.pop();
+          createdTransactionRows.pop();
           ignored++;
           continue;
         }
@@ -527,16 +530,9 @@ export default function App() {
         imported_count: imported + ignored, ignored_count: ignored, status: "committed",
       }).eq("id", batchId).eq("user_id", session.user.id);
       if (finalizeError) throw finalizeError;
-      setTransactions((current) => [
-        ...createdTransactionIds.map((id) => ({ id, ...candidates.find((row) => {
-          // IDs and rows are aligned for successfully committed items via the import ledger.
-          return false;
-        }) } as TransactionRow)),
-        ...current,
-      ]);
+      setTransactions((current) => [...createdTransactionRows, ...current]);
       setImportPreview([]); setImportFileName("");
       setNotice(`Importação concluída: ${imported} lançamentos criados e ${ignored} duplicados ignorados.`);
-      window.location.reload();
     } catch (error) {
       if (batchId) {
         await supabase.from("import_items").delete().eq("batch_id", batchId).eq("user_id", session.user.id);
