@@ -1,4 +1,4 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { parseWhatsAppCommand } from "../_shared/whatsapp-command.ts";
 
 function safeEqual(left: string, right: string): boolean {
@@ -47,7 +47,7 @@ function brl(cents: bigint): string {
   return (negative ? "-" : "") + "R$ " + whole + "," + fraction;
 }
 async function sendWeeklySummaries(
-  db: ReturnType<typeof createClient>, url: string, serviceKey: string, secret: string,
+  db: SupabaseClient<any, "public">, url: string, serviceKey: string, secret: string,
 ): Promise<{ sent: number; skipped: number; failed: number }> {
   const range = previousWeekRange();
   if (!range) return { sent: 0, skipped: 0, failed: 0 };
