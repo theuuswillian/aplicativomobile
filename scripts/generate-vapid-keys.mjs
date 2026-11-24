@@ -1,7 +1,7 @@
 import { generateKeyPairSync } from "node:crypto";
 
 const subject = process.env.PUSH_VAPID_SUBJECT?.trim();
-if (!subject || !/^(mailto:[^\\s@]+@[^\\s@]+|https:\\/\\/[^\\s]+)$/.test(subject)) {
+if (!subject || !/^(mailto:[^\s@]+@[^\s@]+|https:\/\/[^\s]+)$/.test(subject)) {
   throw new Error("Defina PUSH_VAPID_SUBJECT como mailto:email válido ou URL HTTPS antes de gerar as chaves.");
 }
 
