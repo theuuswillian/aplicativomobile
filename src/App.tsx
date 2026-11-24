@@ -4,7 +4,7 @@ import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
 import { generateOccurrences, type RecurrenceFrequency } from "./domain/recurrence";
 import { calculateInvestmentSummary, type InvestmentOperation } from "./domain/investments";
-import { importDedupeKey, parseCsvStatement, parseOfxStatement, planImportBatch, type ParsedStatementRow } from "./domain/imports";
+import { parseCsvStatement, parseOfxStatement, planImportBatch, type ParsedStatementRow } from "./domain/imports";
 type PushSubscriptionRow = { id: string; endpoint: string; user_agent: string | null };
 
 type Theme = "dark" | "light";
