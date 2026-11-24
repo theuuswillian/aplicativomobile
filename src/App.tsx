@@ -800,7 +800,7 @@ export default function App() {
     event.preventDefault();
     if (!supabase || !session) return;
     const raw = (manualPriceInputs[asset.id] ?? "").trim().replace(",", ".");
-    if (!/^\\d{1,10}(?:\\.\\d{1,8})?$/.test(raw) || !Number.isFinite(Number(raw)) || Number(raw) <= 0) {
+    if (!/^[0-9]{1,10}(?:[.][0-9]{1,8})?$/.test(raw) || !Number.isFinite(Number(raw)) || Number(raw) <= 0) {
       setNotice("Informe um preço positivo com até 8 casas decimais.");
       return;
     }
