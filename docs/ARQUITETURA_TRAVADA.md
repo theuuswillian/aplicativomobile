@@ -1119,6 +1119,15 @@ Referências oficiais consultadas:
 - Como o GranaViva deve permanecer gratuito e não foi autorizada despesa com feed, nenhuma dessas fontes será usada para cotação pública de cripto agora.
 - Alertas de cripto e preços de renda fixa permanecem sem feed automático até existir fonte com licença compatível e custo autorizado. Não simular preço, reaproveitar cotação de outro ativo ou apresentar último valor sem horário/fonte.
 
+### 13.4 Modo operacional enquanto não houver licença de feed
+
+- Não contratar B3/UP2DATA, plano pago de provedor ou serviço de dados sem autorização específica de custo.
+- Não usar TradingView como fonte de dados para o backend, Radar, cálculo de valorização ou preço de carteira; eventual widget visual é independente e depende dos termos próprios de exibição.
+- A integração Brapi permanece implementada apenas como adaptador técnico, mas bloqueada para uso público por padrão. Não configurar `BRAPI_PUBLIC_DISPLAY_APPROVED=true` sem direito de exibição/distribuição confirmado para o GranaViva.
+- A próxima implementação de fallback deverá permitir ao usuário informar manualmente um preço de referência, com fonte “informado pelo usuário”, data/hora da atualização e indicação explícita de que não é cotação automática. Não atribuir preço manual à Brapi ou à B3.
+- Preços manuais são estimativas de referência: não alteram operações, quantidade, custo médio, saldos, patrimônio realizado ou proventos; não disparam alertas automáticos do Radar como se fossem cotações de mercado.
+- Até essa interface ser implementada e testada, não afirmar que a atualização manual já está disponível. Ativos sem cotação válida devem continuar identificados como sem preço de mercado disponível.
+
 ### 13.4 Segurança e operação
 
 - Migration `010_market_data_provider.sql` cria contador diário privado com limite agregado móvel de 30 dias, cursor rotativo, RLS sem grants a usuários e RPC atômica serializada exclusiva de `service_role`.
