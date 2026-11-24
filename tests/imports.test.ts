@@ -13,7 +13,7 @@ describe("CSV/OFX import semantics", () => {
       "Data;Descrição;Valor;FITID",
       '23/11/2026;"Mercado; bairro";-123,45;A-1',
       '2026-11-24;"Salário ""empresa""";2500,00;A-2'
-    ].join("\\n"));
+    ].join("\n"));
     expect(rows).toEqual([
       { sourceId: "A-1", date: "2026-11-23", amountCents: 12345, kind: "expense", description: "Mercado; bairro" },
       { sourceId: "A-2", date: "2026-11-24", amountCents: 250000, kind: "expense", description: 'Salário "empresa"' }
@@ -21,16 +21,16 @@ describe("CSV/OFX import semantics", () => {
   });
 
   it("parses CSV with separate debit and credit columns", () => {
-    const rows = parseCsvStatement("date,description,debit,credit\\n2026-11-23,Groceries,50.25,\\n2026-11-24,Salary,,3000.00");
+    const rows = parseCsvStatement("date,description,debit,credit\n2026-11-23,Groceries,50.25,\n2026-11-24,Salary,,3000.00");
     expect(rows.map(({ kind, amountCents }) => ({ kind, amountCents }))).toEqual([
       { kind: "expense", amountCents: 5025 }, { kind: "income", amountCents: 300000 }
     ]);
   });
 
   it("rejects malformed dates, ambiguous headers and unterminated quotes", () => {
-    expect(() => parseCsvStatement("date,description,amount\\n2026-02-30,Market,10.00")).toThrow(/Linha CSV/);
-    expect(() => parseCsvStatement("date,description\\n2026-11-23,Market")).toThrow(/Cabeçalho/);
-    expect(() => parseCsvStatement('date,description,amount\\n2026-11-23,"Market,10.00')).toThrow(/aspas/);
+    expect(() => parseCsvStatement("date,description,amount\n2026-02-30,Market,10.00")).toThrow(/Linha CSV/);
+    expect(() => parseCsvStatement("date,description\n2026-11-23,Market")).toThrow(/Cabeçalho/);
+    expect(() => parseCsvStatement('date,description,amount\n2026-11-23,"Market,10.00')).toThrow(/aspas/);
   });
 
   it("parses OFX statement transactions and infers signed transaction type", () => {
@@ -49,7 +49,8 @@ describe("CSV/OFX import semantics", () => {
     expect(() => parseOfxStatement("<OFX></OFX>")).toThrow(/sem lançamentos/);
     expect(() => parseOfxStatement("x".repeat(5_000_001))).toThrow(/5 MB/);
   });
-\n  it("creates stable keys independent of accents and extra spaces", () => {
+
+  it("creates stable keys independent of accents and extra spaces", () => {
     expect(importDedupeKey(row)).toBe(importDedupeKey({ ...row, description: "cafe da manha" }));
   });
 
