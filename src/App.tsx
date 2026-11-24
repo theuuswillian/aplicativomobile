@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
+import { clearFinancialRecordsForUser } from "./lib/secure-storage";
 import { generateOccurrences, type RecurrenceFrequency } from "./domain/recurrence";
 import { calculateInvestmentSummary, type InvestmentOperation } from "./domain/investments";
 import { parseCsvStatement, parseOfxStatement, planImportBatch, type ImportRow } from "./domain/imports";
@@ -121,6 +122,7 @@ export default function App() {
   const [whatsappLink, setWhatsappLink] = useState<WhatsappLinkState | null>(null);
   const [whatsappLinkCode, setWhatsappLinkCode] = useState("");
   const [whatsappSummaryEnabled, setWhatsappSummaryEnabled] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [incomeAssetId, setIncomeAssetId] = useState("");
   const [incomeEventType, setIncomeEventType] = useState<IncomeEventRow["event_type"]>("dividend");
   const [incomeAmount, setIncomeAmount] = useState("");
@@ -324,6 +326,50 @@ export default function App() {
         if (error) throw error;
         if (!data.session) setNotice("Cadastro recebido. Confirme seu e-mail para entrar.");
       }
+    } catch (error) { setNotice(errorMessage(error)); }
+    finally { setBusy(false); }
+  }
+
+  async function exportPersonalData() {
+    if (!supabase) return;
+    setBusy(true); setNotice("");
+    try {
+      const { data, error } = await supabase.functions.invoke("exportar-dados", { body: { action: "exportar" } });
+      if (error) throw error;
+      if (!data?.data?.tables || data.data.user?.id !== session?.user.id) {
+        throw new Error("A exportação não foi confirmada pelo servidor.");
+      }
+      const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: "application/json;charset=utf-8" });
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = `granaviva-export-${todayInBrazil()}.json`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1_000);
+      setNotice("Exportação dos seus dados preparada.");
+    } catch (error) { setNotice(errorMessage(error)); }
+    finally { setBusy(false); }
+  }
+
+  async function deletePersonalAccount() {
+    if (!supabase || !session || deleteConfirmText !== "EXCLUIR_CONTA") return;
+    const userId = session.user.id;
+    setBusy(true); setNotice("");
+    try {
+      const { error } = await supabase.functions.invoke("excluir-conta", {
+        body: { confirmation: "EXCLUIR_CONTA" },
+      });
+      if (error) throw error;
+      let localDataCleared = true;
+      try { await clearFinancialRecordsForUser(userId); }
+      catch { localDataCleared = false; }
+      await supabase.auth.signOut({ scope: "local" });
+      setDeleteConfirmText("");
+      setNotice(localDataCleared
+        ? "Conta excluída permanentemente."
+        : "Conta excluída no servidor, mas não foi possível limpar o cache financeiro deste dispositivo.");
     } catch (error) { setNotice(errorMessage(error)); }
     finally { setBusy(false); }
   }
@@ -1242,6 +1288,17 @@ export default function App() {
               <div><span className="eyebrow"><span className="live-dot" /> ÁREA PESSOAL</span><h1 id="dashboard-title">Olá{profile?.display_name ? `, ${profile.display_name}` : ""}.</h1><p>Seus dados estão sincronizados com sua conta.</p></div>
               <div className="metric-card"><strong>{alerts.length}</strong><span>alertas no Radar</span><small>{enabledAlerts} ativos</small></div>
             </div>
+            <section className="panel privacy-panel" aria-labelledby="privacy-title">
+              <div className="panel-heading"><div><span className="principles-label">PRIVACIDADE E CONTROLE</span><h2 id="privacy-title">Seus dados e sua conta</h2><p>Exporte uma cópia dos seus dados ou solicite a exclusão permanente da conta e dos comprovantes privados.</p></div></div>
+              <div className="privacy-actions">
+                <button className="primary-button" type="button" onClick={() => void exportPersonalData()} disabled={busy}>Exportar meus dados (JSON)</button>
+                <label>Para excluir, digite EXCLUIR_CONTA
+                  <input value={deleteConfirmText} onChange={(event) => setDeleteConfirmText(event.target.value)} autoComplete="off" spellCheck={false} placeholder="EXCLUIR_CONTA" />
+                </label>
+                <button className="quiet-button danger-button" type="button" onClick={() => void deletePersonalAccount()} disabled={busy || deleteConfirmText !== "EXCLUIR_CONTA"}>Excluir minha conta permanentemente</button>
+              </div>
+              <p className="helper-text">A exclusão exige autenticação recente (últimos 15 minutos), remove comprovantes do Storage e apaga os dados vinculados à conta. Essa ação não pode ser desfeita.</p>
+            </section>
             <section className="panel" aria-labelledby="radar-title">
               <div className="panel-heading"><div><span className="principles-label">ACOMPANHAMENTO DE ATIVOS</span><h2 id="radar-title">Radar de preços</h2><p>Crie alertas para acompanhar seus ativos. O disparo usa somente cotações recentes de uma fonte validada; nenhuma fonte de preços está conectada ainda.</p></div></div>
               <form className="radar-form" onSubmit={(event) => void createAlert(event)}>
