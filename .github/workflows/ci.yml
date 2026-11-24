@@ -66,6 +66,8 @@ jobs:
           supabase/functions/radar-alertas/index.ts
           supabase/functions/radar-worker/index.ts
           supabase/functions/recurrence-worker/index.ts
+          supabase/functions/exportar-dados/index.ts
+          supabase/functions/excluir-conta/index.ts
           supabase/functions/push-inscricoes/index.ts
           supabase/functions/push-worker/index.ts
           supabase/functions/whatsapp-vincular/index.ts
