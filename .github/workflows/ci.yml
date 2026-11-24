@@ -66,6 +66,7 @@ jobs:
           supabase/functions/radar-alertas/index.ts
           supabase/functions/push-inscricoes/index.ts
           supabase/functions/push-worker/index.ts
+          supabase/functions/whatsapp-vincular/index.ts
       - name: Run Edge runtime unit tests
         run: deno test --no-config --allow-env supabase/functions/_shared/edge_test.ts
 
