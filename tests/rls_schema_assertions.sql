@@ -183,6 +183,13 @@ values
  ('20000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','stock','TEST3','above',10),
  ('20000000-0000-4000-8000-000000000002','10000000-0000-4000-8000-000000000002','stock','TEST4','below',5);
 
+insert into public.transactions(
+  id,user_id,kind,status,amount,transaction_date,description,account_id,settled_amount,settled_at,source
+) values
+ ('60000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','expense','paid',10,'2026-01-01','Comprovante fixture A','10000000-0000-4000-8000-000000000001',10,'2026-01-01','manual'),
+ ('60000000-0000-4000-8000-000000000002','10000000-0000-4000-8000-000000000002','expense','paid',20,'2026-01-01','Comprovante fixture B','10000000-0000-4000-8000-000000000002',20,'2026-01-01','manual');
+
+
 set local role authenticated;
 select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000001',true);
 
@@ -193,6 +200,23 @@ begin
   if v_count <> 1 then
     raise exception 'RLS de accounts vazou dados entre usuários: esperado 1, recebido %', v_count;
   end if;
+
+  insert into storage.objects(bucket_id,name)
+  values ('receipt-files','10000000-0000-4000-8000-000000000001/60000000-0000-4000-8000-000000000001/receipt.pdf');
+  select count(*) into v_count from storage.objects where bucket_id='receipt-files';
+  if v_count <> 1 then
+    raise exception 'Storage não permitiu acesso ao comprovante próprio';
+  end if;
+  begin
+    insert into storage.objects(bucket_id,name)
+    values ('receipt-files','10000000-0000-4000-8000-000000000002/60000000-0000-4000-8000-000000000002/receipt.pdf');
+    raise exception 'Storage permitiu inserir comprovante de outro usuário';
+  exception when insufficient_privilege then
+    null;
+  end;
+  delete from storage.objects
+   where bucket_id='receipt-files'
+     and name='10000000-0000-4000-8000-000000000001/60000000-0000-4000-8000-000000000001/receipt.pdf';
 
   begin
     insert into public.accounts(user_id,name,account_type,opening_balance,opening_balance_date)
