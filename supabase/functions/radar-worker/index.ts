@@ -63,6 +63,7 @@ Deno.serve(async (request: Request) => {
       const alertKey = `${alert.id}:${alert.generation}`;
       const { error: fireError } = await db.from("radar_fires").insert({
         user_id: alert.user_id, alert_key: alertKey, observed_price: evaluation.price,
+        source: quote.source, quote_observed_at: quote.observed_at ?? quote.saved_at,
       });
       if (fireError?.code === "23505") { duplicates++; continue; }
       if (fireError) return internalError(origin);
@@ -80,7 +81,7 @@ Deno.serve(async (request: Request) => {
           body: JSON.stringify({
             user_id: alert.user_id, delivery_key: `radar:${alertKey}`,
             title: "Alerta do Radar",
-            body: `${alert.symbol}: condição ${alert.condition_type} atingida. Preço observado: ${evaluation.price}.`,
+            body: `${alert.symbol}: condição ${alert.condition_type} atingida. Preço observado: ${evaluation.price}. Fonte: ${quote.source}; cotação de ${new Date(quote.observed_at ?? quote.saved_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}.`,
             url: "/",
             tag: `radar-${alertKey}`,
           }),
