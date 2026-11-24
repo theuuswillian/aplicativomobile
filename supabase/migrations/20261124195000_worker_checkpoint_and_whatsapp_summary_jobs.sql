@@ -317,4 +317,113 @@ grant execute on function public.whatsapp_summary_job_skip(uuid,date) to service
 grant execute on function public.whatsapp_summary_job_claim(uuid,date,integer) to service_role;
 grant execute on function public.whatsapp_summary_job_finalize(uuid,date,uuid,text,text) to service_role;
 
+-- Entrega push por assinatura: retry somente para rejeições seguras (HTTP 429).
+create table public.push_delivery_attempts (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  delivery_key text not null check (length(delivery_key) between 1 and 200),
+  subscription_id uuid not null,
+  status text not null default 'processing'
+    check (status in ('processing','sent','failed_safe','uncertain','removed')),
+  lease_token uuid,
+  lease_until timestamptz,
+  attempts smallint not null default 1 check (attempts between 1 and 8),
+  last_error text check (last_error is null or length(last_error) <= 1000),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (user_id, delivery_key, subscription_id),
+  check ((status = 'processing' and lease_token is not null and lease_until is not null)
+      or (status <> 'processing' and lease_token is null and lease_until is null))
+);
+alter table public.push_delivery_attempts enable row level security;
+revoke all on public.push_delivery_attempts from public, anon, authenticated;
+grant all on public.push_delivery_attempts to service_role;
+create index push_delivery_attempts_recovery_idx
+  on public.push_delivery_attempts(status, lease_until, updated_at)
+  where status in ('processing','failed_safe');
+create trigger push_delivery_attempts_set_updated_at
+before update on public.push_delivery_attempts
+for each row execute function public.set_updated_at();
+
+create or replace function public.push_delivery_reserve(
+  p_user_id uuid, p_delivery_key text, p_subscription_id uuid, p_lease_seconds integer default 60
+) returns table (reservation_status text, fencing_token uuid, attempt_number integer)
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  v_row public.push_delivery_attempts%rowtype;
+  v_token uuid := gen_random_uuid();
+begin
+  if p_user_id is null or p_subscription_id is null
+     or coalesce(length(p_delivery_key),0) not between 1 and 200
+     or p_lease_seconds is null or p_lease_seconds < 30 or p_lease_seconds > 120 then
+    raise exception 'Parâmetros inválidos para reservar push';
+  end if;
+  insert into public.push_delivery_attempts(user_id,delivery_key,subscription_id,status,lease_token,lease_until,attempts)
+  values (p_user_id,p_delivery_key,p_subscription_id,'processing',v_token,
+          now()+make_interval(secs=>p_lease_seconds),1)
+  on conflict (user_id,delivery_key,subscription_id) do nothing;
+  if found then
+    return query select 'reserved'::text,v_token,1;
+    return;
+  end if;
+  select * into v_row from public.push_delivery_attempts
+   where user_id=p_user_id and delivery_key=p_delivery_key and subscription_id=p_subscription_id for update;
+  if v_row.status in ('sent','removed','uncertain') then
+    return query select v_row.status,null::uuid,v_row.attempts::integer;
+    return;
+  end if;
+  if v_row.status='processing' and v_row.lease_until > now() then
+    return query select 'busy'::text,null::uuid,v_row.attempts::integer;
+    return;
+  end if;
+  if v_row.status='processing' and v_row.lease_until <= now() then
+    update public.push_delivery_attempts set status='uncertain',lease_token=null,lease_until=null,
+      last_error='Lease expirou sem confirmação do provedor'
+     where user_id=p_user_id and delivery_key=p_delivery_key and subscription_id=p_subscription_id;
+    return query select 'uncertain'::text,null::uuid,v_row.attempts::integer;
+    return;
+  end if;
+  if v_row.status='failed_safe' and v_row.attempts >= 8 then
+    update public.push_delivery_attempts set status='uncertain',last_error='Limite de tentativas seguras atingido'
+     where user_id=p_user_id and delivery_key=p_delivery_key and subscription_id=p_subscription_id;
+    return query select 'uncertain'::text,null::uuid,v_row.attempts::integer;
+    return;
+  end if;
+  update public.push_delivery_attempts set status='processing',lease_token=v_token,
+    lease_until=now()+make_interval(secs=>p_lease_seconds),attempts=attempts+1,last_error=null,updated_at=now()
+   where user_id=p_user_id and delivery_key=p_delivery_key and subscription_id=p_subscription_id
+   returning * into v_row;
+  return query select 'reserved'::text,v_token,v_row.attempts::integer;
+end;
+$$;
+
+create or replace function public.push_delivery_finalize(
+  p_user_id uuid, p_delivery_key text, p_subscription_id uuid,
+  p_fencing_token uuid, p_status text, p_error text default null
+) returns boolean
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+begin
+  if p_user_id is null or p_subscription_id is null or p_fencing_token is null
+     or coalesce(length(p_delivery_key),0) not between 1 and 200
+     or p_status is null or p_status not in ('sent','failed_safe','uncertain','removed') then
+    raise exception 'Parâmetros inválidos para finalizar push';
+  end if;
+  update public.push_delivery_attempts set status=p_status,lease_token=null,lease_until=null,
+    last_error=case when p_status in ('sent','removed') then null else left(coalesce(p_error,'falha sem detalhe'),1000) end,
+    updated_at=now()
+   where user_id=p_user_id and delivery_key=p_delivery_key and subscription_id=p_subscription_id
+     and status='processing' and lease_token=p_fencing_token;
+  return found;
+end;
+$$;
+revoke all on function public.push_delivery_reserve(uuid,text,uuid,integer) from public,anon,authenticated;
+revoke all on function public.push_delivery_finalize(uuid,text,uuid,uuid,text,text) from public,anon,authenticated;
+grant execute on function public.push_delivery_reserve(uuid,text,uuid,integer) to service_role;
+grant execute on function public.push_delivery_finalize(uuid,text,uuid,uuid,text,text) to service_role;
+
 commit;
