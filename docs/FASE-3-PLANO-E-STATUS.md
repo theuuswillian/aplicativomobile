@@ -87,7 +87,20 @@ A leitura do comprovante é atualmente efêmera: o arquivo é enviado para extra
 
 ## Validação pendente
 
-Os jobs `edge-runtime` e `edge-integration` foram adicionados ao GitHub Actions. A execução `45161146983` (SHA `bf438047...`) detectou falhas de lint e dois testes Deno; as causas foram corrigidas depois desse SHA (tipagem Supabase sem `any`, limpeza de controles, base64 sem regex de backtracking, permissão de ambiente nos testes e contagem de frases sem confundir separadores de milhar). A execução não valida os commits posteriores. A execução dos jobs para o HEAD atual ainda não foi confirmada. O status Vercel retornado pelo GitHub é um limite de builds da conta e não comprova falha ou sucesso do código. Não marcar a validação Deno como aprovada até obter o resultado do job.
+O CI mais recente do HEAD documentado abaixo está em execução. Não considerar a integração local aprovada até o job `edge-integration` terminar com sucesso.
+
+- HEAD da branch: `2099b45960f9876c9ca5a607ff3e8671477d4fd5`.
+- Execução atual: [GitHub Actions #45299072347](https://github.com/theuuswillian/aplicativomobile/actions/runs/45299072347).
+- `edge-runtime`: sucesso.
+- `validate`: lint, verificações de política/segredos, scripts e typecheck passaram; testes e2e ainda em execução na última consulta.
+- `sql`: em execução na última consulta.
+- `edge-integration`: em execução na última consulta.
+- Execuções anteriores `45291245923` e `45291255742` falharam em `edge-integration`; os logs completos retornaram indisponíveis no endpoint de download. Não foi inferida uma causa.
+- Para tornar o próximo diagnóstico conclusivo, os testes agora exibem status HTTP e corpo da resposta quando a consulta autenticada do perfil ou a validação CORS falhar.
+
+As correções anteriores de lint, testes Deno, base64, contagem de frases e readiness permanecem na branch. O job Deno já passou na execução atual. A execução atual ainda precisa confirmar integração Auth/Edge Functions/RLS e os testes completos do frontend.
+
+O status do Vercel pode refletir limites de builds da conta; não substitui os testes do GitHub Actions nem comprova falha ou sucesso do backend.
 
 ## Limites atuais
 
