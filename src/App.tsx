@@ -1075,10 +1075,10 @@ export default function App() {
       });
       if (receiptError) throw receiptError;
 
+      await refreshBudgetSpend();
       setTransactions((current) => [data as TransactionRow, ...current].slice(0, 30));
       setReceiptDraft(null); setReceiptFile(null); setReceiptConsent(false);
       setNotice("Lançamento confirmado e comprovante armazenado com acesso privado.");
-      await refreshBudgetSpend();
     } catch (error) {
       let cleanupFailed = false;
       if (storagePath) {
