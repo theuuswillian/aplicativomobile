@@ -316,7 +316,7 @@ export default function App() {
     if (!recurrenceName.trim() || recurrenceName.trim().length > 100 || !amount || !recurrenceStart ||
         (recurrenceEnd && recurrenceEnd < recurrenceStart) ||
         (recurrenceFrequency === "interval" && (!Number.isInteger(interval) || interval < 1 || interval > 366)) ||
-        ((recurrenceFrequency === "weekly" || recurrenceFrequency === "biweekly") && (!Number.isInteger(weekday) || weekday < 0 || weekday > 6)) ||
+        (recurrenceFrequency === "weekly" && (!Number.isInteger(weekday) || weekday < 0 || weekday > 6)) ||
         ((recurrenceFrequency === "monthly" || recurrenceFrequency === "yearly") && (!Number.isInteger(monthDay) || monthDay < 1 || monthDay > 31)) ||
         (recurrenceFrequency === "yearly" && (!Number.isInteger(month) || month < 1 || month > 12)) ||
         (recurrenceCardId && recurrenceKind !== "expense")) {
@@ -328,7 +328,7 @@ export default function App() {
     const nextDate = generateOccurrences({
       id: "recurrence-preview", frequency: recurrenceFrequency, startsOn: recurrenceStart,
       endsOn: recurrenceEnd || null, intervalCount: recurrenceFrequency === "interval" ? interval : 1,
-      weekday: recurrenceFrequency === "weekly" || recurrenceFrequency === "biweekly" ? weekday : undefined,
+      weekday: recurrenceFrequency === "weekly" ? weekday : undefined,
       monthDay: recurrenceFrequency === "monthly" || recurrenceFrequency === "yearly" ? monthDay : undefined,
       monthOfYear: recurrenceFrequency === "yearly" ? month : undefined,
     }, todayInBrazil(), horizon.toISOString().slice(0, 10))[0];
@@ -341,7 +341,7 @@ export default function App() {
       const { data, error } = await supabase.from("recurrence_rules").insert({
         user_id: session.user.id, name: recurrenceName.trim(), kind: recurrenceKind, amount,
         frequency: recurrenceFrequency, interval_count: recurrenceFrequency === "interval" ? interval : 1,
-        weekday: recurrenceFrequency === "weekly" || recurrenceFrequency === "biweekly" ? weekday : null,
+        weekday: recurrenceFrequency === "weekly" ? weekday : null,
         month_day: recurrenceFrequency === "monthly" || recurrenceFrequency === "yearly" ? monthDay : null,
         month_of_year: recurrenceFrequency === "yearly" ? month : null,
         starts_on: recurrenceStart, ends_on: recurrenceEnd || null, next_occurrence_on: nextDate,
@@ -679,7 +679,7 @@ export default function App() {
                   <label>Valor (R$)<input inputMode="decimal" value={recurrenceAmount} onChange={(event) => setRecurrenceAmount(event.target.value)} placeholder="0,00" required /></label>
                   <label>Frequência<select value={recurrenceFrequency} onChange={(event) => setRecurrenceFrequency(event.target.value as RecurrenceRow["frequency"])}><option value="daily">Diária</option><option value="weekly">Semanal</option><option value="biweekly">Quinzenal</option><option value="monthly">Mensal</option><option value="yearly">Anual</option><option value="interval">A cada intervalo de dias</option></select></label>
                   {recurrenceFrequency === "interval" && <label>Intervalo em dias<input type="number" min="1" max="366" value={recurrenceInterval} onChange={(event) => setRecurrenceInterval(event.target.value)} required /></label>}
-                  {(recurrenceFrequency === "weekly" || recurrenceFrequency === "biweekly") && <label>Dia da semana<select value={recurrenceWeekday} onChange={(event) => setRecurrenceWeekday(event.target.value)}>{["Domingo","Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado"].map((day,index) => <option key={day} value={index}>{day}</option>)}</select></label>}
+                  {recurrenceFrequency === "weekly" && <label>Dia da semana<select value={recurrenceWeekday} onChange={(event) => setRecurrenceWeekday(event.target.value)}>{["Domingo","Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado"].map((day,index) => <option key={day} value={index}>{day}</option>)}</select></label>}
                   {(recurrenceFrequency === "monthly" || recurrenceFrequency === "yearly") && <label>Dia do mês<input type="number" min="1" max="31" value={recurrenceMonthDay} onChange={(event) => setRecurrenceMonthDay(event.target.value)} required /></label>}
                   {recurrenceFrequency === "yearly" && <label>Mês<select value={recurrenceMonth} onChange={(event) => setRecurrenceMonth(event.target.value)}>{["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"].map((month,index) => <option key={month} value={index+1}>{month}</option>)}</select></label>}
                   <label>Começa em<input type="date" value={recurrenceStart} onChange={(event) => setRecurrenceStart(event.target.value)} required /></label>
