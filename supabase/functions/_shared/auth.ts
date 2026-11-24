@@ -104,6 +104,12 @@ export type Database = {
         };
         Relationships: [];
       };
+      push_subscriptions: {
+        Row: { id: string; user_id: string; endpoint: string; p256dh: string; auth_key: string; user_agent: string | null; created_at: string; updated_at: string };
+        Insert: { id?: string; user_id: string; endpoint: string; p256dh: string; auth_key: string; user_agent?: string | null; created_at?: string; updated_at?: string };
+        Update: { endpoint?: string; p256dh?: string; auth_key?: string; user_agent?: string | null; updated_at?: string };
+        Relationships: [];
+      };
       radar_alerts: {
         Row: {
           id: string; user_id: string; asset_class: "stock" | "fii" | "etf" | "bdr" | "crypto";
