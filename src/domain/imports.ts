@@ -113,16 +113,21 @@ export function parseCsvStatement(content: string): ParsedStatementRow[] {
     const amount = parsedAmount ?? (credit && !debit ? credit : debit && !credit ? debit : null);
     if (!date || !description || !amount) throw new TypeError(`Linha CSV ${result.length + 2} inválida: confira data, descrição e valor.`);
     const explicitType = normalizeHeader(record[typeIndex] ?? "");
-    const kind = explicitType.includes("receita") || explicitType === "income" || explicitType === "credit" || (credit !== null && debit === null) || (amountIndex >= 0 && !parsedAmount?.negative && /^\s*\+/.test(rawAmount))
-      ? "income" : explicitType.includes("despesa") || explicitType === "expense" || explicitType === "debit" || (parsedAmount?.negative ?? false) || debit !== null ? "expense" : "income";
+    const kind = explicitType.includes("receita") || explicitType === "entrada" || explicitType === "income" || explicitType === "credit" || (credit !== null && debit === null) || (amountIndex >= 0 && !parsedAmount?.negative && /^\s*\+/.test(rawAmount))
+      ? "income" : explicitType.includes("despesa") || explicitType === "saida" || explicitType === "expense" || explicitType === "debit" || (parsedAmount?.negative ?? false) || debit !== null ? "expense" : "income";
     result.push({ sourceId: (record[idIndex] ?? "").trim() || null, date, amountCents: amount.amountCents, kind, description });
   }
   return result;
 }
 
+function decodeOfxText(value: string): string {
+  return value.replace(/&amp;/gi, "&").replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">").replace(/&quot;/gi, '"').replace(/&apos;/gi, "'");
+}
+
 function ofxValue(block: string, tag: string): string {
   const match = new RegExp("<" + tag + ">([^<\\r\\n]*)", "i").exec(block);
-  return match?.[1]?.trim() ?? "";
+  return decodeOfxText(match?.[1]?.trim() ?? "");
 }
 
 export function parseOfxStatement(content: string): ParsedStatementRow[] {
@@ -188,7 +193,7 @@ export function importDedupeKey(row: ImportRow): string {
     if (source.length > 160) throw new TypeError("Referência externa muito longa para deduplicação.");
     return `${destination}:source:${source.toLocaleLowerCase("en-US")}`;
   }
-  return `${destination}:row:${row.date}:${row.amountCents}:${stableHash(normalizeDescription(row.description))}`;
+  return `${destination}:row:${row.kind}:${row.date}:${row.amountCents}:${stableHash(normalizeDescription(row.description))}`;
 }
 
 export function planImportBatch(rows: readonly ImportRow[], existingKeys: ReadonlySet<string>): ImportDecision[] {
