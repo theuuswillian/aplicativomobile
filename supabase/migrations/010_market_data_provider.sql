@@ -33,11 +33,13 @@ declare
   v_count integer;
 begin
   if p_provider is distinct from 'brapi'
-     or p_symbol is null or p_symbol !~ '^[A-Z0-9.]{1,32}
+     or p_symbol is null
+     or p_symbol !~ '^[A-Z0-9.]{1,32}$'
+     or p_limit is null or p_limit < 1 or p_limit > 15000 then
     raise exception 'Parâmetros inválidos para reserva de cotações';
   end if;
 
-  insert into public.market_data_usage(provider, period_start, request_count)
+  insert into public.market_data_usage(provider, period_start, request_count, last_symbol)
   values (p_provider, v_period_start, 1, p_symbol)
   on conflict (provider, period_start) do update
     set request_count = public.market_data_usage.request_count + 1,
@@ -51,27 +53,6 @@ end;
 $$;
 
 revoke all on function public.market_data_reserve(text, text, integer) from public, anon, authenticated;
-grant execute on function public.market_data_reserve(text, integer) to service_role;
-
-commit;
-
-     or p_limit is null or p_limit < 1 or p_limit > 15000 then
-    raise exception 'Parâmetros inválidos para reserva de cotações';
-  end if;
-
-  insert into public.market_data_usage(provider, period_start, request_count)
-  values (p_provider, v_period_start, 1)
-  on conflict (provider, period_start) do update
-    set request_count = public.market_data_usage.request_count + 1,
-        updated_at = now()
-    where public.market_data_usage.request_count < p_limit
-  returning request_count into v_count;
-
-  return found;
-end;
-$$;
-
-revoke all on function public.market_data_reserve(text, integer) from public, anon, authenticated;
-grant execute on function public.market_data_reserve(text, integer) to service_role;
+grant execute on function public.market_data_reserve(text, text, integer) to service_role;
 
 commit;
