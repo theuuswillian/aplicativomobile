@@ -19,6 +19,8 @@ type AccountRow = { id: string; name: string; account_type: string; opening_bala
 type CardRow = { id: string; name: string; institution_name: string; last_four: string; brand: string | null; credit_limit: string; closing_day: number; due_day: number; is_archived: boolean };
 type CategoryRow = { id: string; name: string; kind: "income" | "expense"; color: string | null; icon: string | null };
 type RecurrenceRow = { id: string; name: string; kind: "income" | "expense"; amount: string; frequency: RecurrenceFrequency; interval_count: number; weekday: number | null; month_day: number | null; month_of_year: number | null; starts_on: string; ends_on: string | null; next_occurrence_on: string; account_id: string | null; card_id: string | null; is_active: boolean };
+type BudgetRow = { id: string; category_id: string; year: number; month: number; limit_amount: string };
+type BudgetSpendRow = { category_id: string | null; settled_amount: string };
 type TransactionRow = { id: string; kind: "income" | "expense" | "transfer"; status: "paid" | "planned" | "cancelled"; amount: string; transaction_date: string; description: string; account_id: string | null };
 type ReceiptDraft = { sufficient: boolean; kind: "income" | "expense" | null; amount: string | null; date: string | null; description: string | null; category: string | null; payment_method: string | null; installment_count: number | null; card_last_four: string | null; confidence: number; warnings: string[] };
 const THEME_STORAGE_KEY = "granaviva:theme:v1";
@@ -37,6 +39,15 @@ function todayInBrazil(): string {
   const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
   const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return `${values.year}-${values.month}-${values.day}`;
+}
+
+function decimalToCents(value: string | number): bigint {
+  const [whole, fraction = ""] = String(value).split(".");
+  return BigInt(whole) * 100n + BigInt((fraction + "00").slice(0, 2));
+}
+
+function formatCents(value: bigint): string {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value) / 100);
 }
 
 function normalizeBrlAmount(value: string, allowZero = false, allowNegative = false): string | null {
@@ -71,6 +82,8 @@ export default function App() {
   const [cards, setCards] = useState<CardRow[]>([]);
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [recurrences, setRecurrences] = useState<RecurrenceRow[]>([]);
+  const [budgets, setBudgets] = useState<BudgetRow[]>([]);
+  const [budgetSpend, setBudgetSpend] = useState<BudgetSpendRow[]>([]);
   const [transactions, setTransactions] = useState<TransactionRow[]>([]);
   const [cardName, setCardName] = useState("");
   const [cardInstitution, setCardInstitution] = useState("");
@@ -79,6 +92,8 @@ export default function App() {
   const [cardClosingDay, setCardClosingDay] = useState("10");
   const [cardDueDay, setCardDueDay] = useState("17");
   const [categoryName, setCategoryName] = useState("");
+  const [budgetCategoryId, setBudgetCategoryId] = useState("");
+  const [budgetLimit, setBudgetLimit] = useState("");
   const [categoryKind, setCategoryKind] = useState<"income" | "expense">("expense");
   const [txCategoryId, setTxCategoryId] = useState("");
   const [txCardId, setTxCardId] = useState("");
@@ -95,6 +110,10 @@ export default function App() {
   const [recurrenceCategoryId, setRecurrenceCategoryId] = useState("");
   const [recurrenceAccountId, setRecurrenceAccountId] = useState("");
   const [recurrenceCardId, setRecurrenceCardId] = useState("");
+  const currentBudgetDate = todayInBrazil();
+  const [currentBudgetYear, currentBudgetMonth] = currentBudgetDate.split("-").map(Number);
+  const currentBudgetMonthStart = `${currentBudgetYear}-${String(currentBudgetMonth).padStart(2, "0")}-01`;
+  const nextBudgetMonthStart = new Date(Date.UTC(currentBudgetYear, currentBudgetMonth, 1)).toISOString().slice(0, 10);
   const [accountName, setAccountName] = useState("");
   const [accountType, setAccountType] = useState("checking");
   const [openingBalance, setOpeningBalance] = useState("0,00");
@@ -131,7 +150,7 @@ export default function App() {
       setSession(nextSession);
       setNotice("");
       if (!nextSession || event === "SIGNED_IN") {
-        setProfile(null); setAlerts([]); setAccounts([]); setCards([]); setCategories([]); setRecurrences([]); setTransactions([]); setTxCategoryId(""); setRecurrenceCategoryId(""); setRecurrenceAccountId(""); setRecurrenceCardId(""); setRecurrenceName(""); setRecurrenceAmount(""); setRecurrenceEnd(""); setRecurrenceStart(todayInBrazil());
+        setProfile(null); setAlerts([]); setAccounts([]); setCards([]); setCategories([]); setRecurrences([]); setBudgets([]); setBudgetSpend([]); setTransactions([]); setTxCategoryId(""); setBudgetCategoryId(""); setBudgetLimit(""); setRecurrenceCategoryId(""); setRecurrenceAccountId(""); setRecurrenceCardId(""); setRecurrenceName(""); setRecurrenceAmount(""); setRecurrenceEnd(""); setRecurrenceStart(todayInBrazil());
         setTxAccountId(""); setTxCardId(""); setReceiptAccountId(""); setEditingTransactionId(null);
         setAssistantAnswer(""); setAssistantQuestion(""); setAssistantConsent(false);
         setReceiptDraft(null); setReceiptFile(null); setReceiptConsent(false);
@@ -146,7 +165,7 @@ export default function App() {
     let active = true;
     const load = async () => {
       try {
-        const [account, preferences, radar, accountRows, transactionRows, cardRows, categoryRows, recurrenceRows] = await Promise.all([
+        const [account, preferences, radar, accountRows, transactionRows, cardRows, categoryRows, recurrenceRows, budgetRows, budgetSpendRows] = await Promise.all([
           client.functions.invoke("minha-conta", { body: { action: "consultar" } }),
           client.functions.invoke("minhas-preferencias", { body: { action: "consultar" } }),
           client.functions.invoke("radar-alertas", { body: { action: "consultar" } }),
@@ -155,6 +174,8 @@ export default function App() {
           client.from("cards").select("id,name,institution_name,last_four,brand,credit_limit,closing_day,due_day,is_archived").eq("user_id", session.user.id).eq("is_archived", false).order("created_at", { ascending: true }),
           client.from("categories").select("id,name,kind,color,icon").eq("user_id", session.user.id).order("kind", { ascending: true }).order("name", { ascending: true }),
           client.from("recurrence_rules").select("id,name,kind,amount,frequency,interval_count,weekday,month_day,month_of_year,starts_on,ends_on,next_occurrence_on,account_id,card_id,is_active").eq("user_id", session.user.id).order("next_occurrence_on", { ascending: true }),
+          client.from("budgets").select("id,category_id,year,month,limit_amount").eq("user_id", session.user.id).eq("year", currentBudgetYear).eq("month", currentBudgetMonth).order("created_at", { ascending: true }),
+          client.from("transactions").select("category_id,settled_amount").eq("user_id", session.user.id).eq("kind", "expense").eq("status", "paid").gte("transaction_date", currentBudgetMonthStart).lt("transaction_date", nextBudgetMonthStart).limit(10000),
         ]);
         if (account.error) throw account.error;
         if (preferences.error) throw preferences.error;
@@ -164,6 +185,8 @@ export default function App() {
         if (cardRows.error) throw cardRows.error;
         if (categoryRows.error) throw categoryRows.error;
         if (recurrenceRows.error) throw recurrenceRows.error;
+        if (budgetRows.error) throw budgetRows.error;
+        if (budgetSpendRows.error) throw budgetSpendRows.error;
         if (!active) return;
         setProfile(account.data?.data?.profile ?? null);
         const serverTheme = preferences.data?.data?.theme;
@@ -173,6 +196,8 @@ export default function App() {
         setCards((cardRows.data ?? []) as CardRow[]);
         setCategories((categoryRows.data ?? []) as CategoryRow[]);
         setRecurrences((recurrenceRows.data ?? []) as RecurrenceRow[]);
+        setBudgets((budgetRows.data ?? []) as BudgetRow[]);
+        setBudgetSpend((budgetSpendRows.data ?? []) as BudgetSpendRow[]);
         setTransactions((transactionRows.data ?? []) as TransactionRow[]);
         if (accountRows.data?.[0]?.id) setTxAccountId((current) => current || accountRows.data[0].id);
         if (accountRows.data?.[0]?.id) setReceiptAccountId((current) => current || accountRows.data[0].id);
@@ -301,6 +326,31 @@ export default function App() {
       setCategories((current) => [...current, data as CategoryRow].sort((a,b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name, "pt-BR")));
       setCategoryName("");
       setNotice("Categoria criada.");
+    } catch (error) { setNotice(errorMessage(error)); }
+    finally { setBusy(false); }
+  }
+
+  async function saveBudget(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase || !session) return;
+    const limit = normalizeBrlAmount(budgetLimit);
+    const category = categories.find((item) => item.id === budgetCategoryId && item.kind === "expense");
+    if (!category || !limit) {
+      setNotice("Selecione uma categoria de despesa e informe um limite mensal válido.");
+      return;
+    }
+    setBusy(true); setNotice("");
+    try {
+      const { data, error } = await supabase.from("budgets").upsert({
+        user_id: session.user.id, category_id: category.id,
+        year: currentBudgetYear, month: currentBudgetMonth, limit_amount: limit,
+      }, { onConflict: "user_id,category_id,year,month" })
+        .select("id,category_id,year,month,limit_amount").single();
+      if (error) throw error;
+      setBudgets((current) => [...current.filter((item) => item.category_id !== category.id), data as BudgetRow]
+        .sort((a,b) => a.category_id.localeCompare(b.category_id)));
+      setBudgetLimit("");
+      setNotice("Limite mensal salvo. O acompanhamento considera apenas despesas realizadas.");
     } catch (error) { setNotice(errorMessage(error)); }
     finally { setBusy(false); }
   }
@@ -671,6 +721,23 @@ export default function App() {
                   <button className="primary-button" type="submit" disabled={busy}>Criar categoria</button>
                 </form>
                 {categories.length === 0 ? <p className="empty-state">Crie categorias para organizar seus lançamentos.</p> : <ul className="category-list">{categories.map((category) => <li key={category.id}><span>{category.kind === "income" ? "Receita" : "Despesa"}</span><strong>{category.name}</strong></li>)}</ul>}
+              </section>
+              <section className="subpanel" aria-labelledby="budgets-title">
+                <div className="transaction-heading"><strong id="budgets-title">Orçamentos do mês</strong><span>{new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(new Date(`${currentBudgetMonthStart}T12:00:00`))}</span></div>
+                <form className="finance-form" onSubmit={(event) => void saveBudget(event)}>
+                  <label>Categoria<select value={budgetCategoryId} onChange={(event) => setBudgetCategoryId(event.target.value)} required><option value="">Selecione uma despesa</option>{categories.filter((category) => category.kind === "expense").map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
+                  <label>Limite mensal (R$)<input inputMode="decimal" value={budgetLimit} onChange={(event) => setBudgetLimit(event.target.value)} placeholder="0,00" required /></label>
+                  <button className="primary-button" type="submit" disabled={busy || categories.every((category) => category.kind !== "expense")}>Definir ou atualizar limite</button>
+                </form>
+                {budgets.length === 0 ? <p className="empty-state">Defina limites para acompanhar os gastos por categoria neste mês.</p> : <ul className="account-list">{budgets.map((budget) => {
+                  const category = categories.find((item) => item.id === budget.category_id);
+                  const spent = budgetSpend.filter((item) => item.category_id === budget.category_id).reduce((total, item) => total + decimalToCents(item.settled_amount), 0n);
+                  const limit = decimalToCents(budget.limit_amount);
+                  const percent = limit > 0n ? Number((spent * 100n) / limit) : 0;
+                  const exceeded = spent > limit;
+                  return <li key={budget.id}><strong>{category?.name ?? "Categoria"}</strong><span>{formatCents(spent)} de {formatCents(limit)}</span><progress className="budget-progress" max={100} value={Math.min(100, percent)} aria-label={`Uso do orçamento de ${category?.name ?? "categoria"}`} /><small>{percent}% utilizado{exceeded ? " · Limite ultrapassado" : " · Dentro do limite"}</small></li>;
+                })}</ul>}
+                <p className="helper-text">O gasto considera somente lançamentos de despesa com situação realizada e valor efetivamente liquidado no mês atual. Despesas previstas não entram no cálculo.</p>
               </section>
               <section className="subpanel" aria-labelledby="recurrences-title">
                 <div className="transaction-heading"><strong id="recurrences-title">Recorrências</strong><span>{recurrences.filter((rule) => rule.is_active).length} ativas</span></div>
