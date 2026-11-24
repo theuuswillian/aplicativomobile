@@ -30,7 +30,7 @@
   background: var(--color-surface-raised);
 }
 .theme-toggle:focus-visible {
-  outline: 2px solid var(--gv-accent);
+  outline: 2px solid var(--color-accent);
   outline-offset: 3px;
 }
 .dashboard { gap: 16px; padding-top: 14px; }
@@ -89,7 +89,7 @@
   background: linear-gradient(110deg, var(--color-surface), var(--color-surface-raised));
   transition: border-color .18s ease, transform .18s ease;
 }
-.overview-action:active { transform: scale(.985); border-color: var(--gv-accent); }
+.overview-action:active { transform: scale(.985); border-color: var(--color-accent); }
 .panel {
   padding: 19px; border-radius: 21px;
   background: linear-gradient(160deg, var(--color-surface), color-mix(in srgb, var(--color-surface-raised) 28%, var(--color-surface)));
@@ -214,8 +214,9 @@
 }
 .section-jump a:focus-visible { outline: 2px solid var(--gv-accent); outline-offset: 3px; }
 #gastos-contas, #gastos-cartoes, #gastos-categorias, #gastos-orcamentos,
-#gastos-recorrencias, #gastos-lancamentos, #gastos-importacao,
-#gastos-investimentos, #gastos-metas, #gastos-integracoes { scroll-margin-top: 22px; }
+#gastos-recorrencias, #gastos-lancamentos, #gastos-importacao, #gastos-integracoes,
+#patrimonio-radar, #patrimonio-investimentos, #patrimonio-proventos, #patrimonio-metas,
+#conta, #conta-assistente, #conta-comprovante, #conta-proximos-passos { scroll-margin-top: 22px; }
 @media (max-width: 520px) {
   .section-jump { gap: 6px; margin-bottom: 14px; }
   .section-jump a { min-height: 32px; padding: 6px 9px; font-size: 11px; }
