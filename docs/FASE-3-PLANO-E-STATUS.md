@@ -200,6 +200,15 @@ A fonte de cotações está detalhada no aditivo aprovado abaixo. A ativação p
 - Nenhuma migration foi aplicada no Supabase remoto, nenhum secret foi configurado e nenhum deploy foi realizado.
 
 
+### Decisão aprovada — caminho de cotações sem custo adicional
+
+- Manter o adaptador Brapi e o worker já implementados, mas sem ativar feed público: a flag de licença continua ausente/desligada.
+- Não contratar B3/UP2DATA nem plano pago de dados nesta etapa; nenhuma despesa foi autorizada.
+- Não usar widgets TradingView como fonte do Radar ou para atualizar preços de carteira. Eventual uso visual deverá ser avaliado separadamente quanto aos termos.
+- Implementar como próximo passo um campo de preço de referência manual por ativo, com origem “informado pelo usuário” e data/hora explícitas. Essa funcionalidade ainda não está concluída no frontend; hoje a tela apenas exibe preço recebido pelo feed e informa indisponibilidade quando não há cotação.
+- O preço manual não deve alimentar o Radar automático nem alterar operações, custo médio, saldos ou patrimônio realizado. A UI deve diferenciá-lo visualmente de uma cotação de mercado.
+- Manter ações/FIIs/ETFs/BDRs preparados para fonte licenciada no futuro; cripto e renda fixa continuam sem feed automático.
+
 ### Secrets e variáveis adicionais — cotação B3
 
 Somente depois de obter confirmação escrita da brapi.dev para exibição limitada no GranaViva:
