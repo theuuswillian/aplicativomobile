@@ -48,6 +48,8 @@ begin
     raise exception 'Parâmetros inválidos para reserva de cotações';
   end if;
 
+  perform pg_advisory_xact_lock(hashtext(p_provider)::bigint);
+
   select coalesce(sum(request_count), 0) into v_used
     from public.market_data_usage
    where provider = p_provider
