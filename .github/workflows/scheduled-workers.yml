@@ -22,7 +22,7 @@ jobs:
   run-workers:
     if: ${{ vars.WORKERS_ENABLED == 'true' || inputs.run_workers == true }}
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -58,7 +58,6 @@ jobs:
         run: |
           set -euo pipefail
           curl --fail-with-body --silent --show-error --max-time 45 \
-            --retry 2 --retry-delay 3 --retry-all-errors \
             -X POST "$SUPABASE_URL/functions/v1/recurrence-worker" \
             -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
             -H "x-recurrence-worker-secret: $RECURRENCE_WORKER_SECRET" \
@@ -71,31 +70,39 @@ jobs:
         run: |
           set -euo pipefail
           curl --fail-with-body --silent --show-error --max-time 45 \
-            --retry 1 --retry-delay 3 --retry-all-errors \
             -X POST "$SUPABASE_URL/functions/v1/quote-feed-worker" \
             -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
             -H "x-quote-worker-secret: $QUOTE_WORKER_SECRET" \
             -H "Content-Type: application/json" \
             --data '{}'
 
-      - name: Evaluate Radar alerts from fresh quote cache
+      - name: Evaluate Radar alerts in bounded pages
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail-with-body --silent --show-error --max-time 45 \
-            --retry 2 --retry-delay 3 --retry-all-errors \
-            -X POST "$SUPABASE_URL/functions/v1/radar-worker" \
-            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-            -H "x-radar-worker-secret: $RADAR_WORKER_SECRET" \
-            -H "Content-Type: application/json" \
-            --data '{}'
+          # Each invocation evaluates one 20-alert page. Continue a bounded
+          # number of pages so the 15-minute schedule drains normal backlogs
+          # without allowing one workflow run to monopolize the runner.
+          for page in 1 2 3; do
+            response="$(curl --fail-with-body --silent --show-error --max-time 130 \
+              -X POST "$SUPABASE_URL/functions/v1/radar-worker" \
+              -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+              -H "x-radar-worker-secret: $RADAR_WORKER_SECRET" \
+              -H "Content-Type: application/json" \
+              --data '{}')"
+            printf '%s\n' "$response"
+            busy="$(jq -r '.data.busy // false' <<<"$response")"
+            has_more="$(jq -r '.data.has_more // false' <<<"$response")"
+            if [[ "$busy" == "true" || "$has_more" != "true" ]]; then
+              break
+            fi
+          done
 
       - name: Process WhatsApp inbox with explicit confirmation
         shell: bash
         run: |
           set -euo pipefail
           curl --fail-with-body --silent --show-error --max-time 45 \
-            --retry 1 --retry-delay 3 --retry-all-errors \
             -X POST "$SUPABASE_URL/functions/v1/whatsapp-worker" \
             -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
             -H "x-whatsapp-worker-secret: $WHATSAPP_WORKER_SECRET" \
