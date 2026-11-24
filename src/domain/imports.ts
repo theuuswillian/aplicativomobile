@@ -161,6 +161,15 @@ export interface ImportedItem {
   transactionId?: string | null;
 }
 
+function stableHash(value: string): string {
+  let hash = 14695981039346656037n;
+  for (const byte of new TextEncoder().encode(value)) {
+    hash ^= BigInt(byte);
+    hash = BigInt.asUintN(64, hash * 1099511628211n);
+  }
+  return hash.toString(16).padStart(16, "0");
+}
+
 function normalizeDescription(value: string): string {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .toLocaleLowerCase("pt-BR").replace(/[^a-z0-9]+/g, " ").trim();
@@ -174,8 +183,11 @@ export function importDedupeKey(row: ImportRow): string {
   }
   const destination = `${row.destinationType}:${row.destinationId}`;
   const source = row.sourceId?.trim();
-  if (source) return `${destination}:source:${source.toLocaleLowerCase("en-US")}`;
-  return `${destination}:row:${row.date}:${row.amountCents}:${normalizeDescription(row.description)}`;
+  if (source) {
+    if (source.length > 160) throw new TypeError("Referência externa muito longa para deduplicação.");
+    return `${destination}:source:${source.toLocaleLowerCase("en-US")}`;
+  }
+  return `${destination}:row:${row.date}:${row.amountCents}:${stableHash(normalizeDescription(row.description))}`;
 }
 
 export function planImportBatch(rows: readonly ImportRow[], existingKeys: ReadonlySet<string>): ImportDecision[] {
