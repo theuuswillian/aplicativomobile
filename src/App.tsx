@@ -290,8 +290,8 @@ export default function App() {
     event.preventDefault();
     if (!supabase || !session) return;
     const amount = normalizeBrlAmount(txAmount);
-    if (!amount || !txDescription.trim() || (!txAccountId && !txCardId) || !txDate) {
-      setNotice("Preencha descrição, valor, data e conta. Use vírgula nos centavos."); return;
+    if (!amount || !txDescription.trim() || (!txAccountId && !txCardId) || (txCardId && txKind !== "expense") || !txDate) {
+      setNotice("Preencha descrição, valor, data e selecione uma conta ou cartão. Cartões são usados somente para despesas."); return;
     }
     setBusy(true); setNotice("");
     try {
