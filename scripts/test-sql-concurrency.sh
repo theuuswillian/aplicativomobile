@@ -140,4 +140,38 @@ if [[ "$goal_total" != "20.00" || "$goal_contributions" != "2" ]]; then
   exit 1
 fi
 
-echo "Concorrência PostgreSQL validada: quota de IA, rate limit, geração Radar e contribuições de metas foram serializados."
+# A confirmação de uma transação WhatsApp deve ser atômica e idempotente.
+account_id="50000000-0000-4000-8000-000000000001"
+pending_id="whatsapp-pending-concurrency-1"
+psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  insert into public.accounts(id,user_id,name,account_type,opening_balance,opening_balance_date)
+  values ('$account_id','$user_id','Conta WhatsApp','checking',0,current_date);
+  insert into public.whatsapp_links(user_id,phone,weekly_summary_enabled)
+  values ('$user_id','+5511999999999',false);
+  insert into public.whatsapp_pending_transactions(id,user_id,phone,payload,source_message_id,expires_at)
+  values ('$pending_id','$user_id','+5511999999999',
+    jsonb_build_object('kind','expense','amount','12.34','transaction_date',current_date::text,
+      'description','Teste WhatsApp','account_id','$account_id','card_id',null,'category_id',null),
+    'whatsapp-message-concurrency-1',now()+interval '10 minutes');
+"
+for suffix in a b; do
+  psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 >"$tmp_dir/whatsapp-$suffix.out" <<SQL &
+begin;
+set local role service_role;
+select result from public.whatsapp_pending_confirm('$pending_id');
+select pg_sleep(1);
+commit;
+SQL
+  eval "whatsapp_pid_$suffix=$!"
+done
+wait "$whatsapp_pid_a"
+wait "$whatsapp_pid_b"
+whatsapp_count="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select count(*) from public.transactions where user_id='$user_id' and source='whatsapp' and external_reference='whatsapp-message-concurrency-1'")"
+whatsapp_status="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select status from public.whatsapp_pending_transactions where id='$pending_id' and user_id='$user_id'")"
+if [[ "$whatsapp_count" != "1" || "$whatsapp_status" != "confirmed" ]]; then
+  echo "Falha: confirmação WhatsApp concorrente criou $whatsapp_count transações e status=$whatsapp_status; esperado 1 e confirmed."
+  cat "$tmp_dir"/whatsapp-*.out
+  exit 1
+fi
+
+echo "Concorrência PostgreSQL validada: quota de IA, rate limit, geração Radar, metas e confirmação WhatsApp foram serializados."
