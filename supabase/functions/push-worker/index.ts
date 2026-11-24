@@ -69,58 +69,101 @@ Deno.serve(async (request: Request) => {
     .select("push_enabled").eq("user_id", userId).maybeSingle();
   if (settingsError) return internalError(origin);
   if (!settings?.push_enabled) {
-    return jsonResponse({ data: { suppressed: true, reason: "push_disabled" } }, 200, origin);
+    return jsonResponse({ data: { suppressed: true, reason: "push_disabled", retryable: false } }, 200, origin);
   }
-  const { error: reserveError } = await db.from("push_deliveries").insert({
+
+  // A linha agregada permanece como registro da notificação; o controle de
+  // retry é individual por assinatura, para não repetir dispositivos já atendidos.
+  const { error: deliveryError } = await db.from("push_deliveries").insert({
     user_id: userId, delivery_key: deliveryKey,
   });
-  if (reserveError?.code === "23505") {
-    return jsonResponse({ data: { duplicate: true, attempted: 0, delivered: 0, removed: 0 } }, 200, origin);
-  }
-  if (reserveError) return internalError(origin);
+  if (deliveryError && deliveryError.code !== "23505") return internalError(origin);
 
   const { data: subscriptions, error: subscriptionError } = await db.from("push_subscriptions")
     .select("id,endpoint,p256dh,auth_key").eq("user_id", userId).limit(100);
-  if (subscriptionError) {
-    await db.from("push_deliveries").delete().eq("user_id", userId).eq("delivery_key", deliveryKey);
-    return internalError(origin);
-  }
+  if (subscriptionError) return internalError(origin);
 
   const payload = JSON.stringify({
     title: body.title.trim(), body: body.body,
     url: typeof body.url === "string" ? body.url : "/",
     tag: typeof body.tag === "string" ? body.tag : deliveryKey,
   });
-  let delivered = 0, removed = 0, failed = 0;
+  let attempted = 0, delivered = 0, removed = 0, failedSafe = 0, uncertain = 0, busy = 0;
+
   for (const subscription of subscriptions ?? []) {
-    if (!isTrustedEndpoint(subscription.endpoint)) { removed++; await db.from("push_subscriptions").delete().eq("id", subscription.id).eq("user_id", userId); continue; }
-    try {
-      const authorization = await createVapidAuthorization(
-        subscription.endpoint, vapidPublicKey, vapidPrivateKey, vapidSubject,
-      );
-      const encrypted = await encryptWebPushPayload(payload, subscription.p256dh, subscription.auth_key);
-      const response = await fetch(subscription.endpoint, {
-        method: "POST", redirect: "error", signal: AbortSignal.timeout(10_000),
-        headers: {
-          Authorization: authorization,
-          "Content-Encoding": "aes128gcm",
-          "Content-Type": "application/octet-stream",
-          TTL: "3600",
-          Urgency: "normal",
-        },
-        body: toArrayBuffer(encrypted),
-      });
-      if (response.ok) delivered++;
-      else if (response.status === 404 || response.status === 410) {
-        removed++;
-        await db.from("push_subscriptions").delete().eq("id", subscription.id).eq("user_id", userId);
-      } else failed++;
-    } catch { failed++; }
+    const { data: reservations, error: reserveError } = await db.rpc("push_delivery_reserve", {
+      p_user_id: userId, p_delivery_key: deliveryKey,
+      p_subscription_id: subscription.id, p_lease_seconds: 60,
+    });
+    if (reserveError) return internalError(origin);
+    const reservation = Array.isArray(reservations) ? reservations[0] : null;
+    if (!reservation) return internalError(origin);
+    if (reservation.reservation_status === "sent") { delivered++; continue; }
+    if (reservation.reservation_status === "removed") { removed++; continue; }
+    if (reservation.reservation_status === "uncertain") { uncertain++; continue; }
+    if (reservation.reservation_status === "busy") { busy++; continue; }
+    if (reservation.reservation_status !== "reserved" || typeof reservation.fencing_token !== "string") {
+      return internalError(origin);
+    }
+
+    attempted++;
+    let finalStatus: "sent" | "failed_safe" | "uncertain" | "removed";
+    let errorMessage: string | null = null;
+    if (!isTrustedEndpoint(subscription.endpoint)) {
+      finalStatus = "removed";
+      errorMessage = "Endpoint push não permitido";
+    } else {
+      try {
+        const authorization = await createVapidAuthorization(
+          subscription.endpoint, vapidPublicKey, vapidPrivateKey, vapidSubject,
+        );
+        const encrypted = await encryptWebPushPayload(payload, subscription.p256dh, subscription.auth_key);
+        const response = await fetch(subscription.endpoint, {
+          method: "POST", redirect: "error", signal: AbortSignal.timeout(10_000),
+          headers: {
+            Authorization: authorization,
+            "Content-Encoding": "aes128gcm",
+            "Content-Type": "application/octet-stream",
+            TTL: "3600",
+            Urgency: "normal",
+          },
+          body: toArrayBuffer(encrypted),
+        });
+        if (response.ok) finalStatus = "sent";
+        else if (response.status === 404 || response.status === 410) finalStatus = "removed";
+        else if (response.status === 429) {
+          finalStatus = "failed_safe";
+          errorMessage = "Provedor push limitou temporariamente a entrega (HTTP 429)";
+        } else {
+          finalStatus = "uncertain";
+          errorMessage = `Provedor push respondeu HTTP ${response.status}; não repetir automaticamente.`;
+        }
+        if (finalStatus === "removed") {
+          await db.from("push_subscriptions").delete().eq("id", subscription.id).eq("user_id", userId);
+        }
+      } catch {
+        finalStatus = "uncertain";
+        errorMessage = "Falha de rede/timeout; estado de entrega não confirmado.";
+      }
+    }
+
+    const { data: finalized, error: finalizeError } = await db.rpc("push_delivery_finalize", {
+      p_user_id: userId, p_delivery_key: deliveryKey, p_subscription_id: subscription.id,
+      p_fencing_token: reservation.fencing_token, p_status: finalStatus, p_error: errorMessage,
+    });
+    if (finalizeError || finalized !== true) return internalError(origin);
+
+    if (finalStatus === "sent") delivered++;
+    else if (finalStatus === "removed") removed++;
+    else if (finalStatus === "failed_safe") failedSafe++;
+    else uncertain++;
   }
 
-  // A delivery key is reserved before sending. It is retained even on partial
-  // provider failures to prevent duplicate notifications to devices already reached.
   return jsonResponse({
-    data: { duplicate: false, attempted: (subscriptions ?? []).length, delivered, removed, failed },
+    data: {
+      duplicate: attempted === 0 && delivered > 0,
+      attempted, delivered, removed, failed_safe: failedSafe, uncertain, busy,
+      retryable: failedSafe > 0 || busy > 0,
+    },
   }, 202, origin);
 });
