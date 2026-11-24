@@ -71,11 +71,10 @@ Deno.serve(async (request: Request) => {
       cacheRows.push(...(result.data ?? []));
     }
     const cacheTime = new Map(cacheRows.map((row) => [row.symbol, Date.parse(row.saved_at)]));
-    const periodStart = new Date().toISOString().slice(0, 7) + "-01";
-    const { data: usage, error: usageError } = await db.from("market_data_usage")
-      .select("last_symbol").eq("provider", "brapi").eq("period_start", periodStart).maybeSingle();
-    if (usageError) return internalError(origin);
-    const lastSymbol = typeof usage?.last_symbol === "string" ? usage.last_symbol : null;
+    const { data: cursor, error: cursorError } = await db.from("market_data_cursor")
+      .select("last_symbol").eq("provider", "brapi").maybeSingle();
+    if (cursorError) return internalError(origin);
+    const lastSymbol = typeof cursor?.last_symbol === "string" ? cursor.last_symbol : null;
     const startIndex = lastSymbol ? symbols.findIndex((symbol) => symbol > lastSymbol) : 0;
     const rotated = startIndex > 0
       ? [...symbols.slice(startIndex), ...symbols.slice(0, startIndex)]
