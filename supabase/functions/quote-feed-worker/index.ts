@@ -71,16 +71,26 @@ Deno.serve(async (request: Request) => {
       cacheRows.push(...(result.data ?? []));
     }
     const cacheTime = new Map(cacheRows.map((row) => [row.symbol, Date.parse(row.saved_at)]));
+    const periodStart = new Date().toISOString().slice(0, 7) + "-01";
+    const { data: usage, error: usageError } = await db.from("market_data_usage")
+      .select("last_symbol").eq("provider", "brapi").eq("period_start", periodStart).maybeSingle();
+    if (usageError) return internalError(origin);
+    const lastSymbol = typeof usage?.last_symbol === "string" ? usage.last_symbol : null;
+    const startIndex = lastSymbol ? symbols.findIndex((symbol) => symbol > lastSymbol) : 0;
+    const rotated = startIndex > 0
+      ? [...symbols.slice(startIndex), ...symbols.slice(0, startIndex)]
+      : symbols;
     const now = Date.now();
-    const due = symbols.filter((symbol) => {
+    const dueAll = rotated.filter((symbol) => {
       const savedAt = cacheTime.get(symbol);
       return savedAt === undefined || !Number.isFinite(savedAt) || now - savedAt >= CACHE_TTL_MS;
-    }).slice(0, MAX_QUOTES_PER_RUN);
+    });
+    const due = dueAll.slice(0, MAX_QUOTES_PER_RUN);
 
     let fetched = 0, failed = 0, quotaExhausted = false;
     for (const symbol of due) {
       const { data: reserved, error: reserveError } = await db.rpc("market_data_reserve", {
-        p_provider: "brapi", p_limit: MONTHLY_SAFE_LIMIT,
+        p_provider: "brapi", p_symbol: symbol, p_limit: MONTHLY_SAFE_LIMIT,
       });
       if (reserveError) return internalError(origin);
       if (reserved !== true) { quotaExhausted = true; break; }
@@ -127,7 +137,7 @@ Deno.serve(async (request: Request) => {
       }
     }
 
-    const remainingDue = Math.max(0, symbols.length - due.length);
+    const remainingDue = Math.max(0, dueAll.length - due.length);
     return jsonResponse({
       data: {
         provider: "brapi.dev",
@@ -136,6 +146,7 @@ Deno.serve(async (request: Request) => {
         failed,
         attempted: due.length,
         deferred: remainingDue,
+        cached: symbols.length - dueAll.length,
         quota_exhausted: quotaExhausted,
         unsupported: ["crypto", "fixed_income"],
         max_age_minutes: 45,
