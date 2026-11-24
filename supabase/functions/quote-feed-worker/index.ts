@@ -157,7 +157,7 @@ Deno.serve(async (request: Request) => {
         if (cacheError) { failed++; continue; }
 
         const { error: assetError } = await db.from("investment_assets")
-          .update({ current_price: quote.price, price_as_of: quote.observed_at })
+          .update({ current_price: quote.price, price_as_of: quote.observed_at, price_source: "brapi.dev" })
           .eq("symbol", symbol).eq("asset_class", assetClass).eq("currency", "BRL");
         if (assetError) { failed++; continue; }
         fetched++;
