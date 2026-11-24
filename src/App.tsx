@@ -466,7 +466,7 @@ export default function App() {
         institution_logo_key: accountInstitutionKey || null,
         opening_balance: amount, opening_balance_date: todayInBrazil(),
         is_primary: accounts.length === 0,
-      }).select("id,name,account_type,opening_balance,opening_balance_date,is_primary").single();
+      }).select("id,name,account_type,opening_balance,opening_balance_date,is_primary,institution_name,institution_code,institution_logo_key").single();
       if (error) throw error;
       const created = data as AccountRow;
       setAccounts((current) => [...current, created]);
