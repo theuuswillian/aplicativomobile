@@ -72,7 +72,7 @@ Implementar backend e integração gradual da interface do GranaViva conforme `d
 - [x] Testes de validação, integração entre dois usuários e concorrência da reativação.
 - [x] Tela do Radar conectada ao endpoint no frontend.
 - [x] Aditivo de arquitetura aprovado para cotações externas, limitado a dados públicos de mercado; dados bancários/pessoais continuam sem agregador externo.
-- [x] Adaptador brapi.dev para B3 (ações/FIIs/ETFs/BDRs), parser validado, cache 30 min, cota mensal atômica de 12.000, rotação justa, fonte e timestamp persistidos e exibidos.
+- [x] Adaptador brapi.dev para B3 (ações/FIIs/ETFs/BDRs), parser validado, cache 30 min, limite atômico móvel de 12.000 chamadas em 30 dias, rotação justa, fonte e timestamp persistidos e exibidos.
 - [x] Worker de atualização de cotações protegido por JWT + segredo interno e incluído no cron antes da avaliação do Radar.
 - [ ] Habilitar exibição após confirmação escrita de licença da brapi para o uso no GranaViva; a flag `BRAPI_PUBLIC_DISPLAY_APPROVED` permanece falsa/ausente até isso.
 - [ ] Feed automático de cripto e renda fixa: não incluído no plano gratuito/licença pública validada; não serão usados feeds pagos sem autorização de custo.
@@ -209,6 +209,6 @@ Somente depois de obter confirmação escrita da brapi.dev para exibição limit
 - A API key da brapi nunca vai ao GitHub Actions, frontend ou repositório.
 - Para manter a integração desligada, não configure o flag acima. O cron continua processando recorrências, Radar com cache existente e WhatsApp.
 
-O plano Gratuito divulgado pela brapi tem 15.000 chamadas/mês e um ticker por chamada. O worker aplica teto próprio de 12.000/mês, no máximo quatro consultas por execução a cada 15 minutos, cache de 30 minutos e cursor rotativo. O plano Gratuito não habilita o endpoint de cripto documentado; cripto permanece sem feed.
+O plano Gratuito divulgado pela brapi tem 15.000 chamadas/mês e um ticker por chamada. O worker aplica teto próprio de 12.000 em qualquer janela móvel de 30 dias, no máximo quatro consultas por execução a cada 15 minutos, cache de 30 minutos e cursor rotativo. O plano Gratuito não habilita o endpoint de cripto documentado; cripto permanece sem feed.
 
 A migration 010 ainda está apenas na branch; precisa ser aplicada ao Supabase remoto somente após autorização específica e validação do ambiente.
