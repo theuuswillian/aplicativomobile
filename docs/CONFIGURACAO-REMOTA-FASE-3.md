@@ -17,7 +17,7 @@ Depois de confirmar o projeto correto:
 
 1. Conferir o project ref, URL e chaves publicáveis no painel Supabase.
 2. Revisar o estado atual das migrations antes de aplicar qualquer DDL.
-3. Conferir migrations `001` a `012` em ordem. No projeto brasileiro, as 12 já estão aplicadas e registradas; não reaplicar manualmente.
+3. Conferir migrations `001` a `013` em ordem. No projeto brasileiro, as 12 já estão aplicadas e registradas; não reaplicar manualmente.
 4. Confirmar RLS, grants, bucket privado `receipt-files` e políticas de Storage.
 5. Em **Integrations → Data API**, confirmar que `public` está incluído nos schemas expostos. Projetos novos não expõem automaticamente tabelas novas à Data API por padrão; a inclusão do schema não substitui grants mínimos nem RLS.
 6. Implantar as Edge Functions desta branch após revisão e confirmação do projeto de destino.
@@ -133,7 +133,7 @@ As variáveis `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` já estão c
 ## 6. Critérios para habilitar operação
 
 Somente habilitar `WORKERS_ENABLED=true` depois que:
-- migrations 001–012 estiverem aplicadas e verificadas no projeto certo;
+- migrations 001–013 estiverem aplicadas e verificadas no projeto certo;
 - todas as Edge Functions estiverem implantadas;
 - secrets e origem CORS estiverem validados;
 - testes remotos controlados tiverem passado;
@@ -144,7 +144,7 @@ Cotações automáticas permanecem desativadas independentemente do cron até au
 
 ## Estado já realizado em 24/11/2026
 
-- Supabase Brasil: migrations 001–012 aplicadas; RLS habilitado em todas as tabelas públicas e bucket de comprovantes privado.
+- Supabase Brasil: migrations 001–013 aplicadas; RLS habilitado em todas as tabelas públicas e bucket de comprovantes privado.
 - GitHub Actions: CI integral verde no commit `1c141f53ad4062aad41a78e09763fe02563aedf2`.
 - Vercel: variáveis públicas de URL e publishable key do Supabase Brasil cadastradas para Preview da branch `fase-3-backend` e Development. Nenhuma variável de produção ou secret foi adicionado.
 - Ainda não implantadas: Edge Functions; ainda não configurados: secrets de backend, OpenAI, Meta, VAPID e workers.
@@ -155,6 +155,16 @@ Cotações automáticas permanecem desativadas independentemente do cron até au
 
 - URL provisória oficial escolhida: `https://granaviva-rust.vercel.app`.
 - O endereço foi confirmado como domínio de projeto verificado no Vercel `granaviva`. O nome mais curto `granaviva.vercel.app` já pertence a outro projeto e não pode ser vinculado.
-- Definir no Supabase Edge Function Secrets: `APP_ORIGIN=https://granaviva-rust.vercel.app`.
-- A conexão disponível nesta sessão não oferece operação para gravar Edge Function Secrets. Portanto, o valor está documentado, mas **ainda não foi cadastrado remotamente**. Fazer isso pelo painel Supabase em Project Settings → Edge Functions → Secrets (ou seção equivalente atual).
+- `APP_ORIGIN=https://granaviva-rust.vercel.app` foi cadastrado no Supabase Brasil pelo operador e confirmado por ele nesta sessão. O valor não é recuperável por leitura do conector; não foi possível validar o conteúdo do secret por consulta.
 - Não publicar funções, ativar workers nem alterar produção nesta etapa.
+
+
+## Atualização de estado remoto — 24/11/2026 (após migration 013)
+
+- [x] Migration 013 `worker_checkpoint_and_whatsapp_summary_jobs` aplicada ao Supabase Brasil (`dvddqexnvllrxogbwmdf`) e confirmada em `list_migrations`.
+- [x] Tabelas `radar_worker_state`, `whatsapp_weekly_summary_jobs` e `push_delivery_attempts` criadas com RLS habilitada; grants diretos para `anon` e `authenticated` revogados; RPCs de worker executáveis somente por `service_role`.
+- [x] `APP_ORIGIN` foi cadastrado pelo operador com a origem canônica aprovada. A confirmação é operacional; o valor do secret não pode ser lido pelo conector.
+- [x] Auditoria de saúde sem alertas.
+- [ ] Edge Functions continuam sem publicação; workers continuam desligados.
+- [ ] Secrets restantes de serviço, OpenAI, Meta e VAPID precisam ser configurados/confirmados nos painéis oficiais antes do deploy. Nunca compartilhar os valores no repositório ou chat.
+- [ ] Testes remotos dependem da publicação controlada das funções e de credenciais; CI local verde não equivale a teste remoto.
