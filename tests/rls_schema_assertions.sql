@@ -173,10 +173,10 @@ values
  ('10000000-0000-4000-8000-000000000002','authenticated','authenticated','gv-rls-b@example.invalid','', '{}'::jsonb, '{}'::jsonb, now(), now())
 on conflict (id) do nothing;
 
-insert into public.accounts(user_id,name,account_type,opening_balance,opening_balance_date)
+insert into public.accounts(id,user_id,name,account_type,opening_balance,opening_balance_date)
 values
- ('10000000-0000-4000-8000-000000000001','Conta fixture A','checking',100,'2026-01-01'),
- ('10000000-0000-4000-8000-000000000002','Conta fixture B','checking',200,'2026-01-01');
+ ('40000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','Conta fixture A','checking',100,'2026-01-01'),
+ ('40000000-0000-4000-8000-000000000002','10000000-0000-4000-8000-000000000002','Conta fixture B','checking',200,'2026-01-01');
 
 insert into public.radar_alerts(id,user_id,asset_class,symbol,condition_type,threshold)
 values
@@ -186,8 +186,8 @@ values
 insert into public.transactions(
   id,user_id,kind,status,amount,transaction_date,description,account_id,settled_amount,settled_at,source
 ) values
- ('60000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','expense','paid',10,'2026-01-01','Comprovante fixture A','10000000-0000-4000-8000-000000000001',10,'2026-01-01','manual'),
- ('60000000-0000-4000-8000-000000000002','10000000-0000-4000-8000-000000000002','expense','paid',20,'2026-01-01','Comprovante fixture B','10000000-0000-4000-8000-000000000002',20,'2026-01-01','manual');
+ ('60000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','expense','paid',10,'2026-01-01','Comprovante fixture A','40000000-0000-4000-8000-000000000001',10,'2026-01-01','manual'),
+ ('60000000-0000-4000-8000-000000000002','10000000-0000-4000-8000-000000000002','expense','paid',20,'2026-01-01','Comprovante fixture B','40000000-0000-4000-8000-000000000002',20,'2026-01-01','manual');
 
 
 set local role authenticated;
