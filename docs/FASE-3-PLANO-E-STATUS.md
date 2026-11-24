@@ -117,6 +117,8 @@ O provedor usa a OpenAI Responses API. Antes de habilitar chamadas reais, o ambi
 
 Geração local do par VAPID: defina `PUSH_VAPID_SUBJECT` no terminal e execute `npm run generate:vapid`. O script imprime as variáveis públicas e privadas; configure a chave privada e o segredo interno somente como secrets no backend e a chave pública como variável de build `VITE_PUSH_VAPID_PUBLIC_KEY`. Não versione a saída do comando.
 
+Para recorrências, configure `RECURRENCE_WORKER_SECRET` (mínimo 32 caracteres) e invoque `recurrence-worker` server-to-server com JWT de serviço. O worker materializa apenas lançamentos `planned`; não liquida nem altera saldos realizados.
+
 Para Radar, configure `RADAR_WORKER_SECRET` (mínimo 32 caracteres) para invocar `radar-worker` server-to-server com JWT de serviço. O worker consome apenas `quote_cache` com timestamp recente e fonte declarada; nenhuma fonte financeira foi conectada.
 
 Para Push, a etapa de envio usa o worker interno `push-worker`. Antes de habilitá-lo, o ambiente precisa receber os secrets `PUSH_VAPID_PUBLIC_KEY`, `PUSH_VAPID_PRIVATE_KEY` (PKCS#8 em base64url), `PUSH_VAPID_SUBJECT` e `PUSH_WORKER_SECRET` (mínimo 32 caracteres), além de `SUPABASE_SERVICE_ROLE_KEY` já descrito acima. O frontend recebe somente a chave pública em `VITE_PUSH_VAPID_PUBLIC_KEY`. A chamada do worker deve ocorrer exclusivamente server-to-server com JWT de serviço e `x-worker-secret`; nenhum agendamento ou envio real foi ativado.
@@ -133,13 +135,13 @@ O commit `bd53ebfc18aedeadf992aeaa5c75de7802291dd4` passou integralmente na exec
 - `sql`: migrations, RLS, grants, isolamento e concorrência no PostgreSQL 17.
 - `edge-integration`: Auth local, perfil, preferências, CORS, Radar, Push e isolamento entre dois usuários.
 
-O CI verde não significa que a Fase 3 esteja concluída. Permanecem escolha/configuração de provedor WhatsApp, webhook HMAC e workers WhatsApp, escolha de fonte de cotações compatível com a arquitetura, configuração remota autorizada, agendamento/orquestração de Radar e Push e validação manual no dispositivo.
+O CI verde não significa que a Fase 3 esteja concluída. Permanecem escolha/configuração de provedor WhatsApp, webhook HMAC e workers WhatsApp, escolha de fonte de cotações compatível com a arquitetura, configuração remota autorizada, agendamento/orquestração dos workers de recorrência, Radar e Push e validação manual no dispositivo.
 
 - HEAD atual consultado: `986e4a0de1a24940d275e2db3c5e1124a058a2e3`; execução GitHub Actions [#45311538306](https://github.com/theuuswillian/aplicativomobile/actions/runs/45311538306) em validação. O commit contém migrations 007/008, metas, carteira, proventos, importação, Storage privado, Push e workers Radar.
 - [Branch Fase 3](https://github.com/theuuswillian/aplicativomobile/tree/fase-3-backend).
 - [PR #2](https://github.com/theuuswillian/aplicativomobile/pull/2), ainda draft e sem merge.
 - O teste local de integração cobre perfil, preferências, CORS, Radar, Push, geração de código WhatsApp e bloqueio de workers sem JWT, além do isolamento entre dois usuários.
-- O teste PostgreSQL aplica migrations 001–008 e verifica RLS, grants, isolamento de Storage privado, consentimento WhatsApp, concorrência de metas, confirmação WhatsApp e reativação Radar.
+- O teste PostgreSQL aplica migrations 001–009 e verifica RLS, grants, Storage privado, consentimento WhatsApp, concorrência de metas, confirmação WhatsApp, datas de recorrência, geração concorrente e reativação Radar.
 
 A aprovação final exige CI integral verde no HEAD final, auditoria, configuração remota somente autorizada e validação manual do aplicativo pelo usuário. Não relaxar asserts para obter CI verde.
 
