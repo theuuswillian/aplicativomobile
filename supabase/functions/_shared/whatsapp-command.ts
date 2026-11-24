@@ -10,13 +10,13 @@ export function parseWhatsAppCommand(input: unknown): ParsedWhatsAppCommand {
   if (typeof input !== "string" || input.length > 4096) return { kind: "unknown" };
   const value = input.trim();
   if (/^(AJUDA|HELP|MENU)$/i.test(value)) return { kind: "help" };
-  const link = /^(?:VINCULAR\\s+)?([0-9]{6})$/i.exec(value);
+  const link = /^(?:VINCULAR\s+)?([0-9]{6})$/i.exec(value);
   if (link) return { kind: "link", code: link[1] };
-  const confirm = /^CONFIRMAR\\s+([0-9a-f-]{36})$/i.exec(value);
+  const confirm = /^CONFIRMAR\s+([0-9a-f-]{36})$/i.exec(value);
   if (confirm) return { kind: "confirm", pendingId: confirm[1] };
-  const cancel = /^CANCELAR\\s+([0-9a-f-]{36})$/i.exec(value);
+  const cancel = /^CANCELAR\s+([0-9a-f-]{36})$/i.exec(value);
   if (cancel) return { kind: "cancel", pendingId: cancel[1] };
-  const transaction = /^(DESPESA|RECEITA)\\s+([0-9]{1,8}(?:[,.][0-9]{1,2})?)\\s+(.{1,240})$/i.exec(value);
+  const transaction = /^(DESPESA|RECEITA)\s+([0-9]{1,8}(?:[,.][0-9]{1,2})?)\s+(.{1,240})$/i.exec(value);
   if (!transaction) return { kind: "unknown" };
   const normalized = transaction[2].replace(",", ".");
   const amount = Number(normalized);
