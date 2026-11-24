@@ -28,7 +28,7 @@ type RecurrenceRow = { id: string; name: string; kind: "income" | "expense"; amo
 type BudgetRow = { id: string; category_id: string; year: number; month: number; limit_amount: string };
 type GoalRow = { id: string; name: string; target_amount: string; current_amount: string; monthly_contribution: string; target_month: string | null };
 type GoalContributionRow = { id: string; goal_id: string; amount: string; contribution_date: string; source: string; created_at: string };
-type InvestmentAssetRow = { id: string; symbol: string; name: string; asset_class: "stock" | "fii" | "etf" | "bdr" | "fixed_income" | "crypto"; currency: "BRL" | "USD" };
+type InvestmentAssetRow = { id: string; symbol: string; name: string; asset_class: "stock" | "fii" | "etf" | "bdr" | "fixed_income" | "crypto"; currency: "BRL" | "USD"; current_price?: string | number | null; price_as_of?: string | null };
 type InvestmentOperationRow = { id: string; asset_id: string; operation_type: "opening" | "buy" | "sell"; operation_date: string; quantity: string; unit_price: string; gross_amount: string; fees: string };
 type IncomeEventRow = { id: string; asset_id: string; event_type: "dividend" | "jcp" | "distribution" | "coupon" | "interest" | "amortization" | "other"; reference_date: string; payment_date: string | null; announced_amount: string; received_amount: string; status: "announced" | "planned" | "received" | "cancelled" };
 type BudgetSpendRow = { category_id: string | null; settled_amount: string };
@@ -249,7 +249,7 @@ export default function App() {
           client.from("transactions").select("category_id,settled_amount").eq("user_id", session.user.id).eq("kind", "expense").eq("status", "paid").gte("transaction_date", currentBudgetMonthStart).lt("transaction_date", nextBudgetMonthStart).limit(10000),
           client.from("goals").select("id,name,target_amount,current_amount,monthly_contribution,target_month").eq("user_id", session.user.id).order("created_at", { ascending: true }),
           client.from("goal_contributions").select("id,goal_id,amount,contribution_date,source,created_at").eq("user_id", session.user.id).order("created_at", { ascending: false }).limit(100),
-          client.from("investment_assets").select("id,symbol,name,asset_class,currency").eq("user_id", session.user.id).order("symbol", { ascending: true }),
+          client.from("investment_assets").select("id,symbol,name,asset_class,currency,current_price,price_as_of").eq("user_id", session.user.id).order("symbol", { ascending: true }),
           client.from("investment_operations").select("id,asset_id,operation_type,operation_date,quantity,unit_price,gross_amount,fees").eq("user_id", session.user.id).in("operation_type", ["opening","buy","sell"]).order("operation_date", { ascending: true }),
           client.from("income_events").select("id,asset_id,event_type,reference_date,payment_date,announced_amount,received_amount,status").eq("user_id", session.user.id).order("reference_date", { ascending: false }),
         ]);
@@ -1433,9 +1433,9 @@ export default function App() {
                   const summary = investmentSummary(asset.id);
                   const receivedCents = incomeEvents.filter((item) => item.asset_id === asset.id && item.status === "received")
                     .reduce((total, item) => total + decimalToCents(item.received_amount), 0n);
-                  return <li key={asset.id}><strong>{asset.symbol} · {asset.name}</strong><span>{asset.asset_class} · {asset.currency}</span><small>Quantidade: {summary.quantity.toLocaleString("pt-BR", { maximumFractionDigits: 8 })} · Custo: {formatInvestmentCents(BigInt(summary.costBasisCents), asset.currency)} · Custo médio: {formatInvestmentCents(BigInt(summary.averageCostCents), asset.currency)}</small><small>Resultado realizado: {formatInvestmentCents(BigInt(summary.realizedProfitCents), asset.currency)}{summary.error ? ` · ${summary.error}` : ""}</small><small>Proventos recebidos: {formatInvestmentCents(receivedCents, asset.currency)}</small></li>;
+                  return <li key={asset.id}><strong>{asset.symbol} · {asset.name}</strong><span>{asset.asset_class} · {asset.currency}</span><small>Quantidade: {summary.quantity.toLocaleString("pt-BR", { maximumFractionDigits: 8 })} · Custo: {formatInvestmentCents(BigInt(summary.costBasisCents), asset.currency)} · Custo médio: {formatInvestmentCents(BigInt(summary.averageCostCents), asset.currency)}</small><small>Resultado realizado: {formatInvestmentCents(BigInt(summary.realizedProfitCents), asset.currency)}{summary.error ? ` · ${summary.error}` : ""}</small><small>Proventos recebidos: {formatInvestmentCents(receivedCents, asset.currency)}</small>{asset.current_price != null && asset.price_as_of ? <small>Preço de referência: {formatInvestmentCents(decimalToCents(String(asset.current_price)), asset.currency)} · Fonte: brapi.dev · cotação de {new Date(asset.price_as_of).toLocaleString("pt-BR")}</small> : <small>Preço de mercado indisponível para esta classe ou ticker.</small>}</li>;
                 })}</ul>}
-                <p className="helper-text">A carteira mostra posição e custo com base nas operações registradas. Não exibe preço de mercado nem rentabilidade atual enquanto não houver fonte de cotação validada e timestamp.</p>
+                <p className="helper-text">Os preços de referência da B3 vêm da brapi.dev, podem ter atraso aproximado de 30 minutos e sempre exibem a data/hora da fonte. Não são preços em tempo real nem recomendação de investimento. Cripto e renda fixa ainda não têm feed habilitado.</p>
               </section>
               <section className="subpanel" aria-labelledby="income-events-title">
                 <div className="transaction-heading"><strong id="income-events-title">Dividendos e proventos</strong><span>{incomeEvents.filter((item) => item.status === "received").length} recebidos</span></div>
