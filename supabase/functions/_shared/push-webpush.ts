@@ -46,8 +46,11 @@ export async function createVapidAuthorization(
   subject: string,
 ): Promise<string> {
   const target = new URL(endpoint);
-  if (target.protocol !== "https:" || !["fcm.googleapis.com", "updates.push.services.mozilla.com", "web.push.apple.com"].includes(target.hostname) &&
-      !target.hostname.endsWith(".notify.windows.com")) throw new TypeError("Untrusted push endpoint");
+  if (target.protocol !== "https:" || target.username || target.password || target.port || target.hash ||
+      (!["fcm.googleapis.com", "updates.push.services.mozilla.com", "web.push.apple.com"].includes(target.hostname) &&
+      !target.hostname.endsWith(".notify.windows.com"))) throw new TypeError("Untrusted push endpoint");
+  const publicBytes = decodeBase64Url(publicKey);
+  if (publicBytes.length !== 65 || publicBytes[0] !== 4) throw new TypeError("Invalid VAPID public key");
   if (!/^(mailto:[^\s@]+@[^\s@]+|https:\/\/[^\s]+)$/.test(subject)) throw new TypeError("Invalid VAPID subject");
   const header = encodeBase64Url(encoder.encode(JSON.stringify({ typ: "JWT", alg: "ES256" })));
   const payload = encodeBase64Url(encoder.encode(JSON.stringify({
@@ -59,6 +62,9 @@ export async function createVapidAuthorization(
     { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"],
   );
   const signature = new Uint8Array(await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, signingInput));
+  const verifyKey = await crypto.subtle.importKey("raw", publicBytes, { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
+  const matches = await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, verifyKey, signature, signingInput);
+  if (!matches) throw new TypeError("VAPID key pair does not match");
   return `vapid t=${header}.${payload}.${encodeBase64Url(signature)}, k=${publicKey}`;
 }
 
