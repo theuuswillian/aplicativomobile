@@ -221,6 +221,11 @@
   .section-jump { gap: 6px; margin-bottom: 14px; }
   .section-jump a { min-height: 32px; padding: 6px 9px; font-size: 11px; }
 }
+.section-jump { align-items:center; flex-wrap:nowrap; overflow-x:auto; overscroll-behavior-inline:contain; scrollbar-width:none; -webkit-overflow-scrolling:touch; scroll-snap-type:x proximity; }
+.section-jump::-webkit-scrollbar { display:none; }
+.section-jump a { flex:0 0 auto; scroll-snap-align:start; }
+@media (min-width: 761px) { .section-jump { flex-wrap:wrap; overflow:visible; } }
+
 
 
 /* Carteira: gráficos de alocação e prévia de operação. */
