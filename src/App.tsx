@@ -144,7 +144,7 @@ export default function App() {
   const [incomeAmount, setIncomeAmount] = useState("");
   const [incomeReferenceDate, setIncomeReferenceDate] = useState(todayInBrazil);
   const [incomePaymentDate, setIncomePaymentDate] = useState("");
-  const [incomeStatus, setIncomeStatus] = useState<IncomeEventRow["status"]>("received");
+  const [incomeStatus, setIncomeStatus] = useState<IncomeEventRow["status"]>("announced");
   const [investmentSymbol, setInvestmentSymbol] = useState("");
   const [investmentName, setInvestmentName] = useState("");
   const [investmentClass, setInvestmentClass] = useState<InvestmentAssetRow["asset_class"]>("stock");
@@ -161,6 +161,7 @@ export default function App() {
   const [fixedIncomeIndexer, setFixedIncomeIndexer] = useState<"CDI" | "IPCA" | "SELIC" | "PREFIXADO">("CDI");
   const [fixedIncomeRate, setFixedIncomeRate] = useState("");
   const [fixedIncomeMaturity, setFixedIncomeMaturity] = useState("");
+  const [fixedIncomeNextYieldDate, setFixedIncomeNextYieldDate] = useState("");
   const [fixedIncomeStart, setFixedIncomeStart] = useState(todayInBrazil);
   const [fixedIncomeFrequency, setFixedIncomeFrequency] = useState<"daily" | "monthly" | "semiannual" | "at_maturity">("daily");
   const [goalName, setGoalName] = useState("");
@@ -836,10 +837,10 @@ export default function App() {
     setBusy(true); setNotice("");
     try {
       const fixedRate = fixedIncomeRate.trim().replace(",", ".");
-    if (investmentClass === "fixed_income" && (!fixedIncomeProduct.trim() || !fixedIncomeStart || !/^\\d{4}-\\d{2}-\\d{2}$/.test(fixedIncomeStart) || !/^\\d{4}-\\d{2}-\\d{2}$/.test(fixedIncomeMaturity) || fixedIncomeMaturity <= fixedIncomeStart || !/^[0-9]{1,3}(?:[.][0-9]{1,4})?$/.test(fixedRate) || Number(fixedRate) <= 0 || Number(fixedRate) > 1000)) {
+    if (investmentClass === "fixed_income" && (!fixedIncomeProduct.trim() || !fixedIncomeStart || !/^\\d{4}-\\d{2}-\\d{2}$/.test(fixedIncomeStart) || !/^\\d{4}-\\d{2}-\\d{2}$/.test(fixedIncomeMaturity) || fixedIncomeMaturity <= fixedIncomeStart || !/^\\d{4}-\\d{2}-\\d{2}$/.test(fixedIncomeNextYieldDate) || fixedIncomeNextYieldDate < fixedIncomeStart || fixedIncomeNextYieldDate > fixedIncomeMaturity || !/^[0-9]{1,3}(?:[.][0-9]{1,4})?$/.test(fixedRate) || Number(fixedRate) <= 0 || Number(fixedRate) > 1000)) {
       setNotice("Confira o produto, indexador, taxa e datas da renda fixa."); return;
     }
-    const metadata = investmentClass === "fixed_income" ? { fixed_income: { product: fixedIncomeProduct, issuer: fixedIncomeIssuer.trim(), indexer: fixedIncomeIndexer, annual_rate_percent: fixedRate, start_date: fixedIncomeStart, maturity_date: fixedIncomeMaturity, yield_frequency: fixedIncomeFrequency } } : {};
+    const metadata = investmentClass === "fixed_income" ? { fixed_income: { product: fixedIncomeProduct, issuer: fixedIncomeIssuer.trim(), indexer: fixedIncomeIndexer, annual_rate_percent: fixedRate, start_date: fixedIncomeStart, maturity_date: fixedIncomeMaturity, next_yield_date: fixedIncomeNextYieldDate, yield_frequency: fixedIncomeFrequency } } : {};
     setBusy(true); setNotice("");
     try {
       const { data, error } = await supabase.from("investment_assets").insert({
@@ -851,7 +852,7 @@ export default function App() {
       setInvestmentAssets((current) => [...current, created].sort((a,b) => a.symbol.localeCompare(b.symbol)));
       setInvestmentAssetId(created.id);
       setInvestmentSymbol(""); setInvestmentName("");
-      setFixedIncomeIssuer(""); setFixedIncomeRate(""); setFixedIncomeMaturity(""); setFixedIncomeStart(todayInBrazil());
+      setFixedIncomeIssuer(""); setFixedIncomeRate(""); setFixedIncomeMaturity(""); setFixedIncomeNextYieldDate(""); setFixedIncomeStart(todayInBrazil());
       setNotice("Ativo adicionado à carteira. A cotação ainda não está conectada.");
     } catch (error) { setNotice(errorMessage(error)); }
     finally { setBusy(false); }
@@ -1477,6 +1478,7 @@ export default function App() {
                     <label>Taxa anual (%)<input inputMode="decimal" value={fixedIncomeRate} onChange={(event) => setFixedIncomeRate(event.target.value)} placeholder="Ex.: 100 ou 12,5" required/></label>
                     <label>Início da aplicação<input type="date" value={fixedIncomeStart} onChange={(event) => setFixedIncomeStart(event.target.value)} required/></label>
                     <label>Vencimento<input type="date" min={fixedIncomeStart} value={fixedIncomeMaturity} onChange={(event) => setFixedIncomeMaturity(event.target.value)} required/></label>
+                    <label>Próxima data de rendimento<input type="date" min={fixedIncomeStart} max={fixedIncomeMaturity || undefined} value={fixedIncomeNextYieldDate} onChange={(event) => setFixedIncomeNextYieldDate(event.target.value)} required/></label>
                     <label>Periodicidade do rendimento<select value={fixedIncomeFrequency} onChange={(event) => setFixedIncomeFrequency(event.target.value as typeof fixedIncomeFrequency)}><option value="daily">Diário (dias úteis)</option><option value="monthly">Mensal</option><option value="semiannual">Semestral</option><option value="at_maturity">No vencimento</option></select></label>
                   </>}
                   <button className="primary-button" type="submit" disabled={busy}>Adicionar ativo</button>
@@ -1494,7 +1496,7 @@ export default function App() {
                   const summary = investmentSummary(asset.id);
                   const receivedCents = incomeEvents.filter((item) => item.asset_id === asset.id && item.status === "received")
                     .reduce((total, item) => total + decimalToCents(item.received_amount), 0n);
-                  return <li key={asset.id}><strong>{asset.symbol} · {asset.name}</strong><span>{asset.asset_class} · {asset.currency}</span><small>Quantidade: {summary.quantity.toLocaleString("pt-BR", { maximumFractionDigits: 8 })} · Custo: {formatInvestmentCents(BigInt(summary.costBasisCents), asset.currency)} · Custo médio: {formatInvestmentCents(BigInt(summary.averageCostCents), asset.currency)}</small>{asset.asset_class === "fixed_income" && (asset.metadata?.fixed_income as Record<string, unknown> | undefined) && <small>{String((asset.metadata?.fixed_income as Record<string, unknown>).product ?? asset.name)} · {String((asset.metadata?.fixed_income as Record<string, unknown>).indexer ?? "")} · {String((asset.metadata?.fixed_income as Record<string, unknown>).annual_rate_percent ?? "")}% a.a. · Vencimento: {String((asset.metadata?.fixed_income as Record<string, unknown>).maturity_date ?? "não informado")} · Rendimento: {{daily:"diário (dias úteis)",monthly:"mensal",semiannual:"semestral",at_maturity:"no vencimento"}[String((asset.metadata?.fixed_income as Record<string, unknown>).yield_frequency ?? "")] ?? "não informado"}</small>}<small>Resultado realizado: {formatInvestmentCents(BigInt(summary.realizedProfitCents), asset.currency)}{summary.error ? ` · ${summary.error}` : ""}</small><small>Proventos recebidos: {formatInvestmentCents(receivedCents, asset.currency)}</small>{asset.current_price != null && asset.price_as_of ? <small>Preço de referência: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: asset.currency, minimumFractionDigits: 2, maximumFractionDigits: 8 }).format(Number(asset.current_price))} · Fonte: {asset.price_source === "brapi.dev" ? "brapi.dev" : asset.price_source === "manual" ? "informado manualmente" : "origem não identificada"}{asset.price_source === "brapi.dev" ? " · atraso de origem aproximado de 30 min" : " · não é cotação automática"}{asset.price_source === "brapi.dev" && Date.now() - Date.parse(asset.price_as_of) > 45 * 60_000 ? " · cotação possivelmente desatualizada" : ""} · registrado em {new Date(asset.price_as_of).toLocaleString("pt-BR")}</small> : <small>Sem preço de referência cadastrado.</small>}
+                  return <li key={asset.id}><strong>{asset.symbol} · {asset.name}</strong><span>{asset.asset_class} · {asset.currency}</span><small>Quantidade: {summary.quantity.toLocaleString("pt-BR", { maximumFractionDigits: 8 })} · Custo: {formatInvestmentCents(BigInt(summary.costBasisCents), asset.currency)} · Custo médio: {formatInvestmentCents(BigInt(summary.averageCostCents), asset.currency)}</small>{asset.asset_class === "fixed_income" && (asset.metadata?.fixed_income as Record<string, unknown> | undefined) && <small>{String((asset.metadata?.fixed_income as Record<string, unknown>).product ?? asset.name)} · {String((asset.metadata?.fixed_income as Record<string, unknown>).indexer ?? "")} · {String((asset.metadata?.fixed_income as Record<string, unknown>).annual_rate_percent ?? "")}% a.a. · Próximo rendimento: {String((asset.metadata?.fixed_income as Record<string, unknown>).next_yield_date ?? "não informado")} · Vencimento: {String((asset.metadata?.fixed_income as Record<string, unknown>).maturity_date ?? "não informado")} · Periodicidade: {{daily:"diária (dias úteis)",monthly:"mensal",semiannual:"semestral",at_maturity:"no vencimento"}[String((asset.metadata?.fixed_income as Record<string, unknown>).yield_frequency ?? "")] ?? "não informado"}</small>}<small>Resultado realizado: {formatInvestmentCents(BigInt(summary.realizedProfitCents), asset.currency)}{summary.error ? ` · ${summary.error}` : ""}</small><small>Proventos recebidos: {formatInvestmentCents(receivedCents, asset.currency)}</small>{asset.current_price != null && asset.price_as_of ? <small>Preço de referência: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: asset.currency, minimumFractionDigits: 2, maximumFractionDigits: 8 }).format(Number(asset.current_price))} · Fonte: {asset.price_source === "brapi.dev" ? "brapi.dev" : asset.price_source === "manual" ? "informado manualmente" : "origem não identificada"}{asset.price_source === "brapi.dev" ? " · atraso de origem aproximado de 30 min" : " · não é cotação automática"}{asset.price_source === "brapi.dev" && Date.now() - Date.parse(asset.price_as_of) > 45 * 60_000 ? " · cotação possivelmente desatualizada" : ""} · registrado em {new Date(asset.price_as_of).toLocaleString("pt-BR")}</small> : <small>Sem preço de referência cadastrado.</small>}
                     <form className="finance-form" onSubmit={(event) => void updateManualInvestmentPrice(event, asset)}>
                       <label>Preço de referência manual ({asset.currency})<input inputMode="decimal" value={manualPriceInputs[asset.id] ?? ""} onChange={(event) => setManualPriceInputs((current) => ({ ...current, [asset.id]: event.target.value }))} placeholder="Ex.: 32,45" disabled={busy} /></label>
                       <button className="quiet-button" type="submit" disabled={busy || !(manualPriceInputs[asset.id] ?? "").trim()}>Salvar preço</button>
@@ -1520,6 +1522,7 @@ export default function App() {
                   const amount = item.status === "received" ? item.received_amount : item.announced_amount;
                   return <li key={item.id}><strong>{asset?.symbol ?? "Ativo"} · {item.event_type.toUpperCase()}</strong><span>{formatInvestmentCents(decimalToCents(amount), asset?.currency ?? "BRL")} · {item.status === "received" ? "Recebido" : item.status === "cancelled" ? "Cancelado" : item.status === "planned" ? "Previsto" : "Anunciado"}</span><small>Referência: {item.reference_date}{item.payment_date ? ` · Pagamento: ${item.payment_date}` : ""}</small></li>;
                 })}</ul>}
+                <div className="income-calendar"><strong>Próximos pagamentos</strong>{incomeEvents.filter((item) => item.payment_date && item.payment_date >= todayInBrazil() && ["announced","planned"].includes(item.status)).sort((a,b) => (a.payment_date ?? "").localeCompare(b.payment_date ?? "")).slice(0,6).map((item) => { const asset = investmentAssets.find((entry) => entry.id === item.asset_id); return <div key={item.id}><span>{item.payment_date}</span><b>{asset?.symbol ?? "Ativo"}</b><strong>{formatInvestmentCents(decimalToCents(item.announced_amount), asset?.currency ?? "BRL")}</strong></div>; })}{!incomeEvents.some((item) => item.payment_date && item.payment_date >= todayInBrazil() && ["announced","planned"].includes(item.status)) && <p className="empty-state">Nenhum pagamento futuro cadastrado.</p>}</div>
                 <p className="helper-text">Os valores são lançados manualmente e não são previsões automáticas de mercado. Somente itens marcados como recebidos entram no total recebido; o histórico não altera automaticamente o saldo da conta.</p>
               </section>
               <section className="subpanel" id="patrimonio-metas" aria-labelledby="goals-title">
