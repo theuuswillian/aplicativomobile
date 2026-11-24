@@ -295,7 +295,7 @@ Deno.test("Radar evaluator applies thresholds and daily drop percentage", () => 
     id: "alert-1", generation: 2, asset_class: "stock", symbol: "PETR4",
     condition_type: "above" as const, threshold: "30.00",
   };
-  const fresh = { symbol: "PETR4", price: "30.00", source: "test", saved_at: "2026-11-24T11:59:00Z" };
+  const fresh = { symbol: "PETR4", price: "30.00", asset_class: "stock", source: "test", saved_at: "2026-11-24T11:59:00Z" };
   strictEqual(evaluateRadarAlert(base, fresh, now).shouldFire, true);
   strictEqual(evaluateRadarAlert({ ...base, condition_type: "below", threshold: 25 }, fresh, now).shouldFire, false);
   strictEqual(evaluateRadarAlert({ ...base, condition_type: "daily_drop", threshold: 5 }, {
