@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { importDedupeKey, parseCsvStatement, parseOfxStatement, planImportBatch, planImportUndo } from "../src/domain/imports";
 
 const row = {
-  date: "2026-11-22", amountCents: 12500, description: "  Café   da manhã ",
+  date: "2026-11-22", amountCents: 12500, kind: "expense" as const, description: "  Café   da manhã ",
   destinationType: "account" as const, destinationId: "account-1"
 };
 
