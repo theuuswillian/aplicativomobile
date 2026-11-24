@@ -32,3 +32,30 @@ alter default privileges for role postgres in schema public
   grant all on tables to anon, authenticated, service_role;
 alter default privileges for role postgres in schema public
   grant usage, select on sequences to anon, authenticated, service_role;
+
+-- Supabase Storage mínimo para validar buckets privados e políticas de objetos.
+create schema storage;
+create table storage.buckets (
+  id text primary key,
+  name text not null,
+  public boolean not null default false,
+  file_size_limit bigint,
+  allowed_mime_types text[]
+);
+create table storage.objects (
+  id uuid primary key default gen_random_uuid(),
+  bucket_id text not null references storage.buckets(id),
+  name text not null,
+  owner_id uuid,
+  created_at timestamptz not null default now()
+);
+alter table storage.objects enable row level security;
+create or replace function storage.foldername(p_name text)
+returns text[]
+language sql
+immutable
+as $$
+  select string_to_array(p_name, '/')[1:2]
+$$;
+grant usage on schema storage to authenticated, service_role;
+grant select, insert, delete on storage.objects to authenticated;
