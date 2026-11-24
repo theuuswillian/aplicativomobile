@@ -101,7 +101,8 @@ async function sendWeeklySummaries(
   }
 
   const now = new Date().toISOString();
-  // Keep the total outbound calls bounded per invocation: two inbox replies and two summaries at most.\n  const { data: jobs, error: jobsError } = await db.from("whatsapp_weekly_summary_jobs")
+  // Keep the total outbound calls bounded per invocation: two inbox replies and two summaries at most.
+  const { data: jobs, error: jobsError } = await db.from("whatsapp_weekly_summary_jobs")
     .select("user_id,week_start")
     .eq("week_start", range.monday)
     .or(`status.eq.pending,and(status.eq.processing,lease_until.lt.${now})`)
