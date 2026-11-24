@@ -63,6 +63,7 @@ jobs:
           supabase/functions/minhas-preferencias/index.ts
           supabase/functions/assistente/index.ts
           supabase/functions/ler-comprovante/index.ts
+          supabase/functions/radar-alertas/index.ts
       - name: Run Edge runtime unit tests
         run: deno test --no-config --allow-env supabase/functions/_shared/edge_test.ts
 
