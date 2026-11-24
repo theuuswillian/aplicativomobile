@@ -62,14 +62,15 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!supabase || !session) return;
+    const client = supabase;
+    if (!client || !session) return;
     let active = true;
     const load = async () => {
       try {
         const [account, preferences, radar] = await Promise.all([
-          supabase.functions.invoke("minha-conta", { body: { action: "consultar" } }),
-          supabase.functions.invoke("minhas-preferencias", { body: { action: "consultar" } }),
-          supabase.functions.invoke("radar-alertas", { body: { action: "consultar" } }),
+          client.functions.invoke("minha-conta", { body: { action: "consultar" } }),
+          client.functions.invoke("minhas-preferencias", { body: { action: "consultar" } }),
+          client.functions.invoke("radar-alertas", { body: { action: "consultar" } }),
         ]);
         if (account.error) throw account.error;
         if (preferences.error) throw preferences.error;
