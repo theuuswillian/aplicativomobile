@@ -7,7 +7,7 @@ import { validateAssistantInput, validateAssistantOutput } from "./assistant-val
 import { validateReceiptDraft } from "./receipt-ai-validation.ts";
 import { isRadarAlertId, validateRadarAlertInput, validateRadarAlertPatch } from "./radar-validation.ts";
 import { isPushSubscriptionId, validatePushSubscription } from "./push-validation.ts";
-import { base64UrlBytes, createVapidAuthorization, encryptWebPushPayload } from "./push-webpush.ts";
+import { base64UrlBytes, createVapidAuthorization, encryptWebPushPayload, toArrayBuffer } from "./push-webpush.ts";
 
 Deno.test("display name trims whitespace and rejects non-text or oversized input", () => {
   deepStrictEqual(validateDisplayName("  Ana  "), { ok: true, value: "Ana" });
@@ -255,8 +255,8 @@ Deno.test("Web Push payload encryption creates an aes128gcm record", async () =>
     { name: "ECDH", public: serverKey }, client.privateKey, 256,
   ));
   const hmac = async (keyBytes: Uint8Array, data: Uint8Array) => {
-    const key = await crypto.subtle.importKey("raw", keyBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-    return new Uint8Array(await crypto.subtle.sign("HMAC", key, data));
+    const key = await crypto.subtle.importKey("raw", toArrayBuffer(keyBytes), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+    return new Uint8Array(await crypto.subtle.sign("HMAC", key, toArrayBuffer(data)));
   };
   const expand = async (prk: Uint8Array, info: Uint8Array, length: number) => {
     let previous = new Uint8Array(), result = new Uint8Array();
@@ -267,8 +267,13 @@ Deno.test("Web Push payload encryption creates an aes128gcm record", async () =>
     return result.slice(0, length);
   };
   const authPrk = await hmac(authSecret, shared);
+  const clientPublicBytes = (() => {
+    const base64 = clientPublic.replace(/-/g, "+").replace(/_/g, "/");
+    const binary = atob(base64 + "=".repeat((4 - base64.length % 4) % 4));
+    return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  })();
   const info = new Uint8Array([
-    ...new TextEncoder().encode("WebPush: info\\0"), ...clientPublic, ...serverPublic,
+    ...new TextEncoder().encode("WebPush: info\\0"), ...clientPublicBytes, ...serverPublic,
   ]);
   const inputKey = await expand(authPrk, info, 32);
   const contentPrk = await hmac(salt, inputKey);
