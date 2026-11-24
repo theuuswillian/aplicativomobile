@@ -13,6 +13,7 @@ create or replace function public.recurrence_next_date(
 ) returns date
 language plpgsql
 immutable
+security definer
 set search_path = pg_catalog, public
 as $$
 declare
