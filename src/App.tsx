@@ -31,6 +31,7 @@ type IncomeEventRow = { id: string; asset_id: string; event_type: "dividend" | "
 type BudgetSpendRow = { category_id: string | null; settled_amount: string };
 type TransactionRow = { id: string; kind: "income" | "expense" | "transfer"; status: "paid" | "planned" | "cancelled"; amount: string; transaction_date: string; description: string; account_id: string | null };
 type ImportPreviewRow = ParsedStatementRow & { dedupeKey: string; duplicate: boolean };
+type ReceiptFileRow = { id: string; transaction_id: string; storage_path: string; mime_type: string; byte_size: number; created_at: string };
 type ReceiptDraft = { sufficient: boolean; kind: "income" | "expense" | null; amount: string | null; date: string | null; description: string | null; category: string | null; payment_method: string | null; installment_count: number | null; card_last_four: string | null; confidence: number; warnings: string[] };
 const THEME_STORAGE_KEY = "granaviva:theme:v1";
 
@@ -191,6 +192,7 @@ export default function App() {
   const [assistantConsent, setAssistantConsent] = useState(false);
   const [assistantAnswer, setAssistantAnswer] = useState("");
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptFiles, setReceiptFiles] = useState<ReceiptFileRow[]>([]);
   const [receiptConsent, setReceiptConsent] = useState(false);
   const [receiptDraft, setReceiptDraft] = useState<ReceiptDraft | null>(null);
   const [receiptAccountId, setReceiptAccountId] = useState("");
@@ -212,7 +214,7 @@ export default function App() {
         setProfile(null); setAlerts([]); setAccounts([]); setCards([]); setCategories([]); setRecurrences([]); setBudgets([]); setGoals([]); setInvestmentAssets([]); setInvestmentOperations([]); setIncomeEvents([]); setPushSubscriptions([]); setWhatsappLink(null); setWhatsappLinkCode(""); setWhatsappSummaryEnabled(false); setIncomeAssetId(""); setIncomeAmount(""); setIncomeReferenceDate(todayInBrazil()); setIncomePaymentDate(""); setInvestmentSymbol(""); setInvestmentName(""); setInvestmentAssetId(""); setInvestmentQuantity(""); setInvestmentUnitPrice(""); setInvestmentFees("0,00"); setInvestmentDate(todayInBrazil()); setGoalName(""); setGoalTarget(""); setGoalMonthly("0,00"); setGoalTargetMonth(""); setGoalContributionAmounts({}); setImportFormat("CSV"); setImportDestinationType("account"); setImportDestinationId(""); setImportFileName(""); setImportPreview([]); setBudgetSpend([]); setTransactions([]); setTxCategoryId(""); setBudgetCategoryId(""); setBudgetLimit(""); setRecurrenceCategoryId(""); setRecurrenceAccountId(""); setRecurrenceCardId(""); setRecurrenceName(""); setRecurrenceAmount(""); setRecurrenceEnd(""); setRecurrenceStart(todayInBrazil());
         setTxAccountId(""); setTxCardId(""); setReceiptAccountId(""); setEditingTransactionId(null);
         setAssistantAnswer(""); setAssistantQuestion(""); setAssistantConsent(false);
-        setReceiptDraft(null); setReceiptFile(null); setReceiptConsent(false);
+        setReceiptDraft(null); setReceiptFile(null); setReceiptFiles([]); setReceiptConsent(false);
       }
     });
     return () => { active = false; listener.subscription.unsubscribe(); };
@@ -224,12 +226,13 @@ export default function App() {
     let active = true;
     const load = async () => {
       try {
-        const [account, preferences, radar, pushRows, whatsappRows, accountRows, transactionRows, cardRows, categoryRows, recurrenceRows, budgetRows, budgetSpendRows, goalRows, investmentAssetRows, investmentOperationRows, incomeEventRows] = await Promise.all([
+        const [account, preferences, radar, pushRows, whatsappRows, receiptFileRows, accountRows, transactionRows, cardRows, categoryRows, recurrenceRows, budgetRows, budgetSpendRows, goalRows, investmentAssetRows, investmentOperationRows, incomeEventRows] = await Promise.all([
           client.functions.invoke("minha-conta", { body: { action: "consultar" } }),
           client.functions.invoke("minhas-preferencias", { body: { action: "consultar" } }),
           client.functions.invoke("radar-alertas", { body: { action: "consultar" } }),
           client.functions.invoke("push-inscricoes", { body: { action: "consultar" } }),
           client.functions.invoke("whatsapp-vincular", { body: { action: "consultar" } }),
+          client.from("receipt_files").select("id,transaction_id,storage_path,mime_type,byte_size,created_at").eq("user_id", session.user.id).order("created_at", { ascending: false }).limit(100),
           client.from("accounts").select("id,name,account_type,opening_balance,is_primary").eq("user_id", session.user.id).eq("is_archived", false).order("created_at", { ascending: true }),
           client.from("transactions").select("id,kind,status,amount,transaction_date,description,account_id").eq("user_id", session.user.id).order("transaction_date", { ascending: false }).limit(30),
           client.from("cards").select("id,name,institution_name,last_four,brand,credit_limit,closing_day,due_day,is_archived").eq("user_id", session.user.id).eq("is_archived", false).order("created_at", { ascending: true }),
@@ -247,6 +250,7 @@ export default function App() {
         if (radar.error) throw radar.error;
         if (pushRows.error) throw pushRows.error;
         if (whatsappRows.error) throw whatsappRows.error;
+        if (receiptFileRows.error) throw receiptFileRows.error;
         if (accountRows.error) throw accountRows.error;
         if (transactionRows.error) throw transactionRows.error;
         if (cardRows.error) throw cardRows.error;
@@ -276,6 +280,7 @@ export default function App() {
         setPushSubscriptions((pushRows.data?.data ?? []) as PushSubscriptionRow[]);
         setWhatsappLink(whatsappRows.data?.data?.linked ? { phone: whatsappRows.data.data.phone, weekly_summary_enabled: whatsappRows.data.data.weekly_summary_enabled } : null);
         setWhatsappSummaryEnabled(Boolean(whatsappRows.data?.data?.weekly_summary_enabled));
+        setReceiptFiles((receiptFileRows.data ?? []) as ReceiptFileRow[]);
         if (investmentAssetRows.data?.[0]?.id) setIncomeAssetId((current) => current || investmentAssetRows.data[0].id);
         if (investmentAssetRows.data?.[0]?.id) setInvestmentAssetId((current) => current || investmentAssetRows.data[0].id);
         setTransactions((transactionRows.data ?? []) as TransactionRow[]);
@@ -944,16 +949,42 @@ export default function App() {
     finally { setBusy(false); }
   }
 
+  async function openReceiptFile(transactionId: string) {
+    if (!supabase || !session) return;
+    setBusy(true); setNotice("");
+    try {
+      const receipt = receiptFiles.find((item) => item.transaction_id === transactionId);
+      if (!receipt) throw new Error("Comprovante não encontrado para este lançamento.");
+      const { data, error } = await supabase.storage.from("receipt-files").createSignedUrl(receipt.storage_path, 60);
+      if (error || !data?.signedUrl) throw error ?? new Error("Não foi possível abrir o comprovante.");
+      window.location.assign(data.signedUrl);
+    } catch (error) { setNotice(errorMessage(error)); }
+    finally { setBusy(false); }
+  }
+
   async function deleteTransaction(item: TransactionRow) {
     if (!supabase || !session || !window.confirm(`Excluir o lançamento "${item.description}"?`)) return;
     setBusy(true); setNotice("");
     try {
+      const receipt = receiptFiles.find((file) => file.transaction_id === item.id);
+      if (receipt) {
+        const { error: storageError } = await supabase.storage.from("receipt-files").remove([receipt.storage_path]);
+        if (storageError) throw storageError;
+      }
       const { error } = await supabase.from("transactions").delete()
         .eq("id", item.id).eq("user_id", session.user.id);
-      if (error) throw error;
+      if (error) {
+        if (receipt) {
+          await supabase.from("receipt_files").delete().eq("id", receipt.id).eq("user_id", session.user.id);
+          setReceiptFiles((current) => current.filter((file) => file.id !== receipt.id));
+          throw new Error("O comprovante foi removido, mas o lançamento permaneceu. Tente excluir novamente.");
+        }
+        throw error;
+      }
       setTransactions((current) => current.filter((row) => row.id !== item.id));
+      setReceiptFiles((current) => current.filter((file) => file.transaction_id !== item.id));
       if (editingTransactionId === item.id) setEditingTransactionId(null);
-      setNotice("Lançamento excluído.");
+      setNotice("Lançamento e comprovante excluídos.");
       await refreshBudgetSpend();
     } catch (error) { setNotice(errorMessage(error)); }
     finally { setBusy(false); }
@@ -1069,13 +1100,14 @@ export default function App() {
       });
       if (uploadError) throw uploadError;
 
-      const { error: receiptError } = await supabase.from("receipt_files").insert({
+      const { data: receiptRow, error: receiptError } = await supabase.from("receipt_files").insert({
         user_id: session.user.id, transaction_id: transactionId, storage_path: storagePath,
         mime_type: receiptFile.type, byte_size: receiptFile.size, sha256,
-      });
-      if (receiptError) throw receiptError;
+      }).select("id,transaction_id,storage_path,mime_type,byte_size,created_at").single();
+      if (receiptError || !receiptRow) throw receiptError ?? new Error("Não foi possível vincular o comprovante ao lançamento.");
 
       await refreshBudgetSpend();
+      setReceiptFiles((current) => [receiptRow as ReceiptFileRow, ...current].slice(0, 100));
       setTransactions((current) => [data as TransactionRow, ...current].slice(0, 30));
       setReceiptDraft(null); setReceiptFile(null); setReceiptConsent(false);
       setNotice("Lançamento confirmado e comprovante armazenado com acesso privado.");
@@ -1391,7 +1423,7 @@ export default function App() {
                 <button className="primary-button" type="submit" disabled={busy || accounts.length === 0}>Salvar lançamento</button>
               </form>
               <div className="transaction-heading"><strong>Últimos lançamentos</strong><span>Até 30 registros</span></div>
-              {transactions.length === 0 ? <p className="empty-state">Seus lançamentos aparecerão aqui.</p> : <ul className="transaction-list">{transactions.map((item) => <li key={item.id}><div className="transaction-main"><div><strong>{item.description}</strong><span>{item.kind === "income" ? "Receita" : item.kind === "expense" ? "Despesa" : "Transferência"} · {item.status === "paid" ? "Realizado" : item.status === "planned" ? "Previsto" : "Cancelado"}</span><small>{new Date(item.transaction_date + "T12:00:00").toLocaleDateString("pt-BR")}</small></div><strong className={item.kind === "income" ? "income-value" : "expense-value"}>{item.kind === "income" ? "+" : item.kind === "expense" ? "−" : ""}{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(item.amount))}</strong></div><div className="transaction-row-actions"><button className="quiet-button" type="button" disabled={busy} onClick={() => beginTransactionEdit(item)}>Editar</button><button className="quiet-button danger-button" type="button" disabled={busy} onClick={() => void deleteTransaction(item)}>Excluir</button></div>{editingTransactionId === item.id && <form className="transaction-edit-form" onSubmit={(event) => { event.preventDefault(); void saveTransactionEdit(item); }}><label>Descrição<input value={editDescription} onChange={(event) => setEditDescription(event.target.value)} maxLength={240} required /></label><label>Valor (R$)<input inputMode="decimal" value={editAmount} onChange={(event) => setEditAmount(event.target.value)} required /></label><label>Data<input type="date" value={editDate} onChange={(event) => setEditDate(event.target.value)} required /></label><label>Situação<select value={editStatus} onChange={(event) => setEditStatus(event.target.value as "paid" | "planned")}><option value="paid">Realizado</option><option value="planned">Previsto</option></select></label><button className="primary-button" type="submit" disabled={busy}>Salvar alterações</button><button className="quiet-button" type="button" disabled={busy} onClick={() => setEditingTransactionId(null)}>Cancelar</button></form>}</li>)}</ul>}
+              {transactions.length === 0 ? <p className="empty-state">Seus lançamentos aparecerão aqui.</p> : <ul className="transaction-list">{transactions.map((item) => <li key={item.id}><div className="transaction-main"><div><strong>{item.description}</strong><span>{item.kind === "income" ? "Receita" : item.kind === "expense" ? "Despesa" : "Transferência"} · {item.status === "paid" ? "Realizado" : item.status === "planned" ? "Previsto" : "Cancelado"}</span><small>{new Date(item.transaction_date + "T12:00:00").toLocaleDateString("pt-BR")}</small></div><strong className={item.kind === "income" ? "income-value" : "expense-value"}>{item.kind === "income" ? "+" : item.kind === "expense" ? "−" : ""}{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(item.amount))}</strong></div><div className="transaction-row-actions">{receiptFiles.some((file) => file.transaction_id === item.id) && <button className="quiet-button" type="button" disabled={busy} onClick={() => void openReceiptFile(item.id)}>Abrir comprovante</button>}<button className="quiet-button" type="button" disabled={busy} onClick={() => beginTransactionEdit(item)}>Editar</button><button className="quiet-button danger-button" type="button" disabled={busy} onClick={() => void deleteTransaction(item)}>Excluir</button></div>{editingTransactionId === item.id && <form className="transaction-edit-form" onSubmit={(event) => { event.preventDefault(); void saveTransactionEdit(item); }}><label>Descrição<input value={editDescription} onChange={(event) => setEditDescription(event.target.value)} maxLength={240} required /></label><label>Valor (R$)<input inputMode="decimal" value={editAmount} onChange={(event) => setEditAmount(event.target.value)} required /></label><label>Data<input type="date" value={editDate} onChange={(event) => setEditDate(event.target.value)} required /></label><label>Situação<select value={editStatus} onChange={(event) => setEditStatus(event.target.value as "paid" | "planned")}><option value="paid">Realizado</option><option value="planned">Previsto</option></select></label><button className="primary-button" type="submit" disabled={busy}>Salvar alterações</button><button className="quiet-button" type="button" disabled={busy} onClick={() => setEditingTransactionId(null)}>Cancelar</button></form>}</li>)}</ul>}
             </section>
 
             <section className="panel" aria-labelledby="assistant-title">
