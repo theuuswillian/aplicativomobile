@@ -37,7 +37,8 @@ export function evaluateRadarAlert(
     return { shouldFire: false, price: null, reason: "asset_mismatch" };
   }
   const observed = Date.parse(quote.observed_at ?? quote.saved_at);
-  if (!Number.isFinite(observed) || observed > now + 2 * 60_000 || now - observed > 15 * 60_000) {
+  const maxAgeMs = quote.asset_class === "crypto" ? 15 * 60_000 : 45 * 60_000;
+  if (!Number.isFinite(observed) || observed > now + 2 * 60_000 || now - observed > maxAgeMs) {
     return { shouldFire: false, price: Number(quote.price), reason: "stale_quote" };
   }
   const price = Number(quote.price);
