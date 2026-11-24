@@ -35,3 +35,18 @@ describe("investment ledger", () => {
     expect(result.quantity).toBe(3);
   });
 });
+
+describe("manual investment reference price", () => {
+  it("normalizes Brazilian decimal comma and accepts bounded positive values", async () => {
+    const { normalizeManualReferencePrice } = await import("../src/domain/investments");
+    expect(normalizeManualReferencePrice(" 32,45 ")).toBe("32.45");
+    expect(normalizeManualReferencePrice("0.00000001")).toBe("0.00000001");
+  });
+
+  it("rejects zero, negative, malformed and excessive precision values", async () => {
+    const { normalizeManualReferencePrice } = await import("../src/domain/investments");
+    for (const value of ["0", "-1", "1.123456789", "1,2,3", "1e3", "12345678901", ""]) {
+      expect(normalizeManualReferencePrice(value)).toBeNull();
+    }
+  });
+});
