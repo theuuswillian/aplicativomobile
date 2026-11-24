@@ -315,9 +315,18 @@ O CI verde valida o código e as migrações em ambiente local; não comprova ch
 - [x] Revisão identificou que o worker Radar processa uma página de 20 alertas por invocação, mas o workflow não consumia `has_more`.
 - [x] Workflow `Scheduled workers` atualizado para percorrer até três páginas do Radar por execução, interromper se detectar lease ocupado ou ausência de próxima página e usar timeout de 130 segundos por chamada. O limite do job foi ampliado para 10 minutos. A execução continua opt-in e não foi disparada.
 - [ ] CI do novo workflow e dos documentos atualizados precisa concluir no HEAD final antes de considerar esta alteração validada.
-- [ ] O processamento WhatsApp ainda usa uma chamada única com limite de 45 segundos no cron; deve ser validado com carga sintética antes de habilitar workers.
+- [x] Processamento WhatsApp limitado a até duas mensagens recebidas e dois resumos por invocação; o cron permite até 130 segundos para essa chamada. A fila de resumos evita reenfileirar usuários com job existente e ordena jobs pendentes pelo mais antigo para reduzir starvation.
 - [ ] Edge Functions ainda não publicadas; secrets restantes de backend/OpenAI/Meta/VAPID ainda precisam ser configurados e validados nos painéis oficiais.
 - [ ] Teste remoto real e aceite Safari/PWA dependem de publicação controlada, credenciais e Preview atualizado.
 - Nenhum worker foi ativado, nenhum endpoint foi publicado, nenhuma Brapi foi ativada e nenhuma alteração foi feita em Vercel Production.
 
 **Esta atualização prevalece sobre notas históricas acima que digam que a migration 013 ainda não foi aplicada, que `APP_ORIGIN` está pendente ou que o Radar não possui checkpoint persistente.**
+
+
+## Ajuste de duração e justiça da fila WhatsApp — 24/11/2026
+
+- [x] `whatsapp-worker` limita cada execução a duas mensagens recebidas e dois resumos semanais, com no máximo quatro chamadas externas sequenciais e timeout interno de 25 segundos por envio.
+- [x] A seleção de novos resumos exclui usuários que já possuem job para a semana; jobs pendentes são processados por `updated_at` mais antigo primeiro, evitando que os mesmos primeiros usuários bloqueiem a entrada de outros na fila.
+- [x] O workflow permite até 130 segundos para a chamada WhatsApp, sem retries automáticos de POST que poderiam ocorrer após resultado ambíguo.
+- [ ] CI do HEAD final precisa validar os ajustes de worker e workflow antes de qualquer publicação.
+- Workers continuam desativados; nenhuma Edge Function foi publicada.
