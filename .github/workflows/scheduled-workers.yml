@@ -29,18 +29,19 @@ jobs:
       RECURRENCE_WORKER_SECRET: ${{ secrets.RECURRENCE_WORKER_SECRET }}
       RADAR_WORKER_SECRET: ${{ secrets.RADAR_WORKER_SECRET }}
       WHATSAPP_WORKER_SECRET: ${{ secrets.WHATSAPP_WORKER_SECRET }}
+      QUOTE_WORKER_SECRET: ${{ secrets.QUOTE_WORKER_SECRET }}
     steps:
       - name: Validate worker configuration
         shell: bash
         run: |
           set -euo pipefail
-          for name in SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY RECURRENCE_WORKER_SECRET RADAR_WORKER_SECRET WHATSAPP_WORKER_SECRET; do
+          for name in SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY RECURRENCE_WORKER_SECRET RADAR_WORKER_SECRET WHATSAPP_WORKER_SECRET QUOTE_WORKER_SECRET; do
             if [[ -z "${!name}" ]]; then
               echo "Missing required repository secret: $name"
               exit 1
             fi
           done
-          if [[ "$RECURRENCE_WORKER_SECRET" == "$RADAR_WORKER_SECRET" || "$WHATSAPP_WORKER_SECRET" == "$RADAR_WORKER_SECRET" || "$WHATSAPP_WORKER_SECRET" == "$RECURRENCE_WORKER_SECRET" ]]; then
+          if [[ "$RECURRENCE_WORKER_SECRET" == "$RADAR_WORKER_SECRET" || "$WHATSAPP_WORKER_SECRET" == "$RADAR_WORKER_SECRET" || "$WHATSAPP_WORKER_SECRET" == "$RECURRENCE_WORKER_SECRET" || "$QUOTE_WORKER_SECRET" == "$RADAR_WORKER_SECRET" || "$QUOTE_WORKER_SECRET" == "$RECURRENCE_WORKER_SECRET" || "$QUOTE_WORKER_SECRET" == "$WHATSAPP_WORKER_SECRET" ]]; then
             echo "Worker secrets must be different."
             exit 1
           fi
@@ -54,6 +55,18 @@ jobs:
             -X POST "$SUPABASE_URL/functions/v1/recurrence-worker" \
             -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
             -H "x-recurrence-worker-secret: $RECURRENCE_WORKER_SECRET" \
+            -H "Content-Type: application/json" \
+            --data '{}'
+
+      - name: Refresh delayed B3 quotes within the free-plan budget
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error --max-time 45 \
+            --retry 1 --retry-delay 3 --retry-all-errors \
+            -X POST "$SUPABASE_URL/functions/v1/quote-feed-worker" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "x-quote-worker-secret: $QUOTE_WORKER_SECRET" \
             -H "Content-Type: application/json" \
             --data '{}'
 
