@@ -334,6 +334,15 @@ create table public.push_delivery_attempts (
   check ((status = 'processing' and lease_token is not null and lease_until is not null)
       or (status <> 'processing' and lease_token is null and lease_until is null))
 );
+-- Não repetir para assinaturas antigas: a implementação anterior reservava
+-- a chave agregada antes de enviar, sem registrar quais dispositivos receberam.
+insert into public.push_delivery_attempts(user_id,delivery_key,subscription_id,status,attempts,last_error)
+select d.user_id,d.delivery_key,s.id,'uncertain',1,
+       'Estado legado sem confirmação por dispositivo; não reenviar automaticamente'
+  from public.push_deliveries d
+  join public.push_subscriptions s on s.user_id=d.user_id
+on conflict (user_id,delivery_key,subscription_id) do nothing;
+
 alter table public.push_delivery_attempts enable row level security;
 revoke all on public.push_delivery_attempts from public, anon, authenticated;
 grant all on public.push_delivery_attempts to service_role;
