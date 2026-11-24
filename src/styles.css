@@ -159,3 +159,16 @@ body { min-height: 100vh; }
   .finance-form .wide-field { grid-column: auto; }
   .transaction-list li { align-items: flex-start; }
 }
+
+
+.transaction-list li { display: grid; gap: 10px; }
+.transaction-main { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.transaction-main > div { display: grid; gap: 4px; }
+.transaction-row-actions { display: flex; justify-content: flex-end; gap: 7px; }
+.transaction-edit-form, .receipt-edit-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 13px; border: 1px solid var(--color-line); border-radius: 12px; background: var(--color-surface-raised); }
+.transaction-edit-form label, .receipt-edit-grid label { display: grid; gap: 6px; min-width: 0; color: var(--color-muted); font-size: 11px; font-weight: 650; }
+.transaction-edit-form input, .transaction-edit-form select, .receipt-edit-grid input, .receipt-edit-grid select { width: 100%; min-width: 0; min-height: 40px; padding: 8px 10px; border: 1px solid var(--color-line); border-radius: 9px; background: var(--color-surface); color: var(--color-text); font: inherit; }
+@media (max-width: 460px) {
+  .transaction-edit-form, .receipt-edit-grid { grid-template-columns: 1fr; }
+  .transaction-main { align-items: flex-start; }
+}
