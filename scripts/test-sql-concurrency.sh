@@ -112,4 +112,32 @@ if [[ "$generation" != "2" ]]; then
   exit 1
 fi
 
-echo "Concorrência PostgreSQL validada: quota de IA, rate limit e geração Radar foram serializados."
+# Contribuições concorrentes de uma meta devem preservar o histórico e somar
+# os valores exatamente uma vez, sob lock da própria meta.
+goal_id="40000000-0000-4000-8000-000000000001"
+psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  insert into public.goals(id,user_id,name,target_amount)
+  values ('$goal_id','$user_id','Meta concorrente',1000.00)
+"
+for suffix in a b; do
+  psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 >"$tmp_dir/goal-$suffix.out" <<SQL &
+begin;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','$user_id',true);
+select current_amount from public.add_goal_contribution('$goal_id',10.00,current_date);
+select pg_sleep(1);
+commit;
+SQL
+  eval "goal_pid_$suffix=$!"
+done
+wait "$goal_pid_a"
+wait "$goal_pid_b"
+goal_total="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select current_amount from public.goals where id='$goal_id' and user_id='$user_id'")"
+goal_contributions="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select count(*) from public.goal_contributions where goal_id='$goal_id' and user_id='$user_id'")"
+if [[ "$goal_total" != "20.00" || "$goal_contributions" != "2" ]]; then
+  echo "Falha: contribuições concorrentes deixaram total=$goal_total e histórico=$goal_contributions; esperado 20.00 e 2."
+  cat "$tmp_dir"/goal-*.out
+  exit 1
+fi
+
+echo "Concorrência PostgreSQL validada: quota de IA, rate limit, geração Radar e contribuições de metas foram serializados."
