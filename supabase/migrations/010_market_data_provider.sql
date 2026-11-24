@@ -1,5 +1,9 @@
 begin;
 
+alter table public.radar_fires
+  add column source text,
+  add column quote_observed_at timestamptz;
+
 -- Quota global do provedor. Não contém dados pessoais e é acessível apenas
 -- pela service role através da RPC atômica.
 create table public.market_data_usage (
