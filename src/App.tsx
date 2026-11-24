@@ -717,18 +717,10 @@ export default function App() {
                   <label>Tipo<select value={recurrenceKind} onChange={(event) => { const nextKind = event.target.value as "income" | "expense"; setRecurrenceKind(nextKind); setRecurrenceCategoryId(""); if (nextKind === "income") setRecurrenceCardId(""); }}><option value="expense">Despesa</option><option value="income">Receita</option></select></label>
                   <label>Valor (R$)<input inputMode="decimal" value={recurrenceAmount} onChange={(event) => setRecurrenceAmount(event.target.value)} placeholder="0,00" required /></label>
                   <label>Frequência<select value={recurrenceFrequency} onChange={(event) => setRecurrenceFrequency(event.target.value as RecurrenceRow["frequency"])}><option value="daily">Diária</option><option value="weekly">Semanal</option><option value="biweekly">Quinzenal</option><option value="monthly">Mensal</option><option value="yearly">Anual</option><option value="interval">A cada intervalo de dias</option></select></label>
-                  {#if recurrenceFrequency === "interval"}
-                    <label>Intervalo em dias<input type="number" min="1" max="366" value={recurrenceInterval} onChange={(event) => setRecurrenceInterval(event.target.value)} required /></label>
-                  {/if}
-                  {#if recurrenceFrequency === "weekly" || recurrenceFrequency === "biweekly"}
-                    <label>Dia da semana<select value={recurrenceWeekday} onChange={(event) => setRecurrenceWeekday(event.target.value)}>{["Domingo","Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado"].map((day,index) => <option key={day} value={index}>{day}</option>)}</select></label>
-                  {/if}
-                  {#if recurrenceFrequency === "monthly" || recurrenceFrequency === "yearly"}
-                    <label>Dia do mês<input type="number" min="1" max="31" value={recurrenceMonthDay} onChange={(event) => setRecurrenceMonthDay(event.target.value)} required /></label>
-                  {/if}
-                  {#if recurrenceFrequency === "yearly"}
-                    <label>Mês<select value={recurrenceMonth} onChange={(event) => setRecurrenceMonth(event.target.value)}>{["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"].map((month,index) => <option key={month} value={index+1}>{month}</option>)}</select></label>
-                  {/if}
+                  {recurrenceFrequency === "interval" && <label>Intervalo em dias<input type="number" min="1" max="366" value={recurrenceInterval} onChange={(event) => setRecurrenceInterval(event.target.value)} required /></label>}
+                  {(recurrenceFrequency === "weekly" || recurrenceFrequency === "biweekly") && <label>Dia da semana<select value={recurrenceWeekday} onChange={(event) => setRecurrenceWeekday(event.target.value)}>{["Domingo","Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado"].map((day,index) => <option key={day} value={index}>{day}</option>)}</select></label>}
+                  {(recurrenceFrequency === "monthly" || recurrenceFrequency === "yearly") && <label>Dia do mês<input type="number" min="1" max="31" value={recurrenceMonthDay} onChange={(event) => setRecurrenceMonthDay(event.target.value)} required /></label>}
+                  {recurrenceFrequency === "yearly" && <label>Mês<select value={recurrenceMonth} onChange={(event) => setRecurrenceMonth(event.target.value)}>{["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"].map((month,index) => <option key={month} value={index+1}>{month}</option>)}</select></label>}
                   <label>Começa em<input type="date" value={recurrenceStart} onChange={(event) => setRecurrenceStart(event.target.value)} required /></label>
                   <label>Termina em (opcional)<input type="date" min={recurrenceStart} value={recurrenceEnd} onChange={(event) => setRecurrenceEnd(event.target.value)} /></label>
                   <label>Categoria<select value={recurrenceCategoryId} onChange={(event) => setRecurrenceCategoryId(event.target.value)}><option value="">Sem categoria</option>{categories.filter((category) => category.kind === recurrenceKind).map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
