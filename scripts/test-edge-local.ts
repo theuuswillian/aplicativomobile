@@ -173,6 +173,44 @@ try {
   });
   assert(invalidSettings.response.status === 400, "Campo user_id enviado pelo cliente deve ser rejeitado.");
 
+  const radarCreated = await invoke("radar-alertas", tokenA, {
+    action: "criar",
+    asset_class: "stock",
+    symbol: "PETR4",
+    condition_type: "above",
+    threshold: 38.5,
+  });
+  assert(radarCreated.response.status === 201 && radarCreated.body?.data?.generation === 1,
+    `Usuário A deve criar alerta Radar (status=${radarCreated.response.status}; body=${JSON.stringify(radarCreated.body)}).`);
+  const radarId = radarCreated.body.data.id as string;
+
+  const radarListA = await invoke("radar-alertas", tokenA, { action: "consultar" });
+  assert(radarListA.response.ok && radarListA.body?.data?.length === 1,
+    "Usuário A deve consultar somente seus alertas Radar.");
+
+  const radarListB = await invoke("radar-alertas", tokenB, { action: "consultar" });
+  assert(radarListB.response.ok && radarListB.body?.data?.length === 0,
+    "Alertas Radar do usuário A não podem aparecer para o usuário B.");
+
+  const radarDisabled = await invoke("radar-alertas", tokenA, { action: "desativar", id: radarId });
+  assert(radarDisabled.response.ok && radarDisabled.body?.data?.generation === 1 &&
+    radarDisabled.body?.data?.is_enabled === false, "Desativar Radar não deve incrementar geração.");
+
+  const radarEnabled = await invoke("radar-alertas", tokenA, { action: "ativar", id: radarId });
+  assert(radarEnabled.response.ok && radarEnabled.body?.data?.generation === 2 &&
+    radarEnabled.body?.data?.is_enabled === true, "Reativar Radar deve incrementar geração uma única vez.");
+
+  const radarCrossUser = await invoke("radar-alertas", tokenB, { action: "desativar", id: radarId });
+  assert(radarCrossUser.response.status === 404,
+    "Usuário B não pode alterar alerta Radar do usuário A.");
+
+  const radarInvalid = await invoke("radar-alertas", tokenA, {
+    action: "criar", asset_class: "stock", symbol: "petr4",
+    condition_type: "above", threshold: 38.5, generation: 999,
+  });
+  assert(radarInvalid.response.status === 400,
+    "Radar deve rejeitar símbolo inválido e campos internos privilegiados.");
+
   const assistantWithoutConsent = await invoke("assistente", tokenA, {
     question: "Como foi meu mês?",
     facts: { expenses_paid: "R$ 1.200,00" },
