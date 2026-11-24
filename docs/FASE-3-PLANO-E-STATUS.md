@@ -6,7 +6,7 @@
 
 ## Objetivo
 
-Implementar backend e integração gradual da interface do GranaViva conforme `docs/ARQUITETURA_TRAVADA.md`, sem introduzir cobrança, planos comerciais, Pluggy ou dependência de provedor financeiro pago.
+Implementar backend e integração gradual da interface do GranaViva conforme `docs/ARQUITETURA_TRAVADA.md`, sem introduzir cobrança, planos comerciais ou Pluggy. O aditivo aprovado permite fonte externa somente para cotações públicas de mercado, com licença confirmada, chave no backend e limites gratuitos.
 
 ## Ordem de execução
 
@@ -65,13 +65,17 @@ Implementar backend e integração gradual da interface do GranaViva conforme `d
 ### Radar
 - [x] CRUD autenticado de alertas por usuário.
 - [x] Condições acima, abaixo e queda percentual diária.
-- [x] Worker `radar-worker` valida frescor de 15 minutos, fonte e classe do ativo, aplica condições, persiste disparos idempotentes por geração e solicita Push.
+- [x] Worker `radar-worker` valida frescor por classe, fonte e classe do ativo, aplica condições, persiste disparos idempotentes por geração e solicita Push.
 - [x] Histórico dos últimos disparos disponível no endpoint e na interface.
 - [x] RPC atômica: desativar preserva geração; reativar incrementa uma vez; repetição não incrementa.
 - [x] Migration `006_radar_alert_generation.sql`, grants restritos, RLS e testes de isolamento.
 - [x] Testes de validação, integração entre dois usuários e concorrência da reativação.
 - [x] Tela do Radar conectada ao endpoint no frontend.
-- [ ] Fonte de cotação pública e gratuita, com fonte/horário, cache e política de dados antigos. A arquitetura travada proíbe dependência de provedor financeiro externo; não integrar APIs pagas ou não aprovadas.
+- [x] Aditivo de arquitetura aprovado para cotações externas, limitado a dados públicos de mercado; dados bancários/pessoais continuam sem agregador externo.
+- [x] Adaptador brapi.dev para B3 (ações/FIIs/ETFs/BDRs), parser validado, cache 30 min, cota mensal atômica de 12.000, rotação justa, fonte e timestamp persistidos e exibidos.
+- [x] Worker de atualização de cotações protegido por JWT + segredo interno e incluído no cron antes da avaliação do Radar.
+- [ ] Habilitar exibição após confirmação escrita de licença da brapi para o uso no GranaViva; a flag `BRAPI_PUBLIC_DISPLAY_APPROVED` permanece falsa/ausente até isso.
+- [ ] Feed automático de cripto e renda fixa: não incluído no plano gratuito/licença pública validada; não serão usados feeds pagos sem autorização de custo.
 
 ### Push
 - [x] Registro, listagem e remoção de inscrições por usuário autenticado.
@@ -181,3 +185,16 @@ A Fase 2 continua preservada como base e a PR #1 não será mesclada por esta et
 O workflow agendado requer também o secret GitHub `WHATSAPP_WORKER_SECRET`, diferente dos secrets de recorrência e Radar. No Supabase, o mesmo valor deve existir como Edge Function secret. O worker de WhatsApp usa o mesmo segredo para a chamada interna do endpoint `whatsapp-meta-send`. O cron de 15 minutos processa a inbox; o resumo semanal é tentado às segundas-feiras e a RPC impede repetição da mesma semana.
 
 A fonte de cotações do Radar continua bloqueada por contrato: não foi aprovada revisão da arquitetura para integrar provedor financeiro externo. Não apresentar preços como atuais sem fonte e timestamp.
+
+
+### Atualização — fonte externa de cotações aprovada (24/11/2026)
+
+- A autorização do usuário revisou o contrato apenas para dados públicos de mercado; não autoriza cobranças nem conexão de contas bancárias.
+- Provedor inicial escolhido: brapi.dev, plano Gratuito, ações/FIIs/ETFs/BDRs em BRL, uma chamada por ticker, atraso de aproximadamente 30 minutos.
+- Migration `010_market_data_provider.sql`: contador mensal privado e reserva atômica exclusiva da service role; teto interno de 12.000 chamadas/mês.
+- Edge Function `quote-feed-worker`: no máximo quatro tickers por execução a cada 15 minutos, cache de 30 minutos, cursor rotativo, timeout, limite de resposta, validação de ticker/moeda/preço/horário e persistência em `quote_cache`/preço de referência dos ativos.
+- Radar tolera até 45 minutos para cotações B3 atrasadas; cripto mantém janela própria de 15 minutos. Disparos e notificações guardam/exibem fonte e horário da observação.
+- A API key é somente `BRAPI_API_KEY` no Supabase. O worker exige `QUOTE_WORKER_SECRET` e `BRAPI_PUBLIC_DISPLAY_APPROVED=true`.
+- **Bloqueio jurídico deliberado:** termos brapi proíbem redistribuição; FAQ admite aplicativos, mas ressalva licenças adicionais para redistribuição. Não habilitar o flag até obter confirmação escrita para exibição limitada no GranaViva gratuito.
+- Cripto permanece sem feed automático: endpoint brapi exige Startup/Pro; CoinPaprika Free é pessoal e a licença de redistribuição exige Enterprise; CoinGecko Demo não concede direitos comerciais. Nenhuma despesa foi autorizada.
+- Nenhuma migration foi aplicada no Supabase remoto, nenhum secret foi configurado e nenhum deploy foi realizado.
