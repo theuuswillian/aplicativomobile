@@ -332,7 +332,7 @@ begin
   end if;
 
   if not public.market_data_reserve('brapi', 'PETR4', 1)
-     or public.market_data_reserve('brapi', 1) then
+     or public.market_data_reserve('brapi', 'VALE3', 1) then
     raise exception 'Quota mensal do provedor não foi reservada atomicamente';
   end if;
 
