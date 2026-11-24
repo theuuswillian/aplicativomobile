@@ -199,7 +199,8 @@ wait "$recurrence_pid_a"
 wait "$recurrence_pid_b"
 recurrence_count="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select count(*) from public.transactions where user_id='$user_id' and recurrence_id='$recurrence_id' and source='recurrence' and status='planned'")"
 recurrence_state="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select is_active::text || ':' || next_occurrence_on::text from public.recurrence_rules where id='$recurrence_id' and user_id='$user_id'")"
-expected_recurrence_state="false:$(date -u -d '+3 days' +%Y-%m-%d)"
+expected_recurrence_date="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select current_date+3")"
+expected_recurrence_state="false:$expected_recurrence_date"
 if [[ "$recurrence_count" != "3" || "$recurrence_state" != "$expected_recurrence_state" ]]; then
   echo "Falha: recorrência concorrente gerou $recurrence_count itens e estado=$recurrence_state; esperado 3 e $expected_recurrence_state."
   cat "$tmp_dir"/recurrence-*.out
