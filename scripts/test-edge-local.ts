@@ -211,6 +211,29 @@ try {
   assert(radarInvalid.response.status === 400,
     "Radar deve rejeitar símbolo inválido e campos internos privilegiados.");
 
+  const pushRegistered = await invoke("push-inscricoes", tokenA, {
+    action: "registrar",
+    endpoint: "https://push.example.test/send/local-test-token",
+    p256dh: "A".repeat(87),
+    auth_key: "B".repeat(22),
+    user_agent: "GranaViva Integration Test",
+  });
+  assert(pushRegistered.response.status === 201 && pushRegistered.body?.data?.id,
+    "Usuário A deve registrar inscrição Push.");
+  const pushId = pushRegistered.body.data.id as string;
+  const pushListA = await invoke("push-inscricoes", tokenA, { action: "consultar" });
+  assert(pushListA.response.ok && pushListA.body?.data?.length === 1,
+    "Usuário A deve consultar sua inscrição Push.");
+  const pushListB = await invoke("push-inscricoes", tokenB, { action: "consultar" });
+  assert(pushListB.response.ok && pushListB.body?.data?.length === 0,
+    "Inscrição Push do usuário A não pode aparecer para usuário B.");
+  const pushRemovedByB = await invoke("push-inscricoes", tokenB, { action: "remover", id: pushId });
+  assert(pushRemovedByB.response.status === 404,
+    "Usuário B não pode remover inscrição Push do usuário A.");
+  const pushRemoved = await invoke("push-inscricoes", tokenA, { action: "remover", id: pushId });
+  assert(pushRemoved.response.ok && pushRemoved.body?.data?.deleted === true,
+    "Usuário A deve remover sua inscrição Push.");
+
   const assistantWithoutConsent = await invoke("assistente", tokenA, {
     question: "Como foi meu mês?",
     facts: { expenses_paid: "R$ 1.200,00" },
