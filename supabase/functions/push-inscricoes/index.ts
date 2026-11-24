@@ -34,7 +34,7 @@ Deno.serve(async (request: Request) => {
     }
 
     if (body.action === "registrar") {
-      const { action: _action, ...input } = body;
+      const input = Object.fromEntries(Object.entries(body).filter(([key]) => key !== "action"));
       const validated = validatePushSubscription(input);
       if (!validated.ok) {
         return jsonResponse({ error: { code: "INVALID_SUBSCRIPTION", message: "Inscrição de notificações inválida." } }, 400, origin);
