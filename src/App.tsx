@@ -361,9 +361,10 @@ export default function App() {
         if (investmentAssetRows.data?.[0]?.id) setIncomeAssetId((current) => current || investmentAssetRows.data[0].id);
         if (investmentAssetRows.data?.[0]?.id) setInvestmentAssetId((current) => current || investmentAssetRows.data[0].id);
         setTransactions((transactionRows.data ?? []) as TransactionRow[]);
-        if (accountRows.data?.[0]?.id) setTxAccountId((current) => current || accountRows.data[0].id);
-        if (accountRows.data?.[0]?.id) setReceiptAccountId((current) => current || accountRows.data[0].id);
-        if (accountRows.data?.[0]?.id) setImportDestinationId((current) => current || accountRows.data[0].id);
+        const firstLiquidAccount = accountRows.data?.find((account) => account.account_type !== "investment");
+        if (firstLiquidAccount?.id) setTxAccountId((current) => current || firstLiquidAccount.id);
+        if (firstLiquidAccount?.id) setReceiptAccountId((current) => current || firstLiquidAccount.id);
+        if (firstLiquidAccount?.id) setImportDestinationId((current) => current || firstLiquidAccount.id);
       } catch (error) {
         if (active) setNotice(errorMessage(error));
       }
@@ -538,8 +539,10 @@ export default function App() {
       if (error) throw error;
       const created = data as AccountRow;
       setAccounts((current) => [...current, created]);
-      setTxAccountId((current) => current || created.id);
-      setReceiptAccountId((current) => current || created.id);
+      if (created.account_type !== "investment") {
+        setTxAccountId((current) => current || created.id);
+        setReceiptAccountId((current) => current || created.id);
+      }
       setAccountName("");
       setAccountInstitutionKey("");
       setOpeningBalance("0,00");
@@ -1534,9 +1537,9 @@ export default function App() {
             </div>}
             {activeTab === "inicio" && <section className="overview-grid" aria-label="Resumo financeiro">
               <article className="overview-balance">
-                <div className="overview-label">Saldo disponível <span aria-hidden="true">◉</span></div>
+                <div className="overview-label">Saldo livre hoje <span aria-hidden="true">◉</span></div>
                 <strong>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(accounts.filter((account) => account.account_type !== "investment").reduce((sum, account) => sum + (accountBalances[account.id] ?? 0), 0))}</strong>
-                <small>{accounts.length} {accounts.length === 1 ? "conta conectada" : "contas cadastradas"}</small>
+                <small>{accounts.filter((account) => account.account_type !== "investment").length} contas bancárias e dinheiro físico</small>
               </article>
               <article className="overview-stat"><span>Compromissos & extras</span><strong>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Object.values(cardCommittedAmounts).reduce((sum, value) => sum + value, 0))}</strong><small>Faturas e limite comprometido · a receber: {financialSummary ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(financialSummary.receivables_brl ?? 0) + Number(financialSummary.overtime_forecast_brl ?? 0)) : "aguardando ativação do ledger"}</small></article>
               <article className="overview-stat"><span>Patrimônio investido</span>{(() => {
@@ -1779,7 +1782,7 @@ export default function App() {
                   <label>Conta usada no pagamento<select value={invoicePaymentAccountId} onChange={(event) => setInvoicePaymentAccountId(event.target.value)} required><option value="">Selecione</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
                   <label>Valor pago (R$)<input inputMode="decimal" value={invoicePaymentAmount} onChange={(event) => setInvoicePaymentAmount(event.target.value)} placeholder="0,00" required /></label>
                   <label>Data do pagamento<input type="date" max={todayInBrazil()} value={invoicePaymentDate} onChange={(event) => setInvoicePaymentDate(event.target.value)} required /></label>
-                  <button className="primary-button" type="submit" disabled={busy || !cards.length || !accounts.length}>Registrar pagamento</button>
+                  <button className="primary-button" type="submit" disabled={busy || !cards.length || !accounts.some((account) => account.account_type !== "investment")}>Registrar pagamento</button>
                 </form>
                 <p className="helper-text">O pagamento reduz o saldo da conta escolhida e libera o limite correspondente. Não cria uma segunda despesa nos relatórios: as compras já foram contabilizadas no cartão.</p>
                 {invoicePayments.length > 0 && <ul className="account-list">{invoicePayments.slice(0,8).map((payment) => {
@@ -1887,7 +1890,7 @@ export default function App() {
                   <label>Categoria<select value={txCategoryId} onChange={(event) => setTxCategoryId(event.target.value)}><option value="">Sem categoria</option>{categories.filter((category) => category.kind === txKind).map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
                 </>}
                 <label className="wide-field">Descrição<input value={txDescription} onChange={(event) => setTxDescription(event.target.value)} maxLength={240} placeholder="Ex.: Mercado" required /></label>
-                <button className="primary-button" type="submit" disabled={busy || accounts.length === 0}>Salvar lançamento</button>
+                <button className="primary-button" type="submit" disabled={busy || !accounts.some((account) => account.account_type !== "investment")}>Salvar lançamento</button>
               </form>
               <div className="transaction-heading"><strong>Últimos lançamentos</strong><span>Até 30 registros</span></div>
               {transactions.length === 0 ? <p className="empty-state">Seus lançamentos aparecerão aqui.</p> : <ul className="transaction-list">{transactions.map((item) => <li key={item.id}><div className="transaction-main"><div><strong>{item.description}</strong><span>{item.kind === "income" ? "Receita" : item.kind === "expense" ? "Despesa" : `Transferência · ${accounts.find((account) => account.id === item.transfer_from_account_id)?.name ?? "Origem"} → ${accounts.find((account) => account.id === item.transfer_to_account_id)?.name ?? "Destino"}`} · {item.status === "paid" ? "Realizado" : item.status === "planned" ? "Previsto" : "Cancelado"}</span><small>{new Date(item.transaction_date + "T12:00:00").toLocaleDateString("pt-BR")}</small></div><strong className={item.kind === "income" ? "income-value" : "expense-value"}>{item.kind === "income" ? "+" : item.kind === "expense" ? "−" : ""}{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(item.amount))}</strong></div><div className="transaction-row-actions">{receiptFiles.some((file) => file.transaction_id === item.id) && <button className="quiet-button" type="button" disabled={busy} onClick={() => void openReceiptFile(item.id)}>Abrir comprovante</button>}<button className="quiet-button" type="button" disabled={busy} onClick={() => beginTransactionEdit(item)}>Editar</button><button className="quiet-button danger-button" type="button" disabled={busy} onClick={() => void deleteTransaction(item)}>Excluir</button></div>{editingTransactionId === item.id && <form className="transaction-edit-form" onSubmit={(event) => { event.preventDefault(); void saveTransactionEdit(item); }}><label>Descrição<input value={editDescription} onChange={(event) => setEditDescription(event.target.value)} maxLength={240} required /></label><label>Valor (R$)<input inputMode="decimal" value={editAmount} onChange={(event) => setEditAmount(event.target.value)} required /></label><label>Data<input type="date" value={editDate} onChange={(event) => setEditDate(event.target.value)} required /></label><label>Situação<select value={editStatus} onChange={(event) => setEditStatus(event.target.value as "paid" | "planned")}><option value="paid">Realizado</option><option value="planned">Previsto</option></select></label><button className="primary-button" type="submit" disabled={busy}>Salvar alterações</button><button className="quiet-button" type="button" disabled={busy} onClick={() => setEditingTransactionId(null)}>Cancelar</button></form>}</li>)}</ul>}
