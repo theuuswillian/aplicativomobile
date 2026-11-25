@@ -689,4 +689,6 @@
   background-color: #f0fdf4;
   border-radius: 8px;
   padding: 7px 10px;
+  /* Evita contraste intermediário durante a troca de tema no WebKit. */
+  transition: none;
 }
