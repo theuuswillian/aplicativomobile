@@ -136,6 +136,7 @@ export default function App() {
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const [activeTab, setActiveTab] = useState<DashboardTab>("inicio");
   const [quickEntryOpen, setQuickEntryOpen] = useState(false);
+  const [balancesHidden, setBalancesHidden] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(!supabase);
   const [email, setEmail] = useState("");
@@ -1545,7 +1546,7 @@ export default function App() {
   }
 
   return (
-    <main className="app-shell" data-theme={theme}>
+    <main className="app-shell" data-theme={theme} data-balances-hidden={balancesHidden ? "true" : "false"}>
       <div className="app-frame">
         <header className="topbar">
           <a className="brand" href="/" onClick={(event) => event.preventDefault()}>
@@ -1611,7 +1612,7 @@ export default function App() {
             </div>}
             {activeTab === "inicio" && <section className="overview-grid" aria-label="Resumo financeiro">
               <article className="overview-balance">
-                <div className="overview-label">Saldo livre hoje <span aria-hidden="true">◉</span></div>
+                <div className="overview-label"><span>Saldo livre hoje</span><button className="balance-visibility-toggle" type="button" aria-label={balancesHidden ? "Mostrar saldos" : "Ocultar saldos"} aria-pressed={balancesHidden} onClick={() => setBalancesHidden((hidden) => !hidden)}>{balancesHidden ? "Mostrar" : "Ocultar"}</button></div>
                 <strong>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(accounts.filter((account) => account.account_type !== "investment").reduce((sum, account) => sum + (accountBalances[account.id] ?? 0), 0))}</strong>
                 <small>{accounts.filter((account) => account.account_type !== "investment").length} contas bancárias e dinheiro físico</small>
               </article>
