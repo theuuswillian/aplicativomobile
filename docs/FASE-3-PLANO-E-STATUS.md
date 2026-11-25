@@ -363,3 +363,14 @@ O CI verde valida o código e as migrações em ambiente local; não comprova ch
 - Não houve deployment Preview nem Production. A Production permanece intacta.
 - A validação visual real em Safari e no PWA instalado no iPhone continua pendente.
 - Próximas etapas da evolução: aprofundar a apresentação dos cartões/faturas; revisar a carteira, alocação e proventos; refinar A Receber, horas extras, relatórios e acessibilidade; executar CI integral no HEAD consolidado antes de considerar Preview.
+
+### Segunda etapa — Cartões e Faturas (25/11/2026)
+- [x] Reorganizada a lista de cartões em painéis responsivos, destacando limite total, valor utilizado, limite disponível, instituição e datas de fechamento/vencimento.
+- [x] Histórico de pagamentos de fatura recebeu agrupamento visual individual, com valor, data e conta de origem mais fáceis de identificar.
+- [x] Ações existentes de arquivar cartão, registrar pagamento e excluir pagamento foram preservadas.
+- [x] Nenhuma regra de cálculo de limite, fechamento, vencimento, pagamento parcial, ledger ou contabilização foi alterada.
+- [x] Alterações limitadas a src/App.tsx e src/styles/visual-refresh.css; nenhuma dependência ou migration adicionada.
+- Commits: 6986975c4e3debb26dddb0e1075db137526c54b5 (markup) e 67aadee276c5f661c4a5382338721c9b5be9304e (estilos).
+- [ ] CI para o HEAD 67aadee276c5f661c4a5382338721c9b5be9304e ainda não foi confirmada pelas consultas disponíveis. A última CI integral confirmada permanece verde no commit eaecf201833edbe43eb30f6ba7cc6e81685fd1dc; ela não valida automaticamente estas mudanças visuais.
+- [ ] Teste visual manual em Safari e PWA instalado permanece pendente.
+- Nenhum deployment, merge, alteração no Supabase remoto ou mudança em Production.
