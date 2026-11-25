@@ -469,6 +469,22 @@ investment_cash_after_bridge="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c 
 ")"
 if [[ "$investment_cash_after_bridge" != "350.00" ]]; then
   echo "Falha: resgate de R$ 200,00 e aporte de R$ 50,00 deveriam deixar R$ 350,00; encontrado $investment_cash_after_bridge."
+  psql "$DATABASE_URL" -x -v ON_ERROR_STOP=1 -c "
+    select t.id,t.kind,t.status,t.amount,t.transfer_from_account_id,t.transfer_to_account_id,
+           s.active_journal_id,j.status as journal_status,a.account_kind,
+           coalesce(sum(l.debit-l.credit),0) as net_debit
+      from public.transactions t
+      left join private.ledger_source_state s on s.user_id=t.user_id and s.source_type='transaction' and s.source_id=t.id
+      left join private.journal_entries j on j.user_id=s.user_id and j.id=s.active_journal_id
+      left join private.journal_lines l on l.user_id=j.user_id and l.journal_entry_id=j.id
+      left join private.ledger_accounts a on a.user_id=l.user_id and a.id=l.ledger_account_id
+     where t.user_id='$user_id' and t.kind='transfer'
+     group by t.id,s.active_journal_id,j.status,a.account_kind
+  "
+  psql "$DATABASE_URL" -x -v ON_ERROR_STOP=1 -c "
+    select id,account_type,opening_balance_date from public.accounts
+     where user_id='$user_id' and id in ('$investment_account_id','$account_id')
+  "
   exit 1
 fi
 if psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
