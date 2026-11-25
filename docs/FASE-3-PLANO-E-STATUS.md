@@ -423,3 +423,17 @@ O CI verde valida o código e as migrações em ambiente local; não comprova ch
 - [ ] Preview novo não solicitado: histórico da PR registra bloqueio de quota Vercel HTTP 402. O Preview antigo não deve ser tratado como validação deste lote.
 - [ ] Verificação visual manual em Safari e PWA no iPhone permanece pendente.
 - [ ] Próxima etapa: reorganizar visualmente os resumos de Gastos e Patrimônio e completar menus secundários de Conta, Metas e Relatórios sem remover funcionalidades existentes.
+
+
+## Continuação da reorganização das telas — 25/11/2026
+- [x] Ações de criação do Radar, ativos, operações e proventos passaram para painéis expansíveis, preservando os formulários e handlers existentes.
+- [x] Cadastro de categorias, definição de orçamento, recorrências e novo lançamento passaram para painéis expansíveis na área Gastos.
+- [x] Refinados visualmente os painéis secundários, listas, legendas de alocação e menu da Conta para reduzir densidade e melhorar hierarquia.
+- [x] Conferida a estrutura JSX por inspeção do arquivo atualizado: 12 aberturas e 12 fechamentos de `details`; cada um dos oito novos painéis possui identificador textual único.
+- [x] Nenhuma alteração em lógica de cálculo, RPC, schema Supabase, dados, credenciais ou dependências.
+- Commits: `734378aa4ff1f84e0fcb9b57471cf0890ffd9918` (App) e `82badcc7281f03de391a71370312f1b018873a9f` (CSS).
+- [ ] CI para o HEAD `82badcc7281f03de391a71370312f1b018873a9f` ainda não apareceu na consulta de execuções associadas ao commit; não declarar lint, testes ou build como aprovados.
+- [ ] Preview atualizado permanece pendente por bloqueio de quota Vercel HTTP 402 registrado anteriormente; não reutilizar Preview antigo como se validasse este HEAD.
+- [ ] Teste visual manual no Safari/PWA continua pendente.
+- [ ] Próxima etapa: revisar a hierarquia das telas secundárias (Metas, Relatórios, Conta) e criar navegação interna acionável para Conexões, Personalização, Segurança e Dados, sem esconder recursos nem mudar suas permissões.
+- PR #2 segue aberta/draft/sem merge; Production e Supabase remoto permanecem intocados.
