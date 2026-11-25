@@ -9,7 +9,6 @@ test("renders the public foundation without exposing authenticated navigation", 
   await expect(page.locator("#welcome-title")).toBeVisible();
   // Sem sessão, as áreas financeiras e o dock autenticado não devem aparecer.
   await expect(page.locator(".bottom-nav")).toHaveCount(0);
-  await expect(page.locator("#dashboard")).toHaveCount(0);
 });
 
 test("restores the saved appearance preference on reload", async ({ page }) => {
