@@ -465,3 +465,8 @@ O CI verde valida o código e as migrações em ambiente local; não comprova ch
 - [ ] Preview não criado nesta etapa; permanece registrado bloqueio de quota Vercel HTTP 402. Não reutilizar URL antiga como se validasse este HEAD.
 - [ ] Aceite visual manual no Safari/PWA ainda pendente; esta etapa não foi vista no iPhone.
 - PR #2 segue aberta/draft/sem merge; Production e Supabase remoto permanecem intocados.
+
+
+### Observação de CI após o lote visual
+- A execução `45611112041` iniciou no commit de código `cc22c69fa7f5a8bf900e0681f700e40013b7f9e4`, mas foi cancelada após novo commit na mesma branch: lint, políticas, segredos, TypeScript e testes unitários haviam concluído com sucesso; build, browser, SQL e integração local foram cancelados/interrompidos antes da conclusão. Não considerar a CI verde.
+- A atualização documental seguinte gerou um novo commit `93f588a4b8b51229d776ac36dc2df42496c7899b`; a execução associada ao push ainda não está exposta pela consulta de runs PR disponível. Confirmar o resultado no painel Actions antes de aceitar o lote.
