@@ -370,6 +370,7 @@ fi
 
 
 # Regras contábeis de firewall, empréstimos, horas extras e parcelas exatas.
+export PGOPTIONS="-c request.jwt.claim.sub=$user_id"
 psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select set_config('request.jwt.claim.sub','$user_id',false)" >/dev/null
 investment_account_id="50000000-0000-4000-8000-000000000002"
 psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
