@@ -943,9 +943,9 @@ begin
     end if;
   end loop;
 
-  for p in select pay.*,a.opening_balance_date,a.account_type
+  for p in select pay.*,acct.opening_balance_date,acct.account_type
     from public.card_invoice_payments pay
-    join public.accounts a on a.user_id=pay.user_id and a.id=pay.account_id
+    join public.accounts acct on acct.user_id=pay.user_id and acct.id=pay.account_id
     order by pay.payment_date,pay.created_at loop
     if exists(select 1 from private.ledger_source_state
       where user_id=p.user_id and source_type='card_invoice_payment' and source_id=p.id) then
