@@ -303,4 +303,69 @@ if [[ "$summary_sent" != "t" || "$summary_week" != "$week_start" ]]; then
   echo "Falha: resumo enviado não foi finalizado: sent=$summary_sent week=$summary_week"; exit 1
 fi
 
-echo "Concorrência PostgreSQL validada: quota de IA, rate limit, Radar, metas, WhatsApp e recorrências foram serializados e os novos checkpoints/resumos foram testados."
+
+
+# Pagamentos concorrentes da mesma fatura devem ser serializados no banco:
+# fatura de R$ 100,00; duas tentativas simultâneas de R$ 60,00 => só uma aceita.
+card_id="90000000-0000-4000-8000-000000000001"
+invoice_transaction_id="90000000-0000-4000-8000-000000000002"
+psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  insert into public.cards(
+    id,user_id,name,institution_name,last_four,credit_limit,closing_day,due_day
+  ) values (
+    '$card_id','$user_id','Cartão concorrente','Fixture','1234',1000,10,20
+  );
+  insert into public.transactions(
+    id,user_id,kind,status,amount,transaction_date,description,card_id,settled_amount,settled_at,source
+  ) values (
+    '$invoice_transaction_id','$user_id','expense','paid',100.00,'2026-11-05',
+    'Compra da fatura concorrente','$card_id',100.00,'2026-11-05','manual'
+  );
+"
+for suffix in a b; do
+  psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 >"$tmp_dir/invoice-$suffix.out" 2>&1 <<SQL &
+begin;
+insert into public.card_invoice_payments(
+  user_id,card_id,account_id,invoice_closing_date,amount,payment_date
+) values (
+  '$user_id','$card_id','$account_id','2026-11-10',60.00,current_date
+);
+select pg_sleep(1);
+commit;
+SQL
+  eval "invoice_pid_$suffix=$!"
+done
+
+invoice_successes=0
+for suffix in a b; do
+  if eval "wait \"\$invoice_pid_$suffix\""; then
+    invoice_successes=$((invoice_successes + 1))
+  fi
+done
+invoice_payment_count="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select count(*) from public.card_invoice_payments where user_id='$user_id' and card_id='$card_id' and invoice_closing_date='2026-11-10'")"
+invoice_paid_total="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select coalesce(sum(amount),0) from public.card_invoice_payments where user_id='$user_id' and card_id='$card_id' and invoice_closing_date='2026-11-10'")"
+if [[ "$invoice_successes" != "1" || "$invoice_payment_count" != "1" || "$invoice_paid_total" != "60.00" ]]; then
+  echo "Falha: pagamentos concorrentes tiveram $invoice_successes sucessos, $invoice_payment_count registros e total $invoice_paid_total; esperado 1, 1 e 60.00."
+  cat "$tmp_dir"/invoice-*.out
+  exit 1
+fi
+
+# Também rejeita pagamentos acima do saldo em uma única operação e datas futuras.
+if psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  insert into public.card_invoice_payments(
+    user_id,card_id,account_id,invoice_closing_date,amount,payment_date
+  ) values ('$user_id','$card_id','$account_id','2026-11-10',50.00,current_date)
+" >"$tmp_dir/invoice-overpay.out" 2>&1; then
+  echo "Falha: banco aceitou pagamento que ultrapassa o saldo da fatura."
+  exit 1
+fi
+if psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  insert into public.card_invoice_payments(
+    user_id,card_id,account_id,invoice_closing_date,amount,payment_date
+  ) values ('$user_id','$card_id','$account_id','2026-11-10',1.00,current_date+1)
+" >"$tmp_dir/invoice-future.out" 2>&1; then
+  echo "Falha: banco aceitou pagamento com data futura."
+  exit 1
+fi
+
+echo "Concorrência PostgreSQL validada: quota de IA, rate limit, Radar, metas, WhatsApp, recorrências e pagamentos de fatura foram serializados e testados."
