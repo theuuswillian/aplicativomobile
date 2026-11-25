@@ -338,3 +338,28 @@ O CI verde valida o código e as migrações em ambiente local; não comprova ch
 - [x] Política isolada em supabase/functions/_shared/whatsapp-delivery.ts e coberta por testes Vitest em tests/whatsapp-delivery.test.ts.
 - [ ] CI do HEAD atualizado ainda precisa concluir integralmente; o status Vercel atual reporta bloqueio de quota de Preview e não substitui os jobs do GitHub Actions.
 - Nenhuma Edge Function publicada, nenhum envio real feito, workers desligados e Production intacta.
+
+
+## Evolução visual do GranaViva — 25/11/2026
+
+### Primeira etapa — Dashboard, privacidade e base visual
+- [x] Refinada a camada visual premium Obsidian/Bento em src/styles/visual-refresh.css, preservando o CSS próprio e os tokens existentes.
+- [x] Dashboard reorganizado visualmente em Bento cards para desktop e layout responsivo em telas menores.
+- [x] Refinados cards de saldo, indicadores, fluxo mensal, últimos lançamentos, formulários, painéis e navegação inferior.
+- [x] Modal existente de novo lançamento recebeu acabamento glassmorphism, hierarquia visual e estados de interação; seus destinos funcionais existentes foram preservados.
+- [x] Adicionado controle de privacidade visual no saldo livre do Dashboard: o usuário pode desfocar os principais valores do resumo sem alterar os dados ou cálculos.
+- [x] Mantidos tema claro/escuro, foco visível e respeito a prefers-reduced-motion.
+- [x] Nenhuma dependência visual nova foi adicionada; a implementação reutiliza React, Lucide e CSS já presentes.
+- [x] Nenhuma migration, alteração de dados, configuração remota, Edge Function, worker ou integração foi executada.
+
+### Commits
+- ad188492f20eb1e4dd5ae52b6d205581312de4f0 — style: refine GranaViva premium dashboard and modal
+- 66f329ff5369547fdf137a512d271d6221f40497 — feat: add private balance visibility control
+- 42ff92b1644b7c943b9e4234a587bf5009f8325e — style: add privacy control to dashboard balances
+
+### Validação e limites
+- A branch continua fase-3-backend; PR #2 permanece aberta, draft e sem merge.
+- A CI do HEAD 42ff92b1644b7c943b9e4234a587bf5009f8325e ainda não está confirmada. A consulta disponível de workflows retorna apenas execuções associadas a eventos de pull request e não apresentou uma execução para este HEAD; o status agregado também não apresentou checks. Portanto, não declarar lint, build ou testes aprovados para estes commits.
+- Não houve deployment Preview nem Production. A Production permanece intacta.
+- A validação visual real em Safari e no PWA instalado no iPhone continua pendente.
+- Próximas etapas da evolução: aprofundar a apresentação dos cartões/faturas; revisar a carteira, alocação e proventos; refinar A Receber, horas extras, relatórios e acessibilidade; executar CI integral no HEAD consolidado antes de considerar Preview.
