@@ -347,8 +347,11 @@ set search_path=pg_catalog,private
 as $$
 declare v_id uuid; v_status text; v_count integer; v_debit numeric; v_credit numeric;
 begin
-  v_id := case when tg_table_name='journal_entries' then coalesce(new.id,old.id)
-               else coalesce(new.journal_entry_id,old.journal_entry_id) end;
+  if tg_table_name='journal_entries' then
+    v_id := coalesce(new.id,old.id);
+  else
+    v_id := coalesce(new.journal_entry_id,old.journal_entry_id);
+  end if;
   select status into v_status from private.journal_entries where id=v_id;
   if v_status is distinct from 'posted' then return null; end if;
   select count(*),coalesce(sum(debit),0),coalesce(sum(credit),0)
