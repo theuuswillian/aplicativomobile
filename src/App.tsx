@@ -1654,9 +1654,10 @@ export default function App() {
                 <span><strong>{profile?.display_name || "Minha conta"}</strong><small>{session?.user.email}</small></span>
               </div>
               <div className="account-menu-list">
-                <button type="button" onClick={() => setActiveTab("relatorios")}><span className="account-menu-icon green">▥</span><span><strong>Relatórios</strong><small>Acompanhamento financeiro</small></span><span aria-hidden="true">›</span></button>
+                <button type="button" onClick={() => setActiveTab("gastos")}><span className="account-menu-icon green">⌁</span><span><strong>Conexões</strong><small>WhatsApp e notificações, quando configurados</small></span><span aria-hidden="true">›</span></button>
                 <button type="button" onClick={() => void toggleTheme()}><span className="account-menu-icon purple">◐</span><span><strong>Personalização</strong><small>Tema e aparência</small></span><span aria-hidden="true">›</span></button>
-                <button type="button" onClick={() => setQuickEntryOpen(true)}><span className="account-menu-icon blue">＋</span><span><strong>Atalhos financeiros</strong><small>Registrar receita ou despesa</small></span><span aria-hidden="true">›</span></button>
+                <button type="button" onClick={() => setActiveTab("planejamento")}><span className="account-menu-icon blue">◎</span><span><strong>Metas e planejamento</strong><small>Objetivos e valores a receber</small></span><span aria-hidden="true">›</span></button>
+                <button type="button" onClick={() => setActiveTab("relatorios")}><span className="account-menu-icon green">▥</span><span><strong>Relatórios</strong><small>Acompanhamento financeiro</small></span><span aria-hidden="true">›</span></button>
               </div>
               <nav className="section-jump" aria-label="Atalhos da área da conta"><a href="#conta">Dados e privacidade</a><a href="#conta-relatorios">Relatórios</a><a href="#conta-assistente">Assistente</a><a href="#conta-comprovante">Leitor de comprovantes</a><a href="#conta-proximos-passos">Próximos recursos</a></nav>
               <details className="account-data-details">
