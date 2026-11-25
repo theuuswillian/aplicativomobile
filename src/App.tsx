@@ -1684,38 +1684,10 @@ export default function App() {
               <button className="account-signout-button" type="button" onClick={() => void handleSignOut()} disabled={busy}>Sair da conta</button>
             </section>
             <section className="panel" id="patrimonio" hidden={activeTab !== "patrimonio"} aria-labelledby="radar-title">
-              <div className="panel-heading"><div><span className="principles-label">ACOMPANHAMENTO DE ATIVOS</span><h2 id="radar-title">Radar de preços</h2><p>Crie alertas para acompanhar seus ativos. O disparo usa somente cotações recentes de uma fonte validada; nenhuma fonte de preços está conectada ainda.</p></div></div>
+              <div className="panel-heading"><div><span className="principles-label">ACOMPANHAMENTO DE ATIVOS</span><h2 id="radar-title">Patrimônio e investimentos</h2><p>Acompanhe sua carteira, a distribuição dos ativos, os proventos e os alertas de preço em um só lugar.</p></div></div>
               <nav className="section-jump" aria-label="Atalhos do patrimônio">
                 <a href="#patrimonio-radar">Radar</a><a href="#patrimonio-investimentos">Carteira</a><a href="#patrimonio-proventos">Proventos</a>
               </nav>
-              <div className="transaction-heading"><strong>Radar de preços</strong><span>{alerts.length} alertas cadastrados</span></div>
-              <details className="management-drawer"><summary>＋ Criar alerta de preço</summary><form className="radar-form" id="patrimonio-radar" onSubmit={(event) => void createAlert(event)}>
-                <label>Classe<select value={assetClass} onChange={(event) => setAssetClass(event.target.value as RadarAlert["asset_class"])}><option value="stock">Ação</option><option value="fii">FII</option><option value="etf">ETF</option><option value="bdr">BDR</option><option value="crypto">Cripto</option></select></label>
-                <label>Ativo<input value={symbol} onChange={(event) => setSymbol(event.target.value.toUpperCase())} placeholder="Ex.: PETR4" maxLength={32} required /></label>
-                <label>Condição<select value={condition} onChange={(event) => setCondition(event.target.value as RadarAlert["condition_type"])}><option value="above">Preço acima de</option><option value="below">Preço abaixo de</option><option value="daily_drop">Queda no dia (%)</option></select></label>
-                <label>{condition === "daily_drop" ? "Queda (%)" : "Valor (R$)"}<input inputMode="decimal" value={threshold} onChange={(event) => setThreshold(event.target.value)} placeholder="0,00" required /></label>
-                <button className="primary-button" type="submit" disabled={busy}>Criar alerta</button>
-              </form></details>
-              {alerts.length === 0 ? <p className="empty-state">Você ainda não tem alertas cadastrados.</p> : (
-                <ul className="alert-list">
-                  {alerts.map((alert) => <li key={alert.id}>
-                    <div><strong>{alert.symbol}</strong><span>{alert.asset_class.toUpperCase()} · {alert.condition_type === "above" ? "Acima de" : alert.condition_type === "below" ? "Abaixo de" : "Queda diária"} {alert.threshold}{alert.condition_type === "daily_drop" ? "%" : ""}</span><small>Geração {alert.generation} · {alert.is_enabled ? "Ativo" : "Pausado"}</small></div>
-                    <div className="alert-actions">
-                      <button className="quiet-button" type="button" disabled={busy} onClick={() => void changeAlert(alert, alert.is_enabled ? "desativar" : "ativar")}>{alert.is_enabled ? "Pausar" : "Reativar"}</button>
-                      <button className="quiet-button danger-button" type="button" disabled={busy} onClick={() => void changeAlert(alert, "excluir")}>Excluir</button>
-                    </div>
-                  </li>)}
-                </ul>
-              )}
-              <div className="radar-fire-history">
-                <div className="transaction-heading"><strong>Últimos disparos</strong><span>{radarFires.length} registrados</span></div>
-                {radarFires.length === 0 ? <p className="empty-state">Nenhum alerta foi disparado ainda. Os eventos serão registrados quando houver cotações recentes e uma condição for atingida.</p> : <ul className="account-list">{radarFires.slice(0, 20).map((fire) => {
-                  const alertId = fire.alert_key.split(":")[0];
-                  const alert = alerts.find((item) => item.id === alertId);
-                  return <li key={fire.alert_key}><strong>{alert?.symbol ?? "Ativo"} · {alert?.condition_type === "daily_drop" ? "Queda diária" : alert?.condition_type === "above" ? "Preço acima" : "Preço abaixo"}</strong><span>Preço observado: {Number(fire.observed_price).toLocaleString("pt-BR", { maximumFractionDigits: 8 })}</span><small>Fonte: {fire.source ?? "não informada"} · Cotação de {fire.quote_observed_at ? new Date(fire.quote_observed_at).toLocaleString("pt-BR") : "horário indisponível"} · Alerta registrado {new Date(fire.fired_at).toLocaleString("pt-BR")}</small></li>;
-                })}</ul>}
-              </div>
-            
               <section className="subpanel" id="patrimonio-investimentos" aria-labelledby="investments-title">
                 <div className="transaction-heading"><strong id="investments-title">Carteira de investimentos</strong><span>{investmentAssets.length} ativos</span></div>
                 {investmentAssets.length > 0 && <div className="investment-allocation" aria-label="Distribuição da carteira">
@@ -1786,6 +1758,35 @@ export default function App() {
                 })}</ul>}
                 <p className="helper-text">Preços informados manualmente são apenas referências e não alteram operações, saldos, custo médio ou resultado realizado, nem alimentam o Radar. Cotações automáticas da B3 permanecem desativadas até existir licença adequada. Cripto e renda fixa não têm feed automático.</p>
               </section>
+
+              <div className="transaction-heading"><strong>Radar de preços</strong><span>{alerts.length} alertas cadastrados</span></div>
+              <details className="management-drawer"><summary>＋ Criar alerta de preço</summary><form className="radar-form" id="patrimonio-radar" onSubmit={(event) => void createAlert(event)}>
+                <label>Classe<select value={assetClass} onChange={(event) => setAssetClass(event.target.value as RadarAlert["asset_class"])}><option value="stock">Ação</option><option value="fii">FII</option><option value="etf">ETF</option><option value="bdr">BDR</option><option value="crypto">Cripto</option></select></label>
+                <label>Ativo<input value={symbol} onChange={(event) => setSymbol(event.target.value.toUpperCase())} placeholder="Ex.: PETR4" maxLength={32} required /></label>
+                <label>Condição<select value={condition} onChange={(event) => setCondition(event.target.value as RadarAlert["condition_type"])}><option value="above">Preço acima de</option><option value="below">Preço abaixo de</option><option value="daily_drop">Queda no dia (%)</option></select></label>
+                <label>{condition === "daily_drop" ? "Queda (%)" : "Valor (R$)"}<input inputMode="decimal" value={threshold} onChange={(event) => setThreshold(event.target.value)} placeholder="0,00" required /></label>
+                <button className="primary-button" type="submit" disabled={busy}>Criar alerta</button>
+              </form></details>
+              {alerts.length === 0 ? <p className="empty-state">Você ainda não tem alertas cadastrados.</p> : (
+                <ul className="alert-list">
+                  {alerts.map((alert) => <li key={alert.id}>
+                    <div><strong>{alert.symbol}</strong><span>{alert.asset_class.toUpperCase()} · {alert.condition_type === "above" ? "Acima de" : alert.condition_type === "below" ? "Abaixo de" : "Queda diária"} {alert.threshold}{alert.condition_type === "daily_drop" ? "%" : ""}</span><small>Geração {alert.generation} · {alert.is_enabled ? "Ativo" : "Pausado"}</small></div>
+                    <div className="alert-actions">
+                      <button className="quiet-button" type="button" disabled={busy} onClick={() => void changeAlert(alert, alert.is_enabled ? "desativar" : "ativar")}>{alert.is_enabled ? "Pausar" : "Reativar"}</button>
+                      <button className="quiet-button danger-button" type="button" disabled={busy} onClick={() => void changeAlert(alert, "excluir")}>Excluir</button>
+                    </div>
+                  </li>)}
+                </ul>
+              )}
+              <div className="radar-fire-history">
+                <div className="transaction-heading"><strong>Últimos disparos</strong><span>{radarFires.length} registrados</span></div>
+                {radarFires.length === 0 ? <p className="empty-state">Nenhum alerta foi disparado ainda. Os eventos serão registrados quando houver cotações recentes e uma condição for atingida.</p> : <ul className="account-list">{radarFires.slice(0, 20).map((fire) => {
+                  const alertId = fire.alert_key.split(":")[0];
+                  const alert = alerts.find((item) => item.id === alertId);
+                  return <li key={fire.alert_key}><strong>{alert?.symbol ?? "Ativo"} · {alert?.condition_type === "daily_drop" ? "Queda diária" : alert?.condition_type === "above" ? "Preço acima" : "Preço abaixo"}</strong><span>Preço observado: {Number(fire.observed_price).toLocaleString("pt-BR", { maximumFractionDigits: 8 })}</span><small>Fonte: {fire.source ?? "não informada"} · Cotação de {fire.quote_observed_at ? new Date(fire.quote_observed_at).toLocaleString("pt-BR") : "horário indisponível"} · Alerta registrado {new Date(fire.fired_at).toLocaleString("pt-BR")}</small></li>;
+                })}</ul>}
+              </div>
+            
               <section className="subpanel" id="patrimonio-proventos" aria-labelledby="income-events-title">
                 <div className="transaction-heading"><strong id="income-events-title">Dividendos e proventos</strong><span>{incomeEvents.filter((item) => item.status === "received").length} recebidos</span></div>
                 {investmentAssets.length === 0 ? <p className="empty-state">Cadastre um ativo para registrar dividendos, JCP e outros proventos.</p> : <>
