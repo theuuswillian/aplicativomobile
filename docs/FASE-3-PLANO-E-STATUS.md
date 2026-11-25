@@ -386,3 +386,14 @@ O CI verde valida o código e as migrações em ambiente local; não comprova ch
 - [ ] CI integral para o HEAD consolidado ainda precisa concluir. A execução 45600122585 já passou em SQL, Edge Runtime e Edge Integration; o job validate estava executando os testes Playwright de navegador, responsividade, offline e acessibilidade na última consulta. Essa execução foi iniciada antes do commit de estilo 2fb0109 e não valida esse commit.
 - [ ] Validação manual real em Safari e no PWA instalado no iPhone continua pendente; precisa de Preview atualizado e teste no dispositivo do operador. A automação Chromium/WebKit não substitui o aceite visual no iPhone.
 - Nenhum Preview/Production, merge, alteração no Supabase remoto ou ativação de workers foi executado.
+
+
+## Refinamento visual mobile — 25/11/2026
+- [x] A referência visual enviada pelo usuário foi adotada como direção principal para a interface: estética financeira premium escura, superfícies em camadas, verde como acento, cartões compactos e navegação inferior em dock.
+- [x] Primeira camada de refinamento aplicada em `src/styles/visual-refresh.css`: cabeçalho, saudação, indicador do Radar, cartões do resumo, ação principal, painéis, tema claro e navegação de cinco áreas.
+- [x] Reserva de espaço inferior ampliada para impedir que a navegação fixa cubra o conteúdo durante a rolagem; regras comuns para Safari e PWA, preservando safe areas.
+- [x] Alteração somente de apresentação; nenhuma lógica financeira, dado, migration, configuração remota ou dependência foi alterada.
+- [x] CI integral no HEAD `af4e6011d00f0f65525929452aeb9c2668eba6ef`: [run 45602861171](https://github.com/theuuswillian/aplicativomobile/actions/runs/45602861171) — validate (lint, políticas, segredos, TypeScript, testes, build, browser/WebKit, responsividade, offline e acessibilidade), SQL/PostgreSQL 17, Edge Runtime e integração local concluídos com sucesso; lockfile ignorado conforme esperado.
+- [ ] Criar/obter Preview para este HEAD e conferir visualmente em Safari e PWA no iPhone; o deployment anterior não contém esta alteração.
+- [ ] A referência também contém detalhes de conteúdo (metas e resumo mensal) que ainda precisam ser comparados com os módulos e dados reais existentes; não foram criados gráficos ou valores fictícios.
+- Vercel Production intacta; PR #2 continua aberta, em draft e sem merge.
