@@ -450,3 +450,18 @@ O CI verde valida o código e as migrações em ambiente local; não comprova ch
 - [ ] Preview novo não criado; há bloqueio de quota Vercel HTTP 402 registrado anteriormente. Teste visual Safari/PWA ainda pendente.
 - [ ] PIN/Face ID, telas próprias de Segurança e configurações detalhadas de assinatura não existem no fluxo atual inspecionado; não foram simulados nem adicionados como controles falsos.
 - PR #2 permanece aberta/draft/sem merge; Production e Supabase remoto não foram alterados.
+
+
+## Dashboard, Gastos e Patrimônio — refinamento mobile-first — 25/11/2026
+- [x] Dashboard recebeu gráfico de linha/área SVG calculado a partir do fluxo líquido realizado dos últimos seis meses; não apresenta rentabilidade ou variação inventada.
+- [x] Adicionado resumo mensal de receitas, despesas e saldo usando apenas lançamentos com situação realizada no mês corrente.
+- [x] Gastos recebeu gráfico de rosca por categoria, calculado com despesas realizadas do mês e categorias cadastradas pelo usuário; estado vazio explica quando não há movimento.
+- [x] Patrimônio prioriza a carteira e a distribuição dos investimentos antes do Radar de preços; preservadas as referências manuais e a separação BRL/USD.
+- [x] Aplicada paleta Obsidian neutra nos tokens e superfícies, cartões de resumo, ações rápidas, listas e dock inferior; header minimalista existente preservado.
+- [x] Inspeção estrutural: 14 elementos `details` abertos/fechados e 18 formulários abertos/fechados; quatro abas principais; ordem Carteira > Radar > Proventos confirmada.
+- [x] Nenhuma mudança em lógica contábil, RPC, schema, dados remotos, integrações, credenciais ou dependências.
+- Commits: `ba296362d67a42a9493bbe291cf8a1452b0f64f7` (resumos e donut), `49ccc68621d99269a8ec0fc1db6ab8d7760971a6` (tokens), `423b1740b83566ca52203a6bb7b50956f52715a4` (CSS), `4142008d53fc261b51b7e753006adde89b02dde7` (ordem do patrimônio), `1e34c9048ba1241dc7c9bf5750eafec6ded51361` (gráfico do hero), `cc22c69fa7f5a8bf900e0681f700e40013b7f9e4` (acabamento CSS).
+- [ ] CI da branch iniciou como execução `45611112041` (run #1399), estado `pending`; aguardar conclusão antes de considerar validado.
+- [ ] Preview não criado nesta etapa; permanece registrado bloqueio de quota Vercel HTTP 402. Não reutilizar URL antiga como se validasse este HEAD.
+- [ ] Aceite visual manual no Safari/PWA ainda pendente; esta etapa não foi vista no iPhone.
+- PR #2 segue aberta/draft/sem merge; Production e Supabase remoto permanecem intocados.
