@@ -163,6 +163,7 @@ export default function App() {
   const [investmentAssets, setInvestmentAssets] = useState<InvestmentAssetRow[]>([]);
   const [investmentOperations, setInvestmentOperations] = useState<InvestmentOperationRow[]>([]);
   const [incomeEvents, setIncomeEvents] = useState<IncomeEventRow[]>([]);
+  const [incomeSettlementReady, setIncomeSettlementReady] = useState(false);
   const [pushSubscriptions, setPushSubscriptions] = useState<PushSubscriptionRow[]>([]);
   const [whatsappLink, setWhatsappLink] = useState<WhatsappLinkState | null>(null);
   const [whatsappLinkCode, setWhatsappLinkCode] = useState("");
@@ -297,7 +298,7 @@ export default function App() {
     let active = true;
     const load = async () => {
       try {
-        const [account, preferences, radar, radarFireRows, pushRows, whatsappRows, receiptFileRows, accountRows, transactionRows, cardRows, invoicePaymentRows, cardInvoiceInstallmentRows, categoryRows, recurrenceRows, budgetRows, budgetSpendRows, goalRows, goalContributionRows, investmentAssetRows, investmentOperationRows, incomeEventRows] = await Promise.all([
+        const [account, preferences, radar, radarFireRows, pushRows, whatsappRows, receiptFileRows, accountRows, transactionRows, cardRows, invoicePaymentRows, cardInvoiceInstallmentRows, categoryRows, recurrenceRows, budgetRows, budgetSpendRows, goalRows, goalContributionRows, investmentAssetRows, investmentOperationRows, incomeEventRows, incomeEventSettlementRows] = await Promise.all([
           client.functions.invoke("minha-conta", { body: { action: "consultar" } }),
           client.functions.invoke("minhas-preferencias", { body: { action: "consultar" } }),
           client.functions.invoke("radar-alertas", { body: { action: "consultar" } }),
@@ -318,7 +319,8 @@ export default function App() {
           client.from("goal_contributions").select("id,goal_id,amount,contribution_date,source,created_at").eq("user_id", session.user.id).order("created_at", { ascending: false }).limit(100),
           client.from("investment_assets").select("id,symbol,name,asset_class,currency,current_price,price_as_of,price_source,metadata").eq("user_id", session.user.id).order("symbol", { ascending: true }),
           client.from("investment_operations").select("id,asset_id,operation_type,operation_date,quantity,unit_price,gross_amount,fees").eq("user_id", session.user.id).in("operation_type", ["opening","buy","sell"]).order("operation_date", { ascending: true }),
-          client.from("income_events").select("id,asset_id,event_type,reference_date,payment_date,announced_amount,received_amount,status,account_id,transaction_id,settlement_state").eq("user_id", session.user.id).order("reference_date", { ascending: false }),
+          client.from("income_events").select("id,asset_id,event_type,reference_date,payment_date,announced_amount,received_amount,status").eq("user_id", session.user.id).order("reference_date", { ascending: false }),
+          client.from("income_events").select("id,account_id,transaction_id,settlement_state").eq("user_id", session.user.id),
         ]);
         if (account.error) throw account.error;
         if (preferences.error) throw preferences.error;
@@ -360,7 +362,12 @@ export default function App() {
         setGoalContributions((goalContributionRows.data ?? []) as GoalContributionRow[]);
         setInvestmentAssets((investmentAssetRows.data ?? []) as InvestmentAssetRow[]);
         setInvestmentOperations((investmentOperationRows.data ?? []) as InvestmentOperationRow[]);
-        setIncomeEvents((incomeEventRows.data ?? []) as IncomeEventRow[]);
+        setIncomeSettlementReady(!incomeEventSettlementRows.error);
+        const settlementById = new Map((incomeEventSettlementRows.data ?? []).map((row) => [row.id, row]));
+        setIncomeEvents(((incomeEventRows.data ?? []) as Omit<IncomeEventRow, "account_id" | "transaction_id" | "settlement_state">[]).map((row) => ({
+          ...row,
+          ...(settlementById.get(row.id) ?? { account_id: null, transaction_id: null, settlement_state: "unsettled" as const }),
+        })));
         setPushSubscriptions((pushRows.data?.data ?? []) as PushSubscriptionRow[]);
         setWhatsappLink(whatsappRows.data?.data?.linked ? { phone: whatsappRows.data.data.phone, weekly_summary_enabled: whatsappRows.data.data.weekly_summary_enabled } : null);
         setWhatsappSummaryEnabled(Boolean(whatsappRows.data?.data?.weekly_summary_enabled));
@@ -906,24 +913,40 @@ export default function App() {
     if (!selectedIncomeAsset || !amount || !incomeReferenceDate ||
         (incomePaymentDate && incomePaymentDate < incomeReferenceDate) ||
         (["announced", "planned", "received"].includes(incomeStatus) && !incomePaymentDate) ||
+        (incomeStatus === "received" && !incomeSettlementReady) ||
         (incomeStatus === "received" && !incomeDestinationAccountId) ||
         (incomeStatus === "received" && selectedIncomeAsset.currency !== "BRL")) {
-      setNotice(incomeStatus === "received" && selectedIncomeAsset?.currency === "USD"
-        ? "Proventos em USD ficam registrados como previstos até existir uma conta USD e conversão cambial explícita."
-        : "Confira o ativo, valor, datas e a conta de destino do recebimento.");
+      setNotice(incomeStatus === "received" && !incomeSettlementReady
+        ? "A liquidação de proventos será habilitada quando a migration financeira estiver ativa no banco."
+        : incomeStatus === "received" && selectedIncomeAsset?.currency === "USD"
+          ? "Proventos em USD ficam registrados como previstos até existir uma conta USD e conversão cambial explícita."
+          : "Confira o ativo, valor, datas e a conta de destino do recebimento.");
       return;
     }
     setBusy(true); setNotice("");
     try {
-      const { data, error } = await supabase.from("income_events").insert({
+      const eventPayload = {
         user_id: session.user.id, asset_id: incomeAssetId, event_type: incomeEventType,
         reference_date: incomeReferenceDate, payment_date: incomePaymentDate || null,
         announced_amount: amount, received_amount: incomeStatus === "received" ? amount : "0.00",
-        status: incomeStatus, account_id: incomeStatus === "received" ? incomeDestinationAccountId : null,
-        settlement_idempotency_key: incomeStatus === "received" ? crypto.randomUUID() : null,
-      }).select("id,asset_id,event_type,reference_date,payment_date,announced_amount,received_amount,status,account_id,transaction_id,settlement_state").single();
+        status: incomeStatus,
+      };
+      let data: unknown;
+      let error: { message: string } | null;
+      if (incomeSettlementReady) {
+        const result = await supabase.from("income_events").insert({
+          ...eventPayload,
+          account_id: incomeStatus === "received" ? incomeDestinationAccountId : null,
+          settlement_idempotency_key: incomeStatus === "received" ? crypto.randomUUID() : null,
+        }).select("id,asset_id,event_type,reference_date,payment_date,announced_amount,received_amount,status,account_id,transaction_id,settlement_state").single();
+        data = result.data; error = result.error;
+      } else {
+        const result = await supabase.from("income_events").insert(eventPayload)
+          .select("id,asset_id,event_type,reference_date,payment_date,announced_amount,received_amount,status").single();
+        data = result.data; error = result.error;
+      }
       if (error) throw error;
-      setIncomeEvents((current) => [data as IncomeEventRow, ...current]);
+      setIncomeEvents((current) => [{ ...(data as IncomeEventRow), settlement_state: (data as IncomeEventRow).settlement_state ?? "unsettled" }, ...current]);
       setIncomeAmount(""); setIncomePaymentDate(""); setIncomeDestinationAccountId("");
       setNotice("Provento registrado no histórico da carteira.");
     } catch (error) { setNotice(errorMessage(error)); }
@@ -1737,8 +1760,9 @@ export default function App() {
                     <label>Valor (R$)<input inputMode="decimal" value={incomeAmount} onChange={(event) => setIncomeAmount(event.target.value)} placeholder="0,00" required /></label>
                     <label>Data de referência<input type="date" value={incomeReferenceDate} onChange={(event) => setIncomeReferenceDate(event.target.value)} required /></label>
                     <label>Data de pagamento<input type="date" min={incomeReferenceDate} value={incomePaymentDate} onChange={(event) => setIncomePaymentDate(event.target.value)} /></label>
-                    <label>Situação<select value={incomeStatus} onChange={(event) => { const next = event.target.value as IncomeEventRow["status"]; setIncomeStatus(next); if (next !== "received") setIncomeDestinationAccountId(""); }}><option value="announced">Anunciado</option><option value="planned">Previsto</option><option value="received">Recebido</option><option value="cancelled">Cancelado</option></select></label>
-                    {incomeStatus === "received" && <label>Destino do provento<select value={incomeDestinationAccountId} onChange={(event) => setIncomeDestinationAccountId(event.target.value)} required><option value="">Selecione a conta</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}{account.account_type === "investment" ? " · reinvestir no caixa da corretora" : " · receber na conta"}</option>)}</select></label>}
+                    <label>Situação<select value={incomeStatus} onChange={(event) => { const next = event.target.value as IncomeEventRow["status"]; setIncomeStatus(next); if (next !== "received") setIncomeDestinationAccountId(""); }}><option value="announced">Anunciado</option><option value="planned">Previsto</option><option value="received" disabled={!incomeSettlementReady}>Recebido</option><option value="cancelled">Cancelado</option></select></label>
+                    {incomeStatus === "received" && incomeSettlementReady && <label>Destino do provento<select value={incomeDestinationAccountId} onChange={(event) => setIncomeDestinationAccountId(event.target.value)} required><option value="">Selecione a conta</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}{account.account_type === "investment" ? " · reinvestir no caixa da corretora" : " · receber na conta"}</option>)}</select></label>}
+                    {incomeStatus === "received" && !incomeSettlementReady && <p className="helper-text">A liquidação em conta será habilitada após a migration financeira ser ativada no Supabase.</p>}
                     {incomeStatus === "received" && investmentAssets.find((asset) => asset.id === incomeAssetId)?.currency === "USD" && <p className="helper-text">Ativos em USD podem ter proventos previstos, mas o crédito em conta ficará bloqueado até existir conversão cambial explícita.</p>}
                     <button className="primary-button" type="submit" disabled={busy}>Registrar provento</button>
                   </form>
