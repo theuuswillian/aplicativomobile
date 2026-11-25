@@ -8,7 +8,7 @@ import { clearFinancialRecordsForUser } from "./lib/secure-storage";
 import { generateOccurrences, type RecurrenceFrequency } from "./domain/recurrence";
 import { calculateInvestmentSummary, normalizeManualReferencePrice, type InvestmentOperation } from "./domain/investments";
 import { parseCsvStatement, parseOfxStatement, planImportBatch, type ImportRow } from "./domain/imports";
-import { calculateAccountBalance, calculateCardCommittedLimitCents, type LedgerEntry } from "./domain/finance";
+import { calculateAccountBalance, calculateCardCommittedLimitCents, calculateInvoice, type InvoicePayment, type LedgerEntry } from "./domain/finance";
 type PushSubscriptionRow = { id: string; endpoint: string; user_agent: string | null };
 type WhatsappLinkState = { phone: string; weekly_summary_enabled: boolean };
 type RadarFireRow = { alert_key: string; fired_at: string; observed_price: string; source: string | null; quote_observed_at: string | null };
@@ -37,6 +37,7 @@ type InvestmentOperationRow = { id: string; asset_id: string; operation_type: "o
 type IncomeEventRow = { id: string; asset_id: string; event_type: "dividend" | "jcp" | "distribution" | "coupon" | "interest" | "amortization" | "other"; reference_date: string; payment_date: string | null; announced_amount: string; received_amount: string; status: "announced" | "planned" | "received" | "cancelled" };
 type BudgetSpendRow = { category_id: string | null; settled_amount: string };
 type TransactionRow = { id: string; kind: "income" | "expense" | "transfer"; status: "paid" | "planned" | "cancelled"; amount: string; transaction_date: string; description: string; account_id: string | null; card_id: string | null; transfer_from_account_id: string | null; transfer_to_account_id: string | null; category_id: string | null };
+type CardInvoicePaymentRow = { id: string; card_id: string; account_id: string; invoice_closing_date: string; amount: string; payment_date: string; description: string };
 type ImportPreviewRow = ImportRow & { dedupeKey: string; duplicate: boolean };
 type ReceiptFileRow = { id: string; transaction_id: string; storage_path: string; mime_type: string; byte_size: number; created_at: string };
 type ReceiptDraft = { sufficient: boolean; kind: "income" | "expense" | null; amount: string | null; date: string | null; description: string | null; category: string | null; payment_method: string | null; installment_count: number | null; card_last_four: string | null; confidence: number; warnings: string[] };
@@ -149,6 +150,7 @@ export default function App() {
   const [threshold, setThreshold] = useState("");
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
   const [cards, setCards] = useState<CardRow[]>([]);
+  const [invoicePayments, setInvoicePayments] = useState<CardInvoicePaymentRow[]>([]);
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [recurrences, setRecurrences] = useState<RecurrenceRow[]>([]);
   const [budgets, setBudgets] = useState<BudgetRow[]>([]);
@@ -234,10 +236,17 @@ export default function App() {
   const [openingBalance, setOpeningBalance] = useState("0,00");
   const [txDescription, setTxDescription] = useState("");
   const [txAmount, setTxAmount] = useState("");
-  const [txKind, setTxKind] = useState<"income" | "expense">("expense");
+  const [txKind, setTxKind] = useState<"income" | "expense" | "transfer">("expense");
+  const [txTransferFromId, setTxTransferFromId] = useState("");
+  const [txTransferToId, setTxTransferToId] = useState("");
   const [txStatus, setTxStatus] = useState<"paid" | "planned">("paid");
   const [txDate, setTxDate] = useState(todayInBrazil);
   const [txAccountId, setTxAccountId] = useState("");
+  const [invoicePaymentCardId, setInvoicePaymentCardId] = useState("");
+  const [invoicePaymentAccountId, setInvoicePaymentAccountId] = useState("");
+  const [invoiceClosingDate, setInvoiceClosingDate] = useState(todayInBrazil);
+  const [invoicePaymentAmount, setInvoicePaymentAmount] = useState("");
+  const [invoicePaymentDate, setInvoicePaymentDate] = useState(todayInBrazil);
   const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
   const [editDescription, setEditDescription] = useState("");
   const [editAmount, setEditAmount] = useState("");
@@ -281,7 +290,7 @@ export default function App() {
     let active = true;
     const load = async () => {
       try {
-        const [account, preferences, radar, radarFireRows, pushRows, whatsappRows, receiptFileRows, accountRows, transactionRows, cardRows, categoryRows, recurrenceRows, budgetRows, budgetSpendRows, goalRows, goalContributionRows, investmentAssetRows, investmentOperationRows, incomeEventRows] = await Promise.all([
+        const [account, preferences, radar, radarFireRows, pushRows, whatsappRows, receiptFileRows, accountRows, transactionRows, cardRows, invoicePaymentRows, categoryRows, recurrenceRows, budgetRows, budgetSpendRows, goalRows, goalContributionRows, investmentAssetRows, investmentOperationRows, incomeEventRows] = await Promise.all([
           client.functions.invoke("minha-conta", { body: { action: "consultar" } }),
           client.functions.invoke("minhas-preferencias", { body: { action: "consultar" } }),
           client.functions.invoke("radar-alertas", { body: { action: "consultar" } }),
@@ -292,6 +301,7 @@ export default function App() {
           client.from("accounts").select("id,name,account_type,opening_balance,opening_balance_date,is_primary,institution_name,institution_code,institution_logo_key").eq("user_id", session.user.id).eq("is_archived", false).order("created_at", { ascending: true }),
           client.from("transactions").select("id,kind,status,amount,transaction_date,description,account_id,card_id,transfer_from_account_id,transfer_to_account_id,category_id").eq("user_id", session.user.id).order("transaction_date", { ascending: false }).limit(10000),
           client.from("cards").select("id,name,institution_name,last_four,brand,credit_limit,closing_day,due_day,is_archived").eq("user_id", session.user.id).eq("is_archived", false).order("created_at", { ascending: true }),
+          client.from("card_invoice_payments").select("id,card_id,account_id,invoice_closing_date,amount,payment_date,description").eq("user_id", session.user.id).order("payment_date", { ascending: false }).limit(10000),
           client.from("categories").select("id,name,kind,color,icon").eq("user_id", session.user.id).order("kind", { ascending: true }).order("name", { ascending: true }),
           client.from("recurrence_rules").select("id,name,kind,amount,frequency,interval_count,weekday,month_day,month_of_year,starts_on,ends_on,next_occurrence_on,account_id,card_id,is_active").eq("user_id", session.user.id).order("next_occurrence_on", { ascending: true }),
           client.from("budgets").select("id,category_id,year,month,limit_amount").eq("user_id", session.user.id).eq("year", currentBudgetYear).eq("month", currentBudgetMonth).order("created_at", { ascending: true }),
@@ -309,6 +319,7 @@ export default function App() {
         if (pushRows.error) throw pushRows.error;
         if (whatsappRows.error) throw whatsappRows.error;
         if (receiptFileRows.error) throw receiptFileRows.error;
+        if (invoicePaymentRows.error) throw invoicePaymentRows.error;
         if (accountRows.error) throw accountRows.error;
         if (transactionRows.error) throw transactionRows.error;
         if (cardRows.error) throw cardRows.error;
@@ -329,6 +340,9 @@ export default function App() {
         setRadarFires(Array.isArray(radarFireRows.data?.data) ? radarFireRows.data.data as RadarFireRow[] : []);
         setAccounts((accountRows.data ?? []) as AccountRow[]);
         setCards((cardRows.data ?? []) as CardRow[]);
+        setInvoicePayments((invoicePaymentRows.data ?? []) as CardInvoicePaymentRow[]);
+        if (cardRows.data?.[0]?.id) setInvoicePaymentCardId((current) => current || cardRows.data[0].id);
+        if (accountRows.data?.[0]?.id) setInvoicePaymentAccountId((current) => current || accountRows.data[0].id);
         setCategories((categoryRows.data ?? []) as CategoryRow[]);
         setRecurrences((recurrenceRows.data ?? []) as RecurrenceRow[]);
         setBudgets((budgetRows.data ?? []) as BudgetRow[]);
@@ -368,7 +382,11 @@ export default function App() {
     transferFromAccountId: item.transfer_from_account_id,
     transferToAccountId: item.transfer_to_account_id,
     categoryId: item.category_id,
-  })), [transactions]);
+  })).concat(invoicePayments.map((payment) => ({
+    id: payment.id, kind: "card_payment" as const, status: "paid" as const,
+    amountCents: Math.round(Number(payment.amount) * 100), date: payment.payment_date,
+    accountId: payment.account_id, cardId: payment.card_id,
+  }))), [transactions, invoicePayments]);
   const accountBalances = useMemo(() => Object.fromEntries(accounts.map((account) => [
     account.id,
     calculateAccountBalance(
@@ -378,10 +396,23 @@ export default function App() {
       todayInBrazil()
     ) / 100,
   ])), [accounts, ledgerEntries]);
-  const cardCommittedAmounts = useMemo(() => Object.fromEntries(cards.map((card) => [
-    card.id,
-    calculateCardCommittedLimitCents(card.id, card.closing_day, card.due_day, ledgerEntries, new Map(), todayInBrazil()) / 100,
-  ])), [cards, ledgerEntries]);
+  const paymentsByCardInvoice = useMemo(() => {
+    const grouped = new Map<string, InvoicePayment[]>();
+    for (const payment of invoicePayments) {
+      const key = `${payment.card_id}:${payment.invoice_closing_date}`;
+      const rows = grouped.get(key) ?? [];
+      rows.push({ amountCents: Math.round(Number(payment.amount) * 100), date: payment.payment_date, accountId: payment.account_id });
+      grouped.set(key, rows);
+    }
+    return grouped;
+  }, [invoicePayments]);
+  const cardCommittedAmounts = useMemo(() => Object.fromEntries(cards.map((card) => {
+    const payments = new Map<string, readonly InvoicePayment[]>();
+    for (const [key, rows] of paymentsByCardInvoice) {
+      if (key.startsWith(`${card.id}:`)) payments.set(key.slice(card.id.length + 1), rows);
+    }
+    return [card.id, calculateCardCommittedLimitCents(card.id, card.closing_day, card.due_day, ledgerEntries, payments, todayInBrazil()) / 100];
+  })), [cards, ledgerEntries, paymentsByCardInvoice]);
   const enabledAlerts = useMemo(() => alerts.filter((alert) => alert.is_enabled).length, [alerts]);
 
   async function handleAuth(event: FormEvent<HTMLFormElement>) {
@@ -1089,23 +1120,89 @@ export default function App() {
     finally { setBusy(false); }
   }
 
+  async function registerInvoicePayment(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase || !session) return;
+    const amount = normalizeBrlAmount(invoicePaymentAmount);
+    const card = cards.find((item) => item.id === invoicePaymentCardId);
+    const account = accounts.find((item) => item.id === invoicePaymentAccountId);
+    const today = todayInBrazil();
+    if (!amount || !card || !account || !/^\\d{4}-\\d{2}-\\d{2}$/.test(invoiceClosingDate) ||
+        !/^\\d{4}-\\d{2}-\\d{2}$/.test(invoicePaymentDate) || invoicePaymentDate > today) {
+      setNotice("Selecione cartão, conta, fechamento da fatura e uma data de pagamento válida (até hoje).");
+      return;
+    }
+    const paymentCents = Math.round(Number(amount) * 100);
+    const existingPayments = invoicePayments.filter((item) => item.card_id === card.id && item.invoice_closing_date === invoiceClosingDate)
+      .map((item) => ({ amountCents: Math.round(Number(item.amount) * 100), date: item.payment_date, accountId: item.account_id }));
+    const invoice = calculateInvoice(card.id, card.closing_day, card.due_day, ledgerEntries, invoiceClosingDate, existingPayments, today);
+    if (invoice.totalCents <= 0 || paymentCents > invoice.remainingCents) {
+      setNotice(invoice.totalCents <= 0
+        ? "Não encontramos compras para essa fatura e data de fechamento."
+        : "O pagamento informado ultrapassa o saldo restante da fatura.");
+      return;
+    }
+    setBusy(true); setNotice("");
+    try {
+      const { data, error } = await supabase.from("card_invoice_payments").insert({
+        user_id: session.user.id, card_id: card.id, account_id: account.id,
+        invoice_closing_date: invoiceClosingDate, amount, payment_date: invoicePaymentDate,
+        description: `Pagamento da fatura · ${card.name}`,
+      }).select("id,card_id,account_id,invoice_closing_date,amount,payment_date,description").single();
+      if (error) throw error;
+      setInvoicePayments((current) => [data as CardInvoicePaymentRow, ...current]);
+      setInvoicePaymentAmount("");
+      setNotice("Pagamento da fatura registrado. O saldo da conta e o limite disponível foram atualizados.");
+    } catch (error) { setNotice(errorMessage(error)); }
+    finally { setBusy(false); }
+  }
+
+  async function deleteInvoicePayment(payment: CardInvoicePaymentRow) {
+    if (!supabase || !session || !window.confirm("Excluir este pagamento de fatura? O saldo da conta e o limite do cartão serão recalculados.")) return;
+    setBusy(true); setNotice("");
+    try {
+      const { error } = await supabase.from("card_invoice_payments").delete()
+        .eq("id", payment.id).eq("user_id", session.user.id);
+      if (error) throw error;
+      setInvoicePayments((current) => current.filter((item) => item.id !== payment.id));
+      setNotice("Pagamento removido e saldos recalculados.");
+    } catch (error) { setNotice(errorMessage(error)); }
+    finally { setBusy(false); }
+  }
+
   async function createTransaction(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!supabase || !session) return;
     const amount = normalizeBrlAmount(txAmount);
-    if (!amount || !txDescription.trim() || (!txAccountId && !txCardId) || (txCardId && txKind !== "expense") || !txDate) {
-      setNotice("Preencha descrição, valor, data e selecione uma conta ou cartão. Cartões são usados somente para despesas."); return;
+    const validTransfer = txKind === "transfer" && Boolean(txTransferFromId) && Boolean(txTransferToId) && txTransferFromId !== txTransferToId;
+    const validRegular = txKind !== "transfer" && (Boolean(txAccountId) || Boolean(txCardId)) && !(txCardId && txKind !== "expense");
+    if (!amount || !txDescription.trim() || (!validTransfer && !validRegular) || !txDate) {
+      setNotice(txKind === "transfer"
+        ? "Selecione contas de origem e destino diferentes, além de descrição, valor e data."
+        : "Preencha descrição, valor, data e selecione uma conta ou cartão. Cartões são usados somente para despesas.");
+      return;
     }
     setBusy(true); setNotice("");
     try {
-      const { data, error } = await supabase.from("transactions").insert({
+      const payload = txKind === "transfer" ? {
+        user_id: session.user.id, kind: "transfer" as const, status: txStatus, amount,
+        transaction_date: txDate, description: txDescription.trim(),
+        account_id: null, card_id: null, category_id: null,
+        transfer_from_account_id: txTransferFromId, transfer_to_account_id: txTransferToId,
+        settled_amount: txStatus === "paid" ? amount : "0.00",
+        settled_at: txStatus === "paid" ? txDate : null, source: "manual",
+      } : {
         user_id: session.user.id, kind: txKind, status: txStatus, amount,
         transaction_date: txDate, description: txDescription.trim(),
-        account_id: txCardId ? null : txAccountId, card_id: txCardId || null, category_id: txCategoryId || null, settled_amount: txStatus === "paid" ? amount : "0.00",
+        account_id: txCardId ? null : txAccountId, card_id: txCardId || null, category_id: txCategoryId || null,
+        transfer_from_account_id: null, transfer_to_account_id: null,
+        settled_amount: txStatus === "paid" ? amount : "0.00",
         settled_at: txStatus === "paid" ? txDate : null, source: "manual",
-      }).select("id,kind,status,amount,transaction_date,description,account_id,card_id,transfer_from_account_id,transfer_to_account_id,category_id").single();
+      };
+      const { data, error } = await supabase.from("transactions").insert(payload)
+        .select("id,kind,status,amount,transaction_date,description,account_id,card_id,transfer_from_account_id,transfer_to_account_id,category_id").single();
       if (error) throw error;
-      setTransactions((current) => [data as TransactionRow, ...current].slice(0, 30));
+      setTransactions((current) => [data as TransactionRow, ...current].slice(0, 10000));
       setTxDescription(""); setTxAmount(""); setTxCategoryId("");
       setNotice(txStatus === "paid" ? "Lançamento realizado criado." : "Lançamento previsto criado.");
       await refreshBudgetSpend();
@@ -1134,7 +1231,7 @@ export default function App() {
         status: editStatus, settled_amount: editStatus === "paid" ? amount : "0.00",
         settled_at: editStatus === "paid" ? editDate : null,
       }).eq("id", item.id).eq("user_id", session.user.id)
-        .select("id,kind,status,amount,transaction_date,description,account_id").single();
+        .select("id,kind,status,amount,transaction_date,description,account_id,card_id,transfer_from_account_id,transfer_to_account_id,category_id").single();
       if (error) throw error;
       setTransactions((current) => current.map((row) => row.id === item.id ? data as TransactionRow : row));
       setEditingTransactionId(null);
@@ -1279,7 +1376,7 @@ export default function App() {
         category_id: categoryId, account_id: cardId ? null : receiptAccountId,
         card_id: cardId, payment_method: receiptDraft.payment_method,
         settled_amount: amount, settled_at: receiptDraft.date, source: "receipt",
-      }).select("id,kind,status,amount,transaction_date,description,account_id").single();
+      }).select("id,kind,status,amount,transaction_date,description,account_id,card_id,transfer_from_account_id,transfer_to_account_id,category_id").single();
       if (error || !data) throw error ?? new Error("Não foi possível criar o lançamento.");
       transactionCreated = true;
 
@@ -1303,7 +1400,7 @@ export default function App() {
 
       await refreshBudgetSpend();
       setReceiptFiles((current) => [receiptRow as ReceiptFileRow, ...current].slice(0, 100));
-      setTransactions((current) => [data as TransactionRow, ...current].slice(0, 30));
+      setTransactions((current) => [data as TransactionRow, ...current].slice(0, 10000));
       setReceiptDraft(null); setReceiptFile(null); setReceiptConsent(false);
       setNotice("Lançamento confirmado e comprovante armazenado com acesso privado.");
     } catch (error) {
@@ -1640,6 +1737,21 @@ export default function App() {
                   <button className="primary-button" type="submit" disabled={busy}>Adicionar cartão</button>
                 </form>
                 {cards.length === 0 ? <p className="empty-state">Nenhum cartão cadastrado.</p> : <ul className="account-list">{cards.map((card) => <li key={card.id}><strong>{card.name} · final {card.last_four}</strong><span>{card.institution_name}</span><small>Limite total: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(card.credit_limit))} · Utilizado: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cardCommittedAmounts[card.id] ?? 0)} · Disponível: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(card.credit_limit) - (cardCommittedAmounts[card.id] ?? 0))} · Fecha dia {card.closing_day} · Vence dia {card.due_day}<button className="quiet-button danger-button" type="button" disabled={busy} onClick={() => void archiveCard(card)}>Arquivar</button></small></li>)}</ul>}
+                <div className="transaction-heading"><strong>Pagamento de fatura</strong><span>Pagamentos totais ou parciais</span></div>
+                <form className="finance-form" onSubmit={(event) => void registerInvoicePayment(event)}>
+                  <label>Cartão<select value={invoicePaymentCardId} onChange={(event) => setInvoicePaymentCardId(event.target.value)} required><option value="">Selecione</option>{cards.map((card) => <option key={card.id} value={card.id}>{card.name} · final {card.last_four}</option>)}</select></label>
+                  <label>Data de fechamento da fatura<input type="date" value={invoiceClosingDate} onChange={(event) => setInvoiceClosingDate(event.target.value)} required /></label>
+                  <label>Conta usada no pagamento<select value={invoicePaymentAccountId} onChange={(event) => setInvoicePaymentAccountId(event.target.value)} required><option value="">Selecione</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
+                  <label>Valor pago (R$)<input inputMode="decimal" value={invoicePaymentAmount} onChange={(event) => setInvoicePaymentAmount(event.target.value)} placeholder="0,00" required /></label>
+                  <label>Data do pagamento<input type="date" max={todayInBrazil()} value={invoicePaymentDate} onChange={(event) => setInvoicePaymentDate(event.target.value)} required /></label>
+                  <button className="primary-button" type="submit" disabled={busy || !cards.length || !accounts.length}>Registrar pagamento</button>
+                </form>
+                <p className="helper-text">O pagamento reduz o saldo da conta escolhida e libera o limite correspondente. Não cria uma segunda despesa nos relatórios: as compras já foram contabilizadas no cartão.</p>
+                {invoicePayments.length > 0 && <ul className="account-list">{invoicePayments.slice(0,8).map((payment) => {
+                  const card = cards.find((item) => item.id === payment.card_id);
+                  const account = accounts.find((item) => item.id === payment.account_id);
+                  return <li key={payment.id}><strong>{card?.name ?? "Cartão"} · fatura fechada em {payment.invoice_closing_date}</strong><span>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(payment.amount))} · {payment.payment_date}</span><small>Pago pela conta {account?.name ?? "arquivada"} <button className="quiet-button danger-button" type="button" disabled={busy} onClick={() => void deleteInvoicePayment(payment)}>Excluir pagamento</button></small></li>;
+                })}</ul>}
               </section>
               <section className="subpanel" id="gastos-categorias" aria-labelledby="categories-title">
                 <div className="transaction-heading"><strong id="categories-title">Categorias</strong><span>{categories.length} cadastradas</span></div>
@@ -1727,18 +1839,23 @@ export default function App() {
                 <p className="helper-text">A regra apenas programa a próxima ocorrência. A geração de lançamentos será ativada com o processamento idempotente da agenda, sem marcar valores como realizados.</p>
               </section>
               <form className="finance-form transaction-form" id="gastos-lancamentos" onSubmit={(event) => void createTransaction(event)}>
-                <label>Tipo de lançamento<select value={txKind} onChange={(event) => { const nextKind = event.target.value as "income" | "expense"; setTxKind(nextKind); setTxCategoryId(""); if (nextKind === "income") setTxCardId(""); }}><option value="expense">Despesa</option><option value="income">Receita</option></select></label>
+                <label>Tipo de lançamento<select value={txKind} onChange={(event) => { const nextKind = event.target.value as "income" | "expense" | "transfer"; setTxKind(nextKind); setTxCategoryId(""); if (nextKind !== "expense") setTxCardId(""); }}><option value="expense">Despesa</option><option value="income">Receita</option><option value="transfer">Transferência entre contas</option></select></label>
                 <label>Situação<select value={txStatus} onChange={(event) => setTxStatus(event.target.value as "paid" | "planned")}><option value="paid">Realizado</option><option value="planned">Previsto</option></select></label>
                 <label>Valor (R$)<input inputMode="decimal" value={txAmount} onChange={(event) => setTxAmount(event.target.value)} placeholder="0,00" required /></label>
                 <label>Data<input type="date" value={txDate} onChange={(event) => setTxDate(event.target.value)} required /></label>
-                <label>Conta<select value={txAccountId} onChange={(event) => { setTxAccountId(event.target.value); if (event.target.value) setTxCardId(""); }}><option value="">Não usar conta</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
-                <label>Cartão<select value={txCardId} onChange={(event) => { setTxCardId(event.target.value); if (event.target.value) setTxAccountId(""); }}><option value="">Não usar cartão</option>{cards.map((card) => <option key={card.id} value={card.id}>{card.name} · final {card.last_four}</option>)}</select></label>
-                <label>Categoria<select value={txCategoryId} onChange={(event) => setTxCategoryId(event.target.value)}><option value="">Sem categoria</option>{categories.filter((category) => category.kind === txKind).map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
+                {txKind === "transfer" ? <>
+                  <label>Conta de origem<select value={txTransferFromId} onChange={(event) => setTxTransferFromId(event.target.value)} required><option value="">Selecione</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
+                  <label>Conta de destino<select value={txTransferToId} onChange={(event) => setTxTransferToId(event.target.value)} required><option value="">Selecione</option>{accounts.filter((account) => account.id !== txTransferFromId).map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
+                </> : <>
+                  <label>Conta<select value={txAccountId} onChange={(event) => { setTxAccountId(event.target.value); if (event.target.value) setTxCardId(""); }}><option value="">Não usar conta</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
+                  <label>Cartão<select value={txCardId} onChange={(event) => { setTxCardId(event.target.value); if (event.target.value) setTxAccountId(""); }}><option value="">Não usar cartão</option>{cards.map((card) => <option key={card.id} value={card.id}>{card.name} · final {card.last_four}</option>)}</select></label>
+                  <label>Categoria<select value={txCategoryId} onChange={(event) => setTxCategoryId(event.target.value)}><option value="">Sem categoria</option>{categories.filter((category) => category.kind === txKind).map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
+                </>}
                 <label className="wide-field">Descrição<input value={txDescription} onChange={(event) => setTxDescription(event.target.value)} maxLength={240} placeholder="Ex.: Mercado" required /></label>
                 <button className="primary-button" type="submit" disabled={busy || accounts.length === 0}>Salvar lançamento</button>
               </form>
               <div className="transaction-heading"><strong>Últimos lançamentos</strong><span>Até 30 registros</span></div>
-              {transactions.length === 0 ? <p className="empty-state">Seus lançamentos aparecerão aqui.</p> : <ul className="transaction-list">{transactions.map((item) => <li key={item.id}><div className="transaction-main"><div><strong>{item.description}</strong><span>{item.kind === "income" ? "Receita" : item.kind === "expense" ? "Despesa" : "Transferência"} · {item.status === "paid" ? "Realizado" : item.status === "planned" ? "Previsto" : "Cancelado"}</span><small>{new Date(item.transaction_date + "T12:00:00").toLocaleDateString("pt-BR")}</small></div><strong className={item.kind === "income" ? "income-value" : "expense-value"}>{item.kind === "income" ? "+" : item.kind === "expense" ? "−" : ""}{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(item.amount))}</strong></div><div className="transaction-row-actions">{receiptFiles.some((file) => file.transaction_id === item.id) && <button className="quiet-button" type="button" disabled={busy} onClick={() => void openReceiptFile(item.id)}>Abrir comprovante</button>}<button className="quiet-button" type="button" disabled={busy} onClick={() => beginTransactionEdit(item)}>Editar</button><button className="quiet-button danger-button" type="button" disabled={busy} onClick={() => void deleteTransaction(item)}>Excluir</button></div>{editingTransactionId === item.id && <form className="transaction-edit-form" onSubmit={(event) => { event.preventDefault(); void saveTransactionEdit(item); }}><label>Descrição<input value={editDescription} onChange={(event) => setEditDescription(event.target.value)} maxLength={240} required /></label><label>Valor (R$)<input inputMode="decimal" value={editAmount} onChange={(event) => setEditAmount(event.target.value)} required /></label><label>Data<input type="date" value={editDate} onChange={(event) => setEditDate(event.target.value)} required /></label><label>Situação<select value={editStatus} onChange={(event) => setEditStatus(event.target.value as "paid" | "planned")}><option value="paid">Realizado</option><option value="planned">Previsto</option></select></label><button className="primary-button" type="submit" disabled={busy}>Salvar alterações</button><button className="quiet-button" type="button" disabled={busy} onClick={() => setEditingTransactionId(null)}>Cancelar</button></form>}</li>)}</ul>}
+              {transactions.length === 0 ? <p className="empty-state">Seus lançamentos aparecerão aqui.</p> : <ul className="transaction-list">{transactions.map((item) => <li key={item.id}><div className="transaction-main"><div><strong>{item.description}</strong><span>{item.kind === "income" ? "Receita" : item.kind === "expense" ? "Despesa" : `Transferência · ${accounts.find((account) => account.id === item.transfer_from_account_id)?.name ?? "Origem"} → ${accounts.find((account) => account.id === item.transfer_to_account_id)?.name ?? "Destino"}`} · {item.status === "paid" ? "Realizado" : item.status === "planned" ? "Previsto" : "Cancelado"}</span><small>{new Date(item.transaction_date + "T12:00:00").toLocaleDateString("pt-BR")}</small></div><strong className={item.kind === "income" ? "income-value" : "expense-value"}>{item.kind === "income" ? "+" : item.kind === "expense" ? "−" : ""}{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(item.amount))}</strong></div><div className="transaction-row-actions">{receiptFiles.some((file) => file.transaction_id === item.id) && <button className="quiet-button" type="button" disabled={busy} onClick={() => void openReceiptFile(item.id)}>Abrir comprovante</button>}<button className="quiet-button" type="button" disabled={busy} onClick={() => beginTransactionEdit(item)}>Editar</button><button className="quiet-button danger-button" type="button" disabled={busy} onClick={() => void deleteTransaction(item)}>Excluir</button></div>{editingTransactionId === item.id && <form className="transaction-edit-form" onSubmit={(event) => { event.preventDefault(); void saveTransactionEdit(item); }}><label>Descrição<input value={editDescription} onChange={(event) => setEditDescription(event.target.value)} maxLength={240} required /></label><label>Valor (R$)<input inputMode="decimal" value={editAmount} onChange={(event) => setEditAmount(event.target.value)} required /></label><label>Data<input type="date" value={editDate} onChange={(event) => setEditDate(event.target.value)} required /></label><label>Situação<select value={editStatus} onChange={(event) => setEditStatus(event.target.value as "paid" | "planned")}><option value="paid">Realizado</option><option value="planned">Previsto</option></select></label><button className="primary-button" type="submit" disabled={busy}>Salvar alterações</button><button className="quiet-button" type="button" disabled={busy} onClick={() => setEditingTransactionId(null)}>Cancelar</button></form>}</li>)}</ul>}
             </section>
 
 
