@@ -370,6 +370,45 @@ if [[ "$invoice_successes" != "1" || "$invoice_payment_count" != "1" || "$invoic
   exit 1
 fi
 
+# Pagamento anterior à data-base da conta reduz o passivo do cartão,
+# mas não pode descontar novamente o saldo inicial já informado pelo usuário.
+bank_before_preopening_payment="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  select coalesce(sum(l.debit-l.credit),0)
+    from private.journal_lines l
+    join private.ledger_accounts a on a.id=l.ledger_account_id and a.user_id=l.user_id
+    join private.journal_entries j on j.id=l.journal_entry_id and j.user_id=l.user_id
+   where l.user_id='$user_id' and a.source_account_id='$account_id'
+     and a.account_kind in ('bank','cash') and j.status='posted'
+")"
+preopening_payment_id="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  insert into public.card_invoice_payments(
+    user_id,card_id,account_id,invoice_closing_date,amount,payment_date
+  ) values ('$user_id','$card_id','$account_id','2026-11-10',40.00,current_date-1)
+  returning id
+")"
+bank_after_preopening_payment="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  select coalesce(sum(l.debit-l.credit),0)
+    from private.journal_lines l
+    join private.ledger_accounts a on a.id=l.ledger_account_id and a.user_id=l.user_id
+    join private.journal_entries j on j.id=l.journal_entry_id and j.user_id=l.user_id
+   where l.user_id='$user_id' and a.source_account_id='$account_id'
+     and a.account_kind in ('bank','cash') and j.status='posted'
+")"
+preopening_equity_credit="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  select coalesce(sum(l.credit-l.debit),0)
+    from private.journal_lines l
+    join private.ledger_accounts a on a.id=l.ledger_account_id and a.user_id=l.user_id
+    join private.journal_entries j on j.id=l.journal_entry_id and j.user_id=l.user_id
+   where l.user_id='$user_id' and j.id=(
+     select active_journal_id from private.ledger_source_state
+      where user_id='$user_id' and source_type='card_invoice_payment' and source_id='$preopening_payment_id'
+   ) and a.account_kind='opening_equity' and j.status='posted'
+")"
+if [[ "$bank_before_preopening_payment" != "$bank_after_preopening_payment" || "$preopening_equity_credit" != "40.00" ]]; then
+  echo "Falha: pagamento anterior à data-base alterou o saldo bancário ou não usou patrimônio inicial (antes=$bank_before_preopening_payment depois=$bank_after_preopening_payment contrapartida=$preopening_equity_credit)."
+  exit 1
+fi
+
 # Também rejeita pagamentos acima do saldo em uma única operação e datas futuras.
 if psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
   insert into public.card_invoice_payments(
