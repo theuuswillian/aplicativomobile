@@ -397,3 +397,15 @@ O CI verde valida o código e as migrações em ambiente local; não comprova ch
 - [x] Preview criado após CI verde para o commit de código `af4e6011d00f0f65525929452aeb9c2668eba6ef`, estado `READY`: https://granaviva-3tk5z27rz-grana6.vercel.app (deployment `dpl_42Eus7iNYzACuy8EKXk9ENrkzhGi`).
 - [ ] A referência também contém detalhes de conteúdo (metas e resumo mensal) que ainda precisam ser comparados com os módulos e dados reais existentes; não foram criados gráficos ou valores fictícios.
 - Vercel Production intacta; PR #2 continua aberta, em draft e sem merge.
+
+
+## Reforma visual integrada das áreas — 25/11/2026
+- [x] Capturas reais do Safari analisadas: em Cartões e Conta/Relatórios havia divergência de largura entre cabeçalho e painéis; resumo da área e formulários apresentavam densidade/tipografia pequenas; dock fixo interferia visualmente com a área inferior junto à barra do Safari.
+- [x] Corrigida a restrição artificial de largura do `.app-frame` (limite de 560px) e padronizada largura/box sizing para cabeçalho, dashboard, painéis e ações, com limite responsivo único de 920px.
+- [x] Padronizados os painéis de todas as áreas, cabeçalhos, texto explicativo, chips de navegação interna, cartões-resumo, campos e botões de formulário, listas e métricas de relatórios.
+- [x] Formulários em telas estreitas passam a uma coluna para evitar campos comprimidos; resumo da área passa a duas colunas com o cartão ímpar ocupando a linha.
+- [x] Dock inferior reposicionado no Safari para não ficar colado à barra do navegador; aumentada a reserva de rolagem e mantida regra separada para PWA standalone.
+- [x] CI integral no commit de código `df182b4fa841eb7455f451237e840f3a7ef0b466`: [run 45604987206](https://github.com/theuuswillian/aplicativomobile/actions/runs/45604987206) — validate (lint, políticas, segredos, TypeScript, testes, build, Chromium/WebKit, responsividade, offline e acessibilidade), SQL/PostgreSQL 17, Edge Runtime e integração local concluídos com sucesso; job lockfile ignorado conforme filtro esperado.
+- [x] Preview consolidado criado após CI verde, estado `READY`, commit exato: https://granaviva-lq4ln39mk-grana6.vercel.app (deployment `dpl_AsEaQCTK2RGLxkGsXJyhSC35GnZP`).
+- [ ] Aceite visual manual no Safari e no PWA ainda pendente; solicitar novas capturas das telas Início, Cartões e Conta/Relatórios após o usuário abrir o novo Preview.
+- Nenhuma lógica, cálculo, dado, migration, tabela, RLS, RPC, integração, segredo ou configuração remota foi alterada nesta etapa. PR #2 continua aberta/draft/sem merge; Vercel Production permanece intacta.
