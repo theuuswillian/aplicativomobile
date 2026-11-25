@@ -76,7 +76,7 @@ create table private.journal_entries (
   source_id uuid not null,
   event_type text not null check (event_type in ('posting','reversal')),
   status text not null default 'draft' check (status in ('draft','posted')),
-  reversal_of uuid references private.journal_entries(id) on delete restrict,
+  reversal_of uuid references private.journal_entries(id) on delete cascade,
   created_at timestamptz not null default now(),
   posted_at timestamptz,
   unique (user_id,id),
@@ -100,7 +100,7 @@ create table private.journal_lines (
   category_id uuid,
   memo text,
   created_at timestamptz not null default now(),
-  foreign key (user_id,journal_entry_id) references private.journal_entries(user_id,id) on delete restrict,
+  foreign key (user_id,journal_entry_id) references private.journal_entries(user_id,id) on delete cascade,
   foreign key (user_id,ledger_account_id) references private.ledger_accounts(user_id,id) on delete restrict,
   foreign key (user_id,category_id) references public.categories(user_id,id) on delete restrict,
   check ((debit > 0 and credit = 0) or (credit > 0 and debit = 0))
@@ -115,7 +115,7 @@ create table private.ledger_source_state (
   active_journal_id uuid,
   updated_at timestamptz not null default now(),
   primary key(user_id,source_type,source_id),
-  foreign key (user_id,active_journal_id) references private.journal_entries(user_id,id) on delete restrict
+  foreign key (user_id,active_journal_id) references private.journal_entries(user_id,id) on delete cascade
 );
 
 alter table private.ledger_accounts enable row level security;
@@ -240,6 +240,29 @@ begin
     public.overtime_conversion_batches,public.overtime_entries,
     public.card_invoice_installments to service_role;
 end $$;
+
+
+-- A exclusão de um usuário remove o ledger privado em ordem segura, sem órfãos.
+create or replace function private.cleanup_user_financial_ledger()
+returns trigger
+language plpgsql
+security definer
+set search_path=pg_catalog, public, private
+as $cleanup$
+begin
+  delete from public.overtime_entries where user_id=old.id;
+  delete from public.overtime_conversion_batches where user_id=old.id;
+  delete from public.receivable_repayments where user_id=old.id;
+  delete from private.ledger_source_state where user_id=old.id;
+  delete from private.journal_entries where user_id=old.id;
+  delete from private.ledger_accounts where user_id=old.id;
+  return old;
+end;
+$cleanup$;
+revoke all on function private.cleanup_user_financial_ledger() from public,anon,authenticated;
+create trigger auth_users_cleanup_financial_ledger
+before delete on auth.users
+for each row execute function private.cleanup_user_financial_ledger();
 
 -- Helpers internos. SECURITY DEFINER é restrito ao schema privado, com owner check no RPC público.
 create or replace function private.ensure_ledger_account(
@@ -458,9 +481,9 @@ begin
   end if;
   if new.payment_method='credit' then
     raise exception 'Selecione um cartão para pagamento no crédito' using errcode='23514';
-  elsif new.payment_method='cash' and v_account_type<>'cash' then
+  elsif new.status='paid' and new.payment_method='cash' and v_account_type<>'cash' then
     raise exception 'Pagamento em dinheiro exige a carteira Dinheiro Físico' using errcode='23514';
-  elsif new.payment_method in ('pix','debit') and v_account_type='cash' then
+  elsif new.status='paid' and new.payment_method in ('pix','debit') and v_account_type='cash' then
     raise exception 'Carteira Dinheiro Físico exige forma de pagamento Dinheiro' using errcode='23514';
   end if;
   return new;
