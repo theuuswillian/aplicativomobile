@@ -684,6 +684,9 @@
 
 
 /* Contraste AA para o link de alternância de autenticação no tema claro. */
-.app-shell[data-theme="light"] .text-button {
+.app-shell[data-theme="light"] .auth-card .text-button {
   color: #14532d;
+  background-color: #f0fdf4;
+  border-radius: 8px;
+  padding: 7px 10px;
 }
