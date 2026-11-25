@@ -37,6 +37,8 @@ begin
     ('ai_usage'),('ai_usage_reservations'),('rate_limit_buckets'),('function_errors'),
     ('whatsapp_links'),('whatsapp_link_codes'),('whatsapp_link_attempts'),
     ('whatsapp_pending_transactions'),('whatsapp_inbox'),('whatsapp_outbox'),
+      ('receivable_loans'),('receivable_repayments'),('overtime_conversion_batches'),
+      ('overtime_entries'),('card_invoice_installments'),
       ('card_invoice_payments'),
       ('card_invoice_payments')
   ) expected(table_name)
@@ -174,6 +176,7 @@ begin
   foreach v_table in array array[
     'profiles','settings','categories','accounts','cards','recurrence_rules','import_batches','card_invoice_payments',
     'transactions','budgets','goals','goal_contributions','tangible_assets','liabilities',
+    'receivable_loans','receivable_repayments','overtime_conversion_batches','overtime_entries','card_invoice_installments',
     'net_worth_snapshots','receivables','import_items','receipt_files',
     'investment_assets','investment_operations','income_events','radar_alerts','radar_fires',
     'push_subscriptions','push_deliveries','whatsapp_links'
