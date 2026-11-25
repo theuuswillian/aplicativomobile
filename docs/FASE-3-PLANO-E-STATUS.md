@@ -394,6 +394,6 @@ O CI verde valida o código e as migrações em ambiente local; não comprova ch
 - [x] Reserva de espaço inferior ampliada para impedir que a navegação fixa cubra o conteúdo durante a rolagem; regras comuns para Safari e PWA, preservando safe areas.
 - [x] Alteração somente de apresentação; nenhuma lógica financeira, dado, migration, configuração remota ou dependência foi alterada.
 - [x] CI integral no HEAD `af4e6011d00f0f65525929452aeb9c2668eba6ef`: [run 45602861171](https://github.com/theuuswillian/aplicativomobile/actions/runs/45602861171) — validate (lint, políticas, segredos, TypeScript, testes, build, browser/WebKit, responsividade, offline e acessibilidade), SQL/PostgreSQL 17, Edge Runtime e integração local concluídos com sucesso; lockfile ignorado conforme esperado.
-- [ ] Criar/obter Preview para este HEAD e conferir visualmente em Safari e PWA no iPhone; o deployment anterior não contém esta alteração.
+- [x] Preview criado após CI verde para o commit de código `af4e6011d00f0f65525929452aeb9c2668eba6ef`, estado `READY`: https://granaviva-3tk5z27rz-grana6.vercel.app (deployment `dpl_42Eus7iNYzACuy8EKXk9ENrkzhGi`).
 - [ ] A referência também contém detalhes de conteúdo (metas e resumo mensal) que ainda precisam ser comparados com os módulos e dados reais existentes; não foram criados gráficos ou valores fictícios.
 - Vercel Production intacta; PR #2 continua aberta, em draft e sem merge.
