@@ -1806,13 +1806,13 @@ export default function App() {
               {signedIn && supabase && session && <ReceivablesPanel client={supabase} userId={session.user.id} accounts={accounts} onNotice={setNotice} />}
                             <section className="planning-content" id="planejamento-metas" aria-labelledby="goals-title">
                 <div className="transaction-heading"><strong id="goals-title">Metas financeiras</strong><span>{goals.length} cadastradas</span></div>
-                <form className="finance-form" onSubmit={(event) => void createGoal(event)}>
+                <details className="management-drawer"><summary>＋ Criar nova meta</summary><form className="finance-form" onSubmit={(event) => void createGoal(event)}>
                   <label>Nome da meta<input value={goalName} onChange={(event) => setGoalName(event.target.value)} maxLength={100} placeholder="Ex.: Reserva de emergência" required /></label>
                   <label>Valor desejado (R$)<input inputMode="decimal" value={goalTarget} onChange={(event) => setGoalTarget(event.target.value)} placeholder="0,00" required /></label>
                   <label>Contribuição mensal planejada (R$)<input inputMode="decimal" value={goalMonthly} onChange={(event) => setGoalMonthly(event.target.value)} placeholder="0,00" required /></label>
                   <label>Mês desejado (opcional)<input type="month" value={goalTargetMonth} onChange={(event) => setGoalTargetMonth(event.target.value)} /></label>
                   <button className="primary-button" type="submit" disabled={busy}>Criar meta</button>
-                </form>
+                </form></details>
                 {goals.length === 0 ? <p className="empty-state">Crie uma meta e registre contribuições para acompanhar sua evolução.</p> : <ul className="account-list">{goals.map((goal) => {
                   const current = decimalToCents(goal.current_amount);
                   const target = decimalToCents(goal.target_amount);
@@ -1824,10 +1824,10 @@ export default function App() {
                     <progress className="budget-progress" max={100} value={Math.min(100, percent)} aria-label={`Progresso da meta ${goal.name}`} />
                     <small>{Math.min(100, percent)}% concluído{reached ? " · Meta alcançada" : goal.target_month ? ` · Prazo: ${new Date(`${goal.target_month}T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}` : ""} · Planejado por mês: {formatCents(decimalToCents(goal.monthly_contribution))}</small>
                     {goalContributions.some((item) => item.goal_id === goal.id) && <div className="goal-contribution-history"><small>Últimas contribuições</small>{goalContributions.filter((item) => item.goal_id === goal.id).slice(0, 5).map((item) => <small key={item.id}>{item.contribution_date} · {formatCents(decimalToCents(item.amount))}</small>)}</div>}
-                    <form className="finance-form" onSubmit={(event) => { event.preventDefault(); void contributeToGoal(goal); }}>
+                    <details className="management-drawer goal-contribution-drawer"><summary>＋ Registrar contribuição</summary><form className="finance-form" onSubmit={(event) => { event.preventDefault(); void contributeToGoal(goal); }}>
                       <label>Adicionar contribuição (R$)<input inputMode="decimal" value={goalContributionAmounts[goal.id] ?? ""} onChange={(event) => setGoalContributionAmounts((currentAmounts) => ({ ...currentAmounts, [goal.id]: event.target.value }))} placeholder="0,00" required /></label>
                       <button className="primary-button" type="submit" disabled={busy}>Registrar contribuição</button>
-                    </form>
+                    </form></details>
                   </li>;
                 })}</ul>}
                 <p className="helper-text">As contribuições são registradas em histórico e atualizam o total de forma atômica. O valor planejado mensal não é contabilizado como dinheiro guardado.</p>
@@ -1998,7 +1998,8 @@ export default function App() {
                 const expense = rows.filter((item) => item.kind === "expense").reduce((sum, item) => sum + Number(item.amount), 0);
                 const net = income - expense;
                 const byCategory = categories.filter((category) => category.kind === "expense").map((category) => ({ name: category.name, amount: rows.filter((item) => item.kind === "expense" && item.category_id === category.id).reduce((sum, item) => sum + Number(item.amount), 0) })).filter((item) => item.amount > 0).sort((a, b) => b.amount - a.amount);
-                return <><div className="report-metrics"><article><span>Receitas</span><strong className="amount-income">{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(income)}</strong></article><article><span>Despesas</span><strong className="amount-expense">{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(expense)}</strong></article><article><span>Resultado</span><strong>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(net)}</strong></article></div><div className="transaction-heading"><strong>Despesas por categoria</strong><span>{byCategory.length} com movimento</span></div>{byCategory.length ? <ul className="account-list">{byCategory.map((item) => <li key={item.name}><strong>{item.name}</strong><span>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(item.amount)}</span></li>)}</ul> : <p className="empty-state">Ainda não há despesas realizadas por categoria neste mês.</p>}</>;
+                const categoryTotal = byCategory.reduce((sum, item) => sum + item.amount, 0);
+                return <><div className="report-metrics"><article><span>Receitas</span><strong className="amount-income">{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(income)}</strong></article><article><span>Despesas</span><strong className="amount-expense">{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(expense)}</strong></article><article><span>Resultado</span><strong>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(net)}</strong></article></div><div className="transaction-heading"><strong>Despesas por categoria</strong><span>{byCategory.length} com movimento</span></div>{byCategory.length ? <ul className="report-category-list">{byCategory.map((item) => <li key={item.name}><div><strong>{item.name}</strong><span>{categoryTotal > 0 ? Math.round(item.amount / categoryTotal * 100) : 0}% · {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(item.amount)}</span></div><progress className="budget-progress" max={100} value={categoryTotal > 0 ? item.amount / categoryTotal * 100 : 0} aria-label={`Participação de ${item.name} nas despesas`} /></li>)}</ul> : <p className="empty-state">Ainda não há despesas realizadas por categoria neste mês.</p>}</>;
               })()}
               <p className="helper-text">Relatório informativo baseado nos registros carregados. Não substitui extrato bancário ou documento fiscal.</p>
             </section>
