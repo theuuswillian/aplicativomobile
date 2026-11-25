@@ -1,38 +1,44 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
+async function openAppearance(page: import("@playwright/test").Page) {
+  await page.getByRole("button", { name: /^Conta$/ }).click();
+  await page.getByRole("button", { name: /Personalização/ }).click();
+}
+
 test("renders the foundation and switches between dark and light themes", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1, name: /sua vida financeira/i })).toBeVisible();
-
   const shell = page.locator(".app-shell");
   await expect(shell).toHaveAttribute("data-theme", "dark");
-  await page.getByRole("button", { name: "Tema claro" }).click();
+  await expect(page.locator(".bottom-nav button")).toHaveCount(4);
+  await openAppearance(page);
   await expect(shell).toHaveAttribute("data-theme", "light");
-  await expect(page.getByRole("button", { name: "Tema escuro" })).toBeVisible();
 
   // A marca não deve recarregar a aplicação nem descartar a preferência.
   await page.locator(".brand").click();
   await expect(shell).toHaveAttribute("data-theme", "light");
   await page.reload();
   await expect(shell).toHaveAttribute("data-theme", "light");
-  await expect(page.getByRole("button", { name: "Tema escuro" })).toBeVisible();
+  await expect(page.locator(".bottom-nav button")).toHaveCount(4);
 });
 
-test("has no horizontal overflow at the target viewport", async ({ page }) => {
+test("has no horizontal overflow and keeps a four-item mobile dock", async ({ page }) => {
   await page.goto("/");
   const dimensions = await page.evaluate(() => ({
     viewport: document.documentElement.clientWidth,
     content: document.documentElement.scrollWidth,
   }));
   expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport);
-  await expect(page.getByRole("button", { name: /tema/i })).toBeVisible();
+  const dock = page.locator(".bottom-nav");
+  await expect(dock).toBeVisible();
+  await expect(dock.locator("button")).toHaveCount(4);
+  await expect(dock).toHaveCSS("grid-template-columns", /\d+px\s+\d+px\s+\d+px\s+\d+px/);
 });
 
 test("passes automated WCAG 2.2 AA checks in both themes", async ({ page }) => {
   await page.goto("/");
   for (const theme of ["dark", "light"] as const) {
-    if (theme === "light") await page.getByRole("button", { name: "Tema claro" }).click();
+    if (theme === "light") await openAppearance(page);
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
       .analyze();
@@ -56,8 +62,6 @@ test("serves the cached app shell after going offline", async ({ page, context }
   });
   await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
   const cachedAssets = await page.evaluate(async () => {
-    // Lê o nome da versão ativa do próprio Service Worker; o teste não deve
-    // ficar preso a um número de cache antigo quando o shell é atualizado.
     const workerSource = await fetch("/sw.js", { cache: "no-store" }).then((response) => response.text());
     const cacheName = workerSource.match(/const CACHE_NAME = "([^"]+)"/)?.[1];
     if (!cacheName) throw new Error("Versão do cache do Service Worker não encontrada");
@@ -87,7 +91,8 @@ test("serves the cached app shell after going offline", async ({ page, context }
     pageErrors,
   };
   console.log("Diagnóstico offline:", JSON.stringify(offlineSnapshot));
-  await expect(page.getByRole("heading", { level: 1, name: /sua vida financeira/i })).toBeVisible();
+  await expect(page.locator(".app-shell")).toBeVisible();
+  await expect(page.locator(".bottom-nav button")).toHaveCount(4);
   await context.setOffline(false);
 });
 
@@ -95,12 +100,12 @@ test("supports keyboard navigation with a visible focus indicator", async ({ pag
   await page.goto("/");
   await page.keyboard.press("Tab");
   await expect(page.locator(".brand")).toBeFocused();
-  await page.keyboard.press("Tab");
-  const toggle = page.getByRole("button", { name: "Tema claro" });
-  await expect(toggle).toBeFocused();
-  await expect(toggle).toHaveCSS("outline-style", "solid");
+  const firstDockItem = page.locator(".bottom-nav button").first();
+  await firstDockItem.focus();
+  await expect(firstDockItem).toBeFocused();
+  await expect(firstDockItem).toHaveCSS("outline-style", "solid");
   await page.keyboard.press("Enter");
-  await expect(page.locator(".app-shell")).toHaveAttribute("data-theme", "light");
+  await expect(page.locator(".bottom-nav button").nth(0)).toHaveAttribute("aria-current", "page");
 });
 
 test("publishes PWA metadata and an iOS home-screen icon", async ({ page }) => {
