@@ -409,3 +409,17 @@ O CI verde valida o código e as migrações em ambiente local; não comprova ch
 - [x] Preview consolidado criado após CI verde, estado `READY`, commit exato: https://granaviva-lq4ln39mk-grana6.vercel.app (deployment `dpl_AsEaQCTK2RGLxkGsXJyhSC35GnZP`).
 - [ ] Aceite visual manual no Safari e no PWA ainda pendente; solicitar novas capturas das telas Início, Cartões e Conta/Relatórios após o usuário abrir o novo Preview.
 - Nenhuma lógica, cálculo, dado, migration, tabela, RLS, RPC, integração, segredo ou configuração remota foi alterada nesta etapa. PR #2 continua aberta/draft/sem merge; Vercel Production permanece intacta.
+
+
+## Reforma visual Obsidian — lote mobile-first (25/11/2026)
+- [x] Consolidada a paleta neutra Obsidian: fundo `#090A0B`, superfícies `#141619`, bordas `#23262B`, verde `#22C55E`, coral `#EF4444`, azul `#3B82F6`, âmbar `#F59E0B` e texto secundário `#9CA3AF`.
+- [x] Reforçado o cabeçalho minimalista existente (marca + notificações), sem controles de tema ou saída no topo.
+- [x] Mantida a navegação principal de quatro abas já existente no código: Início, Gastos, Patrimônio e Conta; Metas e Relatórios continuam como telas secundárias.
+- [x] Reforçada a área útil inferior das páginas e o posicionamento da navegação fixa com safe-area para Safari iOS e PWA.
+- [x] Recolhidos em drawers expansíveis os formulários de cadastro de contas, cartões e pagamento de fatura; os formulários continuam usando os mesmos handlers, validações e integrações Supabase.
+- [x] Preservados dados, cálculos financeiros, moedas separadas, endpoints e schema remoto.
+- Commits do lote: `1e93bb281810abb1fe07ac70f8fdedf437ce7df9`, `9459e9e10c9cd2eb89a64fc27bd72d8163760cb0`, `42f8844b24bb7552a5fd8814098e0696b3798c4e`.
+- [ ] CI do HEAD final ainda precisa ser confirmado; não declarar validação automatizada concluída até obter o resultado.
+- [ ] Preview novo não solicitado: histórico da PR registra bloqueio de quota Vercel HTTP 402. O Preview antigo não deve ser tratado como validação deste lote.
+- [ ] Verificação visual manual em Safari e PWA no iPhone permanece pendente.
+- [ ] Próxima etapa: reorganizar visualmente os resumos de Gastos e Patrimônio e completar menus secundários de Conta, Metas e Relatórios sem remover funcionalidades existentes.
