@@ -154,7 +154,7 @@ export default function App() {
   const [cards, setCards] = useState<CardRow[]>([]);
   const [invoicePayments, setInvoicePayments] = useState<CardInvoicePaymentRow[]>([]);
   const [cardInstallments, setCardInstallments] = useState<CardInvoiceInstallmentRow[]>([]);
-  const [financialSummary, setFinancialSummary] = useState<{ receivables_brl?: number; overtime_forecast_brl?: number } | null>(null);
+  const [financialSummary, setFinancialSummary] = useState<{ receivables_brl?: number; overtime_forecast_brl?: number; investment_reference_brl?: number; investment_reference_usd?: number } | null>(null);
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [recurrences, setRecurrences] = useState<RecurrenceRow[]>([]);
   const [budgets, setBudgets] = useState<BudgetRow[]>([]);
@@ -1560,7 +1560,18 @@ export default function App() {
             {signedIn && <button className="quiet-button" type="button" onClick={() => void handleSignOut()} disabled={busy}>Sair</button>}
           </div>
         </header>
-
+        {signedIn && quickEntryOpen && <div className="quick-entry-backdrop" role="presentation" onClick={() => setQuickEntryOpen(false)}>
+          <section className="quick-entry-modal" role="dialog" aria-modal="true" aria-labelledby="quick-entry-title" onClick={(event) => event.stopPropagation()}>
+            <div className="quick-entry-modal-heading"><div><strong id="quick-entry-title">Novo lançamento</strong><p>Escolha o que deseja registrar</p></div><button type="button" className="quiet-button" aria-label="Fechar" onClick={() => setQuickEntryOpen(false)}>✕</button></div>
+            <div className="quick-entry-options">
+              <button type="button" onClick={() => { setTxKind("expense"); setTxPaymentMethod("pix"); setTxAccountId(""); setTxCardId(""); setActiveTab("gastos"); setQuickEntryOpen(false); }}>Despesa</button>
+              <button type="button" onClick={() => { setTxKind("income"); setTxPaymentMethod("pix"); setTxAccountId(""); setTxCardId(""); setActiveTab("gastos"); setQuickEntryOpen(false); }}>Receita</button>
+              <button type="button" onClick={() => { setTxKind("transfer"); setTxPaymentMethod("pix"); setTxAccountId(""); setTxCardId(""); setActiveTab("gastos"); setQuickEntryOpen(false); }}>Transferência / aporte / resgate</button>
+              <button type="button" onClick={() => { setActiveTab("planejamento"); setQuickEntryOpen(false); }}>Emprestar</button>
+              <button type="button" onClick={() => { setActiveTab("planejamento"); setQuickEntryOpen(false); }}>Hora extra</button>
+            </div>
+          </section>
+        </div>}
         {!signedIn ? (
           <section className="welcome" aria-labelledby="welcome-title">
             <div className="welcome-copy">
@@ -1612,8 +1623,11 @@ export default function App() {
                   if (asset.currency === "USD") sum.usd += amount; else sum.brl += amount;
                   return sum;
                 }, { brl: 0, usd: 0 });
-                return <><strong>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(totals.brl)}</strong><small>{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(totals.usd)} · separado da liquidez</small></>;
+                const brlTotal = financialSummary?.investment_reference_brl == null ? totals.brl : Number(financialSummary.investment_reference_brl);
+                const usdTotal = financialSummary?.investment_reference_usd == null ? totals.usd : Number(financialSummary.investment_reference_usd);
+                return <><strong>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(brlTotal)}</strong><small>{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(usdTotal)} · separado da liquidez</small></>;
               })()}</article>
+              <div className="quick-entry-launch"><button className="primary-button" type="button" onClick={() => setQuickEntryOpen(true)}>+ Novo lançamento</button></div>
               <article className="overview-recent">
                 <div className="overview-recent-heading"><strong>Últimos lançamentos</strong><button type="button" onClick={() => setActiveTab("gastos")}>Ver gastos <span aria-hidden="true">›</span></button></div>
                 {transactions.length === 0 ? <p className="empty-state">Seus lançamentos aparecerão aqui.</p> : <ul className="recent-list">{transactions.slice(0, 4).map((item) => <li key={item.id}><span className={item.kind === "income" ? "recent-icon income" : "recent-icon"}>{item.kind === "income" ? "↗" : "↘"}</span><span className="recent-description"><strong>{item.description}</strong><small>{new Date(item.transaction_date + "T12:00:00").toLocaleDateString("pt-BR")}</small></span><strong className={item.kind === "income" ? "amount-income" : "amount-expense"}>{item.kind === "income" ? "+" : "−"}{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(item.amount))}</strong></li>)}</ul>}
@@ -1957,7 +1971,7 @@ export default function App() {
                   <label>Categoria<select value={txCategoryId} onChange={(event) => setTxCategoryId(event.target.value)}><option value="">Sem categoria</option>{categories.filter((category) => category.kind === txKind).map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
                 </>}
                 <label className="wide-field">Descrição<input value={txDescription} onChange={(event) => setTxDescription(event.target.value)} maxLength={240} placeholder="Ex.: Mercado" required /></label>
-                <button className="primary-button" type="submit" disabled={busy || !accounts.some((account) => account.account_type !== "investment")}>Salvar lançamento</button>
+                <button className="primary-button" type="submit" disabled={busy || (txKind === "expense" && txPaymentMethod === "credit" ? cards.length === 0 : txKind === "transfer" ? accounts.length < 2 : !accounts.some((account) => account.account_type !== "investment"))}>Salvar lançamento</button>
               </form>
               <div className="transaction-heading"><strong>Últimos lançamentos</strong><span>Até 30 registros</span></div>
               {transactions.length === 0 ? <p className="empty-state">Seus lançamentos aparecerão aqui.</p> : <ul className="transaction-list">{transactions.map((item) => <li key={item.id}><div className="transaction-main"><div><strong>{item.description}</strong><span>{item.kind === "income" ? "Receita" : item.kind === "expense" ? "Despesa" : `Transferência · ${accounts.find((account) => account.id === item.transfer_from_account_id)?.name ?? "Origem"} → ${accounts.find((account) => account.id === item.transfer_to_account_id)?.name ?? "Destino"}`} · {item.status === "paid" ? "Realizado" : item.status === "planned" ? "Previsto" : "Cancelado"}</span><small>{new Date(item.transaction_date + "T12:00:00").toLocaleDateString("pt-BR")}</small></div><strong className={item.kind === "income" ? "income-value" : "expense-value"}>{item.kind === "income" ? "+" : item.kind === "expense" ? "−" : ""}{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(item.amount))}</strong></div><div className="transaction-row-actions">{receiptFiles.some((file) => file.transaction_id === item.id) && <button className="quiet-button" type="button" disabled={busy} onClick={() => void openReceiptFile(item.id)}>Abrir comprovante</button>}<button className="quiet-button" type="button" disabled={busy} onClick={() => beginTransactionEdit(item)}>Editar</button><button className="quiet-button danger-button" type="button" disabled={busy} onClick={() => void deleteTransaction(item)}>Excluir</button></div>{editingTransactionId === item.id && <form className="transaction-edit-form" onSubmit={(event) => { event.preventDefault(); void saveTransactionEdit(item); }}><label>Descrição<input value={editDescription} onChange={(event) => setEditDescription(event.target.value)} maxLength={240} required /></label><label>Valor (R$)<input inputMode="decimal" value={editAmount} onChange={(event) => setEditAmount(event.target.value)} required /></label><label>Data<input type="date" value={editDate} onChange={(event) => setEditDate(event.target.value)} required /></label><label>Situação<select value={editStatus} onChange={(event) => setEditStatus(event.target.value as "paid" | "planned")}><option value="paid">Realizado</option><option value="planned">Previsto</option></select></label><button className="primary-button" type="submit" disabled={busy}>Salvar alterações</button><button className="quiet-button" type="button" disabled={busy} onClick={() => setEditingTransactionId(null)}>Cancelar</button></form>}</li>)}</ul>}
