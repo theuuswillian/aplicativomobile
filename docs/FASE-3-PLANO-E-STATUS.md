@@ -437,3 +437,16 @@ O CI verde valida o código e as migrações em ambiente local; não comprova ch
 - [ ] Teste visual manual no Safari/PWA continua pendente.
 - [ ] Próxima etapa: revisar a hierarquia das telas secundárias (Metas, Relatórios, Conta) e criar navegação interna acionável para Conexões, Personalização, Segurança e Dados, sem esconder recursos nem mudar suas permissões.
 - PR #2 segue aberta/draft/sem merge; Production e Supabase remoto permanecem intocados.
+
+
+## Metas, relatórios e atalhos da Conta — 25/11/2026
+- [x] Cadastro de metas e registro de contribuições recolhidos em painéis expansíveis, mantendo handlers e validações existentes.
+- [x] Relatório mensal passou a exibir participação por categoria com barras proporcionais calculadas a partir das despesas realizadas carregadas; não foram adicionados valores fictícios, variações estimadas ou períodos sem dados.
+- [x] Menu da Conta agora oferece atalhos para Conexões (área de Gastos, onde ficam WhatsApp/notificações), Personalização (tema existente), Metas e Planejamento e Relatórios.
+- [x] Revisão estrutural do App: 14 elementos `details` abertos e 14 fechados; 18 formulários abertos e 18 fechados no arquivo. Conferidos os vínculos dos novos painéis e a preservação do filtro de lançamentos realizados do relatório.
+- [x] Nenhuma alteração de schema, RPC, lógica financeira, dados remotos, credenciais ou dependências.
+- Commits desta etapa: `2e3263c62fe3edfa027266e944111f7c12706baf` (metas/relatório), `89109dbfd3e677b1224ef632122b7b207f82edfd` (atalhos Conta), `f58f091cc69d87284856ca8650fa14d77a8973ce` (CSS).
+- [ ] Consulta de execuções CI para o HEAD `f58f091cc69d87284856ca8650fa14d77a8973ce` retornou lista vazia; lint, typecheck, testes e build ainda não estão confirmados.
+- [ ] Preview novo não criado; há bloqueio de quota Vercel HTTP 402 registrado anteriormente. Teste visual Safari/PWA ainda pendente.
+- [ ] PIN/Face ID, telas próprias de Segurança e configurações detalhadas de assinatura não existem no fluxo atual inspecionado; não foram simulados nem adicionados como controles falsos.
+- PR #2 permanece aberta/draft/sem merge; Production e Supabase remoto não foram alterados.
