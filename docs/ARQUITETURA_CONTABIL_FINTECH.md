@@ -65,7 +65,7 @@ As tabelas privadas não são expostas ao cliente. RPCs e triggers com `SECURITY
 - **Pagamento no cartão:** trigger aloca parcelas e bloqueia compra que exceda o limite disponível. O cartão é bloqueado por linha durante alterações concorrentes.
 - **Fechamento:** a compra é alocada à fatura correta, respeitando o dia de fechamento e o último dia de meses curtos.
 - **Parcelamento:** total convertido para centavos; divisão inteira e centavos residuais distribuídos na primeira parcela, mantendo a soma exata.
-- **Pagamento de fatura:** trava por cartão/fatura, verifica saldo da fatura e rejeita data futura ou pagamento acima do saldo. Pagamento concorrente não consegue ultrapassar o total.
+- **Pagamento de fatura:** trava por cartão/fatura, verifica saldo da fatura e rejeita data futura ou pagamento acima do saldo. Pagamento concorrente não consegue ultrapassar o total. Se a data do pagamento for anterior à data-base da conta, a contrapartida usa patrimônio inicial em vez de movimentar novamente o saldo bancário.
 - **Firewall de investimentos:** despesa em conta de investimento é rejeitada. Pagamento de fatura, empréstimo e conversão de hora extra não podem usar conta de investimento. Resgate é explícito e não pode exceder o caixa da corretora.
 - **Moeda:** partidas de um diário precisam ter a mesma moeda. Não há conversão implícita.
 - **Proventos:** recebimento BRL cria transação e diário na mesma transação SQL; o evento recebido fica protegido contra edição/exclusão e a transação vinculada não pode ser apagada isoladamente.
@@ -101,6 +101,7 @@ O botão **+ Novo lançamento** abre ações rápidas para despesa, receita, tra
 - [x] Compra no crédito aumenta passivo e consome limite disponível.
 - [x] Pagamento parcial de fatura reduz banco e passivo sem duplicar despesa.
 - [x] Duas tentativas concorrentes não pagam acima do saldo da fatura.
+- [x] Pagamento de fatura anterior à data-base da conta não desconta o saldo inicial novamente.
 - [x] Despesa PIX não altera caixa de investimentos.
 - [x] Despesa em conta de investimento é rejeitada.
 - [x] Resgate acima do caixa da corretora é rejeitado.
