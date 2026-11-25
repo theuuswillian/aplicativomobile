@@ -645,3 +645,39 @@
   .overview-balance, .overview-stat, .overview-recent, .overview-flow, .panel,
   .quick-entry-options button { transition: none; }
 }
+
+
+/* Privacidade visual: oculta os valores do resumo sem alterar os dados financeiros. */
+.overview-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.balance-visibility-toggle {
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 5%);
+  color: var(--color-muted);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.balance-visibility-toggle:hover {
+  border-color: color-mix(in srgb, var(--gv-accent) 50%, var(--color-line));
+  color: var(--color-text);
+}
+.app-shell[data-balances-hidden="true"] .overview-balance > strong,
+.app-shell[data-balances-hidden="true"] .overview-stat > strong,
+.app-shell[data-balances-hidden="true"] .recent-list li > strong {
+  filter: blur(9px);
+  user-select: none;
+  -webkit-user-select: none;
+}
+.app-shell[data-balances-hidden="true"] .overview-balance > strong {
+  opacity: .72;
+}
+.app-shell[data-theme="light"] .balance-visibility-toggle { background: rgb(20 35 28 / 4%); }
