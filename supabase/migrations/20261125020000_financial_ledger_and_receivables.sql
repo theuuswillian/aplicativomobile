@@ -250,6 +250,7 @@ security definer
 set search_path=pg_catalog, public, private
 as $cleanup$
 begin
+  perform set_config('app.cleanup_financial_ledger_user',old.id::text,true);
   -- A conta está sendo encerrada; remove o ponteiro antes das cascatas para não gerar estornos inúteis.
   delete from private.ledger_source_state where user_id=old.id;
   delete from public.overtime_entries where user_id=old.id;
@@ -424,10 +425,18 @@ as $$
 declare v_status text;
 begin
   if tg_table_name='journal_entries' then
-    if old.status='posted' then raise exception 'Diários contabilizados são imutáveis; use estorno' using errcode='55000'; end if;
+    if old.status='posted' and not (
+      tg_op='DELETE' and current_setting('app.cleanup_financial_ledger_user',true)=old.user_id::text
+    ) then
+      raise exception 'Diários contabilizados são imutáveis; use estorno' using errcode='55000';
+    end if;
   else
     select status into v_status from private.journal_entries where id=old.journal_entry_id;
-    if v_status='posted' then raise exception 'Linhas contabilizadas são imutáveis; use estorno' using errcode='55000'; end if;
+    if v_status='posted' and not (
+      tg_op='DELETE' and current_setting('app.cleanup_financial_ledger_user',true)=old.user_id::text
+    ) then
+      raise exception 'Linhas contabilizadas são imutáveis; use estorno' using errcode='55000';
+    end if;
   end if;
   if tg_op='DELETE' then return old; end if;
   return new;
