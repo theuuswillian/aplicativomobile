@@ -8,7 +8,7 @@ create table private.ledger_accounts (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   account_kind text not null check (account_kind in (
-    'bank','cash','card_liability','investment_asset','receivable_asset',
+    'bank','cash','investment_cash','card_liability','investment_asset','receivable_asset',
     'expense','income','opening_equity'
   )),
   name text not null check (length(btrim(name)) between 1 and 160),
@@ -23,7 +23,7 @@ create table private.ledger_accounts (
   foreign key (user_id,source_investment_asset_id) references public.investment_assets(user_id,id) on delete restrict,
   check (num_nonnulls(source_account_id,source_card_id,source_investment_asset_id,source_receivable_loan_id) <= 1),
   check (
-    (account_kind in ('bank','cash') and source_account_id is not null
+    (account_kind in ('bank','cash','investment_cash') and source_account_id is not null
       and num_nonnulls(source_card_id,source_investment_asset_id,source_receivable_loan_id)=0)
     or (account_kind='card_liability' and source_card_id is not null
       and num_nonnulls(source_account_id,source_investment_asset_id,source_receivable_loan_id)=0)
@@ -229,11 +229,14 @@ set search_path=pg_catalog,public,private
 as $$
 declare v_id uuid; v_account_type text;
 begin
-  if p_kind in ('bank','cash') then
+  if p_kind in ('bank','cash','investment_cash') then
     select account_type into v_account_type from public.accounts
      where user_id=p_user_id and id=p_source_id;
     if not found then raise exception 'Conta financeira não pertence ao usuário' using errcode='23503'; end if;
-    p_kind := case when lower(v_account_type) in ('cash','physical_cash','dinheiro','dinheiro_fisico') then 'cash' else 'bank' end;
+    p_kind := case
+      when lower(v_account_type) in ('cash','physical_cash','dinheiro','dinheiro_fisico') then 'cash'
+      when lower(v_account_type)='investment' then 'investment_cash'
+      else 'bank' end;
   elsif p_kind='card_liability' then
     if not exists(select 1 from public.cards where user_id=p_user_id and id=p_source_id) then
       raise exception 'Cartão não pertence ao usuário' using errcode='23503';
@@ -252,7 +255,7 @@ begin
 
   perform pg_advisory_xact_lock(hashtextextended(
     p_user_id::text||':'||p_kind||':'||coalesce(p_source_id::text,'system'),0));
-  if p_kind in ('bank','cash') then
+  if p_kind in ('bank','cash','investment_cash') then
     select id into v_id from private.ledger_accounts
      where user_id=p_user_id and source_account_id=p_source_id;
   elsif p_kind='card_liability' then
@@ -275,7 +278,7 @@ begin
     source_investment_asset_id,source_receivable_loan_id
   ) values (
     p_user_id,p_kind,left(coalesce(nullif(btrim(p_name),''),p_kind),160),
-    case when p_kind in ('bank','cash') then p_source_id end,
+    case when p_kind in ('bank','cash','investment_cash') then p_source_id end,
     case when p_kind='card_liability' then p_source_id end,
     case when p_kind='investment_asset' then p_source_id end,
     case when p_kind='receivable_asset' then p_source_id end
@@ -418,6 +421,9 @@ begin
         'expense',null,'card_liability',new.card_id,new.amount,new.category_id);
     elsif new.kind='expense' then
       if new.account_id is null then raise exception 'Despesa realizada exige conta ou cartão' using errcode='23514'; end if;
+      if exists(select 1 from public.accounts where user_id=v_user and id=new.account_id and account_type='investment') then
+        raise exception 'Conta de investimentos é blindada e não pode pagar despesas' using errcode='23514';
+      end if;
       v_journal := private.post_pair(v_user,new.transaction_date,new.description,'transaction',new.id,
         'expense',null,'bank',new.account_id,new.amount,new.category_id);
     end if;
@@ -454,6 +460,9 @@ begin
      where user_id=v_user and source_type='card_invoice_payment' and source_id=v_id;
   end if;
   if tg_op='DELETE' then return old; end if;
+  if exists(select 1 from public.accounts where user_id=v_user and id=new.account_id and account_type='investment') then
+    raise exception 'Conta de investimentos não pode pagar fatura de cartão' using errcode='23514';
+  end if;
   v_journal := private.post_pair(v_user,new.payment_date,
     coalesce(new.description,'Pagamento de fatura'),'card_invoice_payment',new.id,
     'card_liability',new.card_id,'bank',new.account_id,new.amount,null);
@@ -475,7 +484,10 @@ as $$
 declare v_kind text; v_journal uuid; v_amount numeric;
 begin
   if new.opening_balance=0 then return new; end if;
-  v_kind := case when lower(new.account_type) in ('cash','physical_cash','dinheiro','dinheiro_fisico') then 'cash' else 'bank' end;
+  v_kind := case
+    when lower(new.account_type) in ('cash','physical_cash','dinheiro','dinheiro_fisico') then 'cash'
+    when lower(new.account_type)='investment' then 'investment_cash'
+    else 'bank' end;
   v_amount := abs(new.opening_balance);
   if new.opening_balance > 0 then
     v_journal := private.post_pair(new.user_id,new.opening_balance_date,
@@ -521,7 +533,7 @@ returns trigger language plpgsql security definer
 set search_path=pg_catalog,public,private
 as $$
 declare v_count integer; v_total_cents bigint; v_base bigint; v_remainder bigint;
-  v_closing date; v_due date; v_month date; v_last integer; v_due_month date; v_amount numeric;
+  v_closing date; v_first_closing date; v_due date; v_month date; v_last integer; v_due_month date; v_amount numeric;
   v_card public.cards%rowtype; i integer;
 begin
   if tg_op='DELETE' then
@@ -540,8 +552,9 @@ begin
   v_base:=v_total_cents/v_count;
   v_remainder:=v_total_cents%v_count;
   v_closing:=private.invoice_closing_date(new.transaction_date,v_card.closing_day);
+  v_first_closing:=v_closing;
   for i in 1..v_count loop
-    v_month:=(date_trunc('month',v_closing)::date+make_interval(months=>i-1))::date;
+    v_month:=(date_trunc('month',v_first_closing)::date+make_interval(months=>i-1))::date;
     v_last:=extract(day from (v_month+interval '1 month - 1 day'))::integer;
     v_closing:=v_month+(least(v_card.closing_day,v_last)-1);
     v_due_month:=case when v_card.due_day>v_card.closing_day then v_month else (v_month+interval '1 month')::date end;
@@ -800,7 +813,12 @@ begin
    where rl.user_id=v_user;
   select coalesce(sum(expected_amount),0) into v_overtime
     from public.overtime_entries where user_id=v_user and status='pending';
-  select coalesce(sum(quantity*coalesce(current_price,average_cost)),0) into v_investment_brl
+  select coalesce(sum(l.debit-l.credit),0) into v_investment_brl
+    from private.journal_lines l join private.ledger_accounts a
+      on a.user_id=l.user_id and a.id=l.ledger_account_id
+    join private.journal_entries j on j.user_id=l.user_id and j.id=l.journal_entry_id
+   where l.user_id=v_user and j.status='posted' and a.account_kind='investment_cash';
+  select v_investment_brl + coalesce(sum(quantity*coalesce(current_price,average_cost)),0) into v_investment_brl
     from public.investment_assets where user_id=v_user and currency='BRL';
   select coalesce(sum(quantity*coalesce(current_price,average_cost)),0) into v_investment_usd
     from public.investment_assets where user_id=v_user and currency='USD';
