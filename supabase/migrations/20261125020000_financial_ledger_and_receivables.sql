@@ -250,12 +250,13 @@ security definer
 set search_path=pg_catalog, public, private
 as $cleanup$
 begin
+  -- A conta está sendo encerrada; remove o ponteiro antes das cascatas para não gerar estornos inúteis.
+  delete from private.ledger_source_state where user_id=old.id;
   delete from public.overtime_entries where user_id=old.id;
   delete from public.overtime_conversion_batches where user_id=old.id;
   delete from public.receivable_repayments where user_id=old.id;
   delete from public.card_invoice_payments where user_id=old.id;
   delete from public.card_invoice_installments where user_id=old.id;
-  delete from private.ledger_source_state where user_id=old.id;
   delete from private.journal_entries where user_id=old.id;
   delete from private.ledger_accounts where user_id=old.id;
   return old;
