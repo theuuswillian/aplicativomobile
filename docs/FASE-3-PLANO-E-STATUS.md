@@ -374,3 +374,15 @@ O CI verde valida o código e as migrações em ambiente local; não comprova ch
 - [ ] CI para o HEAD 67aadee276c5f661c4a5382338721c9b5be9304e ainda não foi confirmada pelas consultas disponíveis. A última CI integral confirmada permanece verde no commit eaecf201833edbe43eb30f6ba7cc6e81685fd1dc; ela não valida automaticamente estas mudanças visuais.
 - [ ] Teste visual manual em Safari e PWA instalado permanece pendente.
 - Nenhum deployment, merge, alteração no Supabase remoto ou mudança em Production.
+
+### Terceira etapa — Investimentos, A Receber, Relatórios e experiência responsiva (25/11/2026)
+- [x] Refinada a hierarquia visual da alocação da carteira, separando os grupos por moeda e destacando legenda e valores sem somar BRL e USD.
+- [x] Melhorada a leitura do calendário de proventos e do histórico de eventos, preservando os rótulos de valores manuais e estados anunciados/previstos/recebidos.
+- [x] A área A Receber e Extras recebeu painéis de resumo para empréstimos em aberto e previsão de horas extras, além de organização responsiva dos formulários e históricos.
+- [x] Relatório mensal recebeu cartões de métricas e lista de despesas por categoria com adaptação para telas estreitas.
+- [x] Refinados estados de foco visível e navegação inferior responsiva, preservando prefers-reduced-motion.
+- [x] Alterações desta etapa somente em src/styles/visual-refresh.css; nenhuma regra financeira, RPC, migration, dependência ou dado foi alterado.
+- Commit de estilo: 2fb0109c8a561182992848a9d31bcbd48c878e42.
+- [ ] CI integral para o HEAD consolidado ainda precisa concluir. A execução 45600122585 já passou em SQL, Edge Runtime e Edge Integration; o job validate estava executando os testes Playwright de navegador, responsividade, offline e acessibilidade na última consulta. Essa execução foi iniciada antes do commit de estilo 2fb0109 e não valida esse commit.
+- [ ] Validação manual real em Safari e no PWA instalado no iPhone continua pendente; precisa de Preview atualizado e teste no dispositivo do operador. A automação Chromium/WebKit não substitui o aceite visual no iPhone.
+- Nenhum Preview/Production, merge, alteração no Supabase remoto ou ativação de workers foi executado.
