@@ -13,6 +13,7 @@ As migrations versionadas da fundação e das integrações são aplicadas em or
 9. `009_recurrence_generation.sql` — geração de lançamentos previstos, datas de calendário e idempotência por recorrência/data.
 10. `010_market_data_provider.sql` — controle atômico de consumo e cursor do provedor de cotações.
 11. `011_manual_investment_reference_prices.sql` — origem explícita de preços manuais de referência dos ativos.
+12. `20261125010000_card_invoice_payments.sql` — pagamentos de fatura isolados, RLS e validação transacional contra pagamentos acima do saldo, inclusive concorrentes.
 
 Cada migration deve funcionar em banco vazio, habilitar RLS nas tabelas expostas, limitar grants, validar referências do mesmo usuário e fixar `search_path` para funções privilegiadas.
 
