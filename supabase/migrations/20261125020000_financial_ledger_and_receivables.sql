@@ -192,7 +192,7 @@ create table public.card_invoice_installments (
   installment_count smallint not null check (installment_count between 1 and 48),
   amount numeric(15,2) not null check (amount > 0),
   created_at timestamptz not null default now(),
-  foreign key(user_id,transaction_id) references public.transactions(user_id,id) on delete restrict,
+  foreign key(user_id,transaction_id) references public.transactions(user_id,id) on delete cascade,
   foreign key(user_id,card_id) references public.cards(user_id,id) on delete restrict,
   unique(user_id,transaction_id,installment_number),
   check(installment_number <= installment_count)
@@ -393,10 +393,11 @@ returns trigger
 language plpgsql security definer
 set search_path=pg_catalog, public
 as $$
-declare v_user uuid; v_id uuid; v_active uuid; v_journal uuid; v_kind text;
+declare v_user uuid; v_id uuid; v_active uuid; v_journal uuid; v_kind text; v_debit_kind text; v_credit_kind text; v_debit_source uuid; v_credit_source uuid; v_from_opening date; v_to_opening date;
 begin
   v_user := case when tg_op='DELETE' then old.user_id else new.user_id end;
   v_id := case when tg_op='DELETE' then old.id else new.id end;
+  if tg_op='UPDATE' and new.user_id<>old.user_id then raise exception 'Não é permitido transferir a titularidade de um lançamento' using errcode='42501'; end if;
   if auth.uid() is not null and auth.uid()<>v_user then
     raise exception 'Operação financeira não pertence à sessão autenticada' using errcode='42501';
   end if;
@@ -410,22 +411,36 @@ begin
   if tg_op='DELETE' then return old; end if;
   if new.status='paid' then
     if new.kind='transfer' then
-      v_journal := private.post_pair(v_user,new.transaction_date,new.description,'transaction',new.id,
-        'bank',new.transfer_to_account_id,'bank',new.transfer_from_account_id,new.amount,new.category_id);
+      select opening_balance_date into v_from_opening from public.accounts
+       where user_id=v_user and id=new.transfer_from_account_id;
+      select opening_balance_date into v_to_opening from public.accounts
+       where user_id=v_user and id=new.transfer_to_account_id;
+      v_debit_kind:=case when new.transaction_date<v_to_opening then 'opening_equity' else 'bank' end;
+      v_credit_kind:=case when new.transaction_date<v_from_opening then 'opening_equity' else 'bank' end;
+      v_debit_source:=case when v_debit_kind='bank' then new.transfer_to_account_id else null end;
+      v_credit_source:=case when v_credit_kind='bank' then new.transfer_from_account_id else null end;
+      if v_debit_kind<>'opening_equity' or v_credit_kind<>'opening_equity' then
+        v_journal := private.post_pair(v_user,new.transaction_date,new.description,'transaction',new.id,
+          v_debit_kind,v_debit_source,v_credit_kind,v_credit_source,new.amount,new.category_id);
+      end if;
     elsif new.kind='income' then
       if new.account_id is null then raise exception 'Receita realizada exige conta de destino' using errcode='23514'; end if;
+      if exists(select 1 from public.accounts where user_id=v_user and id=new.account_id and new.transaction_date>=opening_balance_date) then
       v_journal := private.post_pair(v_user,new.transaction_date,new.description,'transaction',new.id,
         'bank',new.account_id,'income',null,new.amount,new.category_id);
+      end if;
     elsif new.kind='expense' and new.card_id is not null then
       v_journal := private.post_pair(v_user,new.transaction_date,new.description,'transaction',new.id,
         'expense',null,'card_liability',new.card_id,new.amount,new.category_id);
     elsif new.kind='expense' then
       if new.account_id is null then raise exception 'Despesa realizada exige conta ou cartão' using errcode='23514'; end if;
-      if exists(select 1 from public.accounts where user_id=v_user and id=new.account_id and account_type='investment') then
+      if exists(select 1 from public.accounts where user_id=v_user and id=new.account_id and account_type='investment' and new.transaction_date>=opening_balance_date) then
         raise exception 'Conta de investimentos é blindada e não pode pagar despesas' using errcode='23514';
       end if;
+      if exists(select 1 from public.accounts where user_id=v_user and id=new.account_id and new.transaction_date>=opening_balance_date) then
       v_journal := private.post_pair(v_user,new.transaction_date,new.description,'transaction',new.id,
         'expense',null,'bank',new.account_id,new.amount,new.category_id);
+      end if;
     end if;
     if v_journal is not null then
       insert into private.ledger_source_state(user_id,source_type,source_id,active_journal_id)
@@ -537,10 +552,28 @@ declare v_count integer; v_total_cents bigint; v_base bigint; v_remainder bigint
   v_card public.cards%rowtype; i integer;
 begin
   if tg_op='DELETE' then
+    if exists(
+      select 1 from public.card_invoice_installments i
+      join public.card_invoice_payments p
+        on p.user_id=i.user_id and p.card_id=i.card_id
+       and p.invoice_closing_date=i.invoice_closing_date
+      where i.user_id=old.user_id and i.transaction_id=old.id
+    ) then
+      raise exception 'Não é possível excluir uma compra após pagamento parcial ou total da fatura' using errcode='23514';
+    end if;
     delete from public.card_invoice_installments where user_id=old.user_id and transaction_id=old.id;
     return old;
   end if;
   if tg_op='UPDATE' then
+    if exists(
+      select 1 from public.card_invoice_installments i
+      join public.card_invoice_payments p
+        on p.user_id=i.user_id and p.card_id=i.card_id
+       and p.invoice_closing_date=i.invoice_closing_date
+      where i.user_id=old.user_id and i.transaction_id=old.id
+    ) then
+      raise exception 'Não é possível alterar uma compra após pagamento parcial ou total da fatura' using errcode='23514';
+    end if;
     delete from public.card_invoice_installments where user_id=old.user_id and transaction_id=old.id;
   end if;
   if new.card_id is null or new.kind<>'expense' or new.status<>'paid' then return new; end if;
@@ -844,6 +877,10 @@ declare
   a record; t record; p record; v_kind text; v_debit_kind text; v_credit_kind text;
   v_debit_source uuid; v_credit_source uuid; v_journal uuid;
 begin
+  -- Gera a distribuição das compras com cartão que já existiam antes desta migration.
+  update public.transactions set updated_at=updated_at
+   where card_id is not null and kind='expense' and status='paid';
+
   for a in select * from public.accounts where opening_balance<>0 loop
     if not exists(select 1 from private.ledger_source_state
       where user_id=a.user_id and source_type='account_opening' and source_id=a.id) then
