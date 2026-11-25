@@ -23,6 +23,37 @@ begin
   end if;
 end $payment_method_constraint$;
 
+-- Proventos recebidos precisam liquidar em uma conta BRL ou no caixa da corretora.
+alter table public.income_events
+  add column if not exists account_id uuid,
+  add column if not exists transaction_id uuid,
+  add column if not exists settlement_idempotency_key text,
+  add column if not exists settlement_state text not null default 'unsettled'
+    check(settlement_state in ('unsettled','settled'));
+do $income_event_fks$
+begin
+  if not exists(select 1 from pg_constraint where conname='income_events_account_fk' and conrelid='public.income_events'::regclass) then
+    alter table public.income_events add constraint income_events_account_fk
+      foreign key(user_id,account_id) references public.accounts(user_id,id) on delete restrict;
+  end if;
+  if not exists(select 1 from pg_constraint where conname='income_events_transaction_fk' and conrelid='public.income_events'::regclass) then
+    alter table public.income_events add constraint income_events_transaction_fk
+      foreign key(user_id,transaction_id) references public.transactions(user_id,id) on delete restrict;
+  end if;
+  if not exists(select 1 from pg_constraint where conname='income_events_settlement_state_check' and conrelid='public.income_events'::regclass) then
+    alter table public.income_events add constraint income_events_settlement_state_check
+      check((settlement_state='settled' and account_id is not null and transaction_id is not null
+             and settlement_idempotency_key is not null)
+         or (settlement_state='unsettled' and transaction_id is null));
+  end if;
+end $income_event_fks$;
+create unique index if not exists income_events_settlement_idempotency_uidx
+  on public.income_events(user_id,settlement_idempotency_key)
+  where settlement_idempotency_key is not null;
+create unique index if not exists income_events_transaction_uidx
+  on public.income_events(user_id,transaction_id)
+  where transaction_id is not null;
+
 create table private.ledger_accounts (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -253,6 +284,8 @@ begin
   perform set_config('app.cleanup_financial_ledger_user',old.id::text,true);
   -- A conta está sendo encerrada; remove o ponteiro antes das cascatas para não gerar estornos inúteis.
   delete from private.ledger_source_state where user_id=old.id;
+  delete from public.income_events where user_id=old.id;
+  delete from public.investment_operations where user_id=old.id;
   delete from public.overtime_entries where user_id=old.id;
   delete from public.overtime_conversion_batches where user_id=old.id;
   delete from public.receivable_repayments where user_id=old.id;
@@ -614,6 +647,85 @@ $$;
 create trigger transactions_sync_ledger
 after insert or update or delete on public.transactions
 for each row execute function private.sync_transaction_ledger();
+
+
+create or replace function private.sync_income_event_settlement()
+returns trigger
+language plpgsql
+security definer
+set search_path=pg_catalog, public
+as $income_settlement$
+declare v_currency text; v_symbol text; v_transaction_id uuid;
+begin
+  if tg_op='DELETE' then
+    if old.status='received'
+       and current_setting('app.cleanup_financial_ledger_user',true) is distinct from old.user_id::text then
+      raise exception 'Provento recebido é imutável; preserve o lançamento contábil' using errcode='55000';
+    end if;
+    return old;
+  end if;
+
+  if tg_op='UPDATE' and old.status='received' then
+    raise exception 'Provento recebido é imutável; registre uma correção por lançamento de ajuste' using errcode='55000';
+  end if;
+
+  if new.status='received' then
+    if new.account_id is null or new.payment_date is null or new.received_amount<=0
+       or length(coalesce(new.settlement_idempotency_key,'')) not between 8 and 120
+       or new.transaction_id is not null then
+      raise exception 'Para receber o provento, informe conta de destino, valor, data e chave de idempotência' using errcode='23514';
+    end if;
+    select currency,symbol into v_currency,v_symbol
+      from public.investment_assets where user_id=new.user_id and id=new.asset_id;
+    if not found then raise exception 'Ativo do provento não pertence ao usuário' using errcode='23503'; end if;
+    if v_currency<>'BRL' then
+      raise exception 'Provento em USD não pode ser misturado a contas BRL; conversão cambial explícita ainda não está habilitada' using errcode='23514';
+    end if;
+    if not exists(select 1 from public.accounts where user_id=new.user_id and id=new.account_id) then
+      raise exception 'Conta de destino do provento não pertence ao usuário' using errcode='23503';
+    end if;
+
+    insert into public.transactions(
+      user_id,kind,status,amount,transaction_date,description,account_id,
+      payment_method,settled_amount,settled_at,source
+    ) values (
+      new.user_id,'income','paid',new.received_amount,new.payment_date,
+      left('Provento '||v_symbol||' - '||new.event_type,240),new.account_id,
+      null,new.received_amount,new.payment_date,'manual'
+    ) returning id into v_transaction_id;
+
+    new.transaction_id:=v_transaction_id;
+    new.settlement_state:='settled';
+  else
+    if new.account_id is not null or new.transaction_id is not null or new.settlement_idempotency_key is not null then
+      raise exception 'Destino e liquidação só podem ser definidos ao confirmar o recebimento' using errcode='23514';
+    end if;
+    new.settlement_state:='unsettled';
+  end if;
+  return new;
+end;
+$income_settlement$;
+create trigger income_events_settlement
+before insert or update or delete on public.income_events
+for each row execute function private.sync_income_event_settlement();
+
+create or replace function private.protect_income_event_transaction()
+returns trigger
+language plpgsql
+security definer
+set search_path=pg_catalog, public
+as $income_tx_guard$
+begin
+  if exists(select 1 from public.income_events where user_id=old.user_id and transaction_id=old.id) then
+    raise exception 'Lançamento de provento é protegido pelo histórico de investimentos' using errcode='55000';
+  end if;
+  if tg_op='DELETE' then return old; end if;
+  return new;
+end;
+$income_tx_guard$;
+create trigger transactions_protect_income_event
+before update or delete on public.transactions
+for each row execute function private.protect_income_event_transaction();
 
 create or replace function private.sync_card_invoice_payment_ledger()
 returns trigger language plpgsql security definer
