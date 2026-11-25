@@ -681,3 +681,9 @@
   opacity: .72;
 }
 .app-shell[data-theme="light"] .balance-visibility-toggle { background: rgb(20 35 28 / 4%); }
+
+
+/* Contraste AA para o link de alternância de autenticação no tema claro. */
+.app-shell[data-theme="light"] .text-button {
+  color: #14532d;
+}
