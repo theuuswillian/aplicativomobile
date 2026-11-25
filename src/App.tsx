@@ -9,6 +9,7 @@ import { generateOccurrences, type RecurrenceFrequency } from "./domain/recurren
 import { calculateInvestmentSummary, normalizeManualReferencePrice, type InvestmentOperation } from "./domain/investments";
 import { parseCsvStatement, parseOfxStatement, planImportBatch, type ImportRow } from "./domain/imports";
 import { calculateAccountBalance, calculateCardCommittedLimitCents, calculateInvoice, type InvoicePayment, type LedgerEntry } from "./domain/finance";
+import { ReceivablesPanel } from "./features/receivables/ReceivablesPanel";
 type PushSubscriptionRow = { id: string; endpoint: string; user_agent: string | null };
 type WhatsappLinkState = { phone: string; weekly_summary_enabled: boolean };
 type RadarFireRow = { alert_key: string; fired_at: string; observed_price: string; source: string | null; quote_observed_at: string | null };
@@ -151,6 +152,7 @@ export default function App() {
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
   const [cards, setCards] = useState<CardRow[]>([]);
   const [invoicePayments, setInvoicePayments] = useState<CardInvoicePaymentRow[]>([]);
+  const [financialSummary, setFinancialSummary] = useState<{ receivables_brl?: number; overtime_forecast_brl?: number } | null>(null);
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [recurrences, setRecurrences] = useState<RecurrenceRow[]>([]);
   const [budgets, setBudgets] = useState<BudgetRow[]>([]);
@@ -417,6 +419,23 @@ export default function App() {
     return [card.id, calculateCardCommittedLimitCents(card.id, card.closing_day, card.due_day, ledgerEntries, payments, todayInBrazil()) / 100];
   })), [cards, ledgerEntries, paymentsByCardInvoice]);
   const enabledAlerts = useMemo(() => alerts.filter((alert) => alert.is_enabled).length, [alerts]);
+  useEffect(() => {
+    if (!supabase || !session?.user) {
+      setFinancialSummary(null);
+      return;
+    }
+    let active = true;
+    void supabase.rpc("get_financial_summary").then(({ data, error }) => {
+      if (!active) return;
+      if (error || !data || typeof data !== "object") {
+        setFinancialSummary(null);
+        return;
+      }
+      setFinancialSummary(data as { receivables_brl?: number; overtime_forecast_brl?: number });
+    });
+    return () => { active = false; };
+  }, [session]);
+
 
   async function handleAuth(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1130,7 +1149,7 @@ export default function App() {
     const card = cards.find((item) => item.id === invoicePaymentCardId);
     const account = accounts.find((item) => item.id === invoicePaymentAccountId);
     const today = todayInBrazil();
-    if (!amount || !card || !account || !/^\\d{4}-\\d{2}-\\d{2}$/.test(invoiceClosingDate) ||
+    if (!amount || !card || !account || account.account_type === "investment" || !/^\\d{4}-\\d{2}-\\d{2}$/.test(invoiceClosingDate) ||
         !/^\\d{4}-\\d{2}-\\d{2}$/.test(invoicePaymentDate) || invoicePaymentDate > today) {
       setNotice("Selecione cartão, conta, fechamento da fatura e uma data de pagamento válida (até hoje).");
       return;
@@ -1178,7 +1197,8 @@ export default function App() {
     if (!supabase || !session) return;
     const amount = normalizeBrlAmount(txAmount);
     const validTransfer = txKind === "transfer" && Boolean(txTransferFromId) && Boolean(txTransferToId) && txTransferFromId !== txTransferToId;
-    const validRegular = txKind !== "transfer" && (Boolean(txAccountId) || Boolean(txCardId)) && !(txCardId && txKind !== "expense");
+    const selectedAccount = accounts.find((account) => account.id === txAccountId);
+    const validRegular = txKind !== "transfer" && (Boolean(txCardId) || (Boolean(selectedAccount) && selectedAccount?.account_type !== "investment")) && !(txCardId && txKind !== "expense");
     if (!amount || !txDescription.trim() || (!validTransfer && !validRegular) || !txDate) {
       setNotice(txKind === "transfer"
         ? "Selecione contas de origem e destino diferentes, além de descrição, valor e data."
@@ -1515,11 +1535,20 @@ export default function App() {
             {activeTab === "inicio" && <section className="overview-grid" aria-label="Resumo financeiro">
               <article className="overview-balance">
                 <div className="overview-label">Saldo disponível <span aria-hidden="true">◉</span></div>
-                <strong>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Object.values(accountBalances).reduce((sum, value) => sum + value, 0))}</strong>
+                <strong>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(accounts.filter((account) => account.account_type !== "investment").reduce((sum, account) => sum + (accountBalances[account.id] ?? 0), 0))}</strong>
                 <small>{accounts.length} {accounts.length === 1 ? "conta conectada" : "contas cadastradas"}</small>
               </article>
-              <article className="overview-stat"><span>Cartões utilizados</span><strong>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Object.values(cardCommittedAmounts).reduce((sum, value) => sum + value, 0))}</strong><small>Limite comprometido</small></article>
-              <article className="overview-stat"><span>Cartões cadastrados</span><strong>{cards.length}</strong><small>{enabledAlerts} alertas ativos no Radar</small></article>
+              <article className="overview-stat"><span>Compromissos & extras</span><strong>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Object.values(cardCommittedAmounts).reduce((sum, value) => sum + value, 0))}</strong><small>Faturas e limite comprometido · a receber: {financialSummary ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(financialSummary.receivables_brl ?? 0) + Number(financialSummary.overtime_forecast_brl ?? 0)) : "aguardando ativação do ledger"}</small></article>
+              <article className="overview-stat"><span>Patrimônio investido</span>{(() => {
+                const totals = investmentAssets.reduce((sum, asset) => {
+                  const summary = investmentSummary(asset.id);
+                  const currentPrice = asset.current_price == null ? null : Number(asset.current_price);
+                  const amount = summary.quantity > 0 ? (currentPrice != null && currentPrice > 0 ? currentPrice * summary.quantity : Number(summary.costBasisCents) / 100) : 0;
+                  if (asset.currency === "USD") sum.usd += amount; else sum.brl += amount;
+                  return sum;
+                }, { brl: 0, usd: 0 });
+                return <><strong>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(totals.brl)}</strong><small>{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(totals.usd)} · separado da liquidez</small></>;
+              })()}</article>
               <article className="overview-recent">
                 <div className="overview-recent-heading"><strong>Últimos lançamentos</strong><button type="button" onClick={() => setActiveTab("gastos")}>Ver gastos <span aria-hidden="true">›</span></button></div>
                 {transactions.length === 0 ? <p className="empty-state">Seus lançamentos aparecerão aqui.</p> : <ul className="recent-list">{transactions.slice(0, 4).map((item) => <li key={item.id}><span className={item.kind === "income" ? "recent-icon income" : "recent-icon"}>{item.kind === "income" ? "↗" : "↘"}</span><span className="recent-description"><strong>{item.description}</strong><small>{new Date(item.transaction_date + "T12:00:00").toLocaleDateString("pt-BR")}</small></span><strong className={item.kind === "income" ? "amount-income" : "amount-expense"}>{item.kind === "income" ? "+" : "−"}{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(item.amount))}</strong></li>)}</ul>}
@@ -1682,6 +1711,7 @@ export default function App() {
 
             <section className="panel planning-panel" id="planejamento" hidden={activeTab !== "planejamento"} aria-labelledby="planning-title">
               <div className="panel-heading"><div><span className="principles-label">OBJETIVOS E FUTURO</span><h2 id="planning-title">Metas e planejamento</h2><p>Acompanhe objetivos, registre contribuições e veja o progresso do que está construindo.</p></div></div>
+              {signedIn && supabase && session && <ReceivablesPanel client={supabase} userId={session.user.id} accounts={accounts} onNotice={setNotice} />}
                             <section className="planning-content" id="planejamento-metas" aria-labelledby="goals-title">
                 <div className="transaction-heading"><strong id="goals-title">Metas financeiras</strong><span>{goals.length} cadastradas</span></div>
                 <form className="finance-form" onSubmit={(event) => void createGoal(event)}>
@@ -1922,10 +1952,10 @@ export default function App() {
 
         {signedIn && <nav className="bottom-nav" aria-label="Navegação principal">
           <button type="button" className={activeTab === "inicio" ? "active" : ""} aria-current={activeTab === "inicio" ? "page" : undefined} onClick={() => setActiveTab("inicio")}><Home size={20} strokeWidth={2.2} /><span>Início</span></button>
-          <button type="button" className={activeTab === "gastos" ? "active" : ""} aria-current={activeTab === "gastos" ? "page" : undefined} onClick={() => setActiveTab("gastos")}><ReceiptText size={20} strokeWidth={2.2} /><span>Gastos</span></button>
-          <button type="button" className={activeTab === "patrimonio" ? "active" : ""} aria-current={activeTab === "patrimonio" ? "page" : undefined} onClick={() => setActiveTab("patrimonio")}><TrendingUp size={20} strokeWidth={2.2} /><span>Patrimônio</span></button>
-          <button type="button" className={activeTab === "planejamento" ? "active" : ""} aria-current={activeTab === "planejamento" ? "page" : undefined} onClick={() => setActiveTab("planejamento")}><Target size={20} strokeWidth={2.2} /><span>Metas</span></button>
-          <button type="button" className={activeTab === "conta" ? "active" : ""} aria-current={activeTab === "conta" ? "page" : undefined} onClick={() => setActiveTab("conta")}><UserRound size={20} strokeWidth={2.2} /><span>Conta</span></button>
+          <button type="button" className={activeTab === "gastos" ? "active" : ""} aria-current={activeTab === "gastos" ? "page" : undefined} onClick={() => setActiveTab("gastos")}><ReceiptText size={20} strokeWidth={2.2} /><span>Cartões</span></button>
+          <button type="button" className={activeTab === "patrimonio" ? "active" : ""} aria-current={activeTab === "patrimonio" ? "page" : undefined} onClick={() => setActiveTab("patrimonio")}><TrendingUp size={20} strokeWidth={2.2} /><span>Investimentos</span></button>
+          <button type="button" className={activeTab === "planejamento" ? "active" : ""} aria-current={activeTab === "planejamento" ? "page" : undefined} onClick={() => setActiveTab("planejamento")}><Target size={20} strokeWidth={2.2} /><span>A Receber & Extras</span></button>
+          <button type="button" className={activeTab === "conta" ? "active" : ""} aria-current={activeTab === "conta" ? "page" : undefined} onClick={() => setActiveTab("conta")}><UserRound size={20} strokeWidth={2.2} /><span>Contas & Relatórios</span></button>
         </nav>}
         <footer className="app-footer"><span>GRANAVIVA</span><span>Privacidade · Clareza · Gratuito para todos</span></footer>
       </div>
