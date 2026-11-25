@@ -39,6 +39,7 @@ type IncomeEventRow = { id: string; asset_id: string; event_type: "dividend" | "
 type BudgetSpendRow = { category_id: string | null; settled_amount: string };
 type TransactionRow = { id: string; kind: "income" | "expense" | "transfer"; status: "paid" | "planned" | "cancelled"; amount: string; transaction_date: string; description: string; account_id: string | null; card_id: string | null; transfer_from_account_id: string | null; transfer_to_account_id: string | null; category_id: string | null };
 type CardInvoicePaymentRow = { id: string; card_id: string; account_id: string; invoice_closing_date: string; amount: string; payment_date: string; description: string };
+type CardInvoiceInstallmentRow = { id: string; transaction_id: string; card_id: string; invoice_closing_date: string; invoice_due_date: string; installment_number: number; installment_count: number; amount: string };
 type ImportPreviewRow = ImportRow & { dedupeKey: string; duplicate: boolean };
 type ReceiptFileRow = { id: string; transaction_id: string; storage_path: string; mime_type: string; byte_size: number; created_at: string };
 type ReceiptDraft = { sufficient: boolean; kind: "income" | "expense" | null; amount: string | null; date: string | null; description: string | null; category: string | null; payment_method: string | null; installment_count: number | null; card_last_four: string | null; confidence: number; warnings: string[] };
@@ -152,6 +153,7 @@ export default function App() {
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
   const [cards, setCards] = useState<CardRow[]>([]);
   const [invoicePayments, setInvoicePayments] = useState<CardInvoicePaymentRow[]>([]);
+  const [cardInstallments, setCardInstallments] = useState<CardInvoiceInstallmentRow[]>([]);
   const [financialSummary, setFinancialSummary] = useState<{ receivables_brl?: number; overtime_forecast_brl?: number } | null>(null);
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [recurrences, setRecurrences] = useState<RecurrenceRow[]>([]);
@@ -215,6 +217,7 @@ export default function App() {
   const [categoryKind, setCategoryKind] = useState<"income" | "expense">("expense");
   const [txCategoryId, setTxCategoryId] = useState("");
   const [txCardId, setTxCardId] = useState("");
+  const [txInstallmentCount, setTxInstallmentCount] = useState("1");
   const [recurrenceName, setRecurrenceName] = useState("");
   const [recurrenceKind, setRecurrenceKind] = useState<"income" | "expense">("expense");
   const [recurrenceAmount, setRecurrenceAmount] = useState("");
@@ -278,7 +281,7 @@ export default function App() {
       setNotice("");
       if (!nextSession || event === "SIGNED_IN") {
         setProfile(null); setAlerts([]); setRadarFires([]); setAccounts([]); setCards([]); setCategories([]); setRecurrences([]); setBudgets([]); setGoals([]); setGoalContributions([]); setInvestmentAssets([]); setInvestmentOperations([]); setManualPriceInputs({}); setIncomeEvents([]); setPushSubscriptions([]); setWhatsappLink(null); setWhatsappLinkCode(""); setWhatsappSummaryEnabled(false); setIncomeAssetId(""); setIncomeAmount(""); setIncomeReferenceDate(todayInBrazil()); setIncomePaymentDate(""); setInvestmentSymbol(""); setInvestmentName(""); setInvestmentAssetId(""); setInvestmentQuantity(""); setInvestmentUnitPrice(""); setInvestmentFees("0,00"); setInvestmentDate(todayInBrazil()); setFixedIncomeProduct("CDB"); setFixedIncomeIssuer(""); setFixedIncomeIndexer("CDI"); setFixedIncomeRate(""); setFixedIncomeMaturity(""); setFixedIncomeNextYieldDate(""); setFixedIncomeStart(todayInBrazil()); setFixedIncomeFrequency("daily"); setAccountInstitutionKey(""); setGoalName(""); setGoalTarget(""); setGoalMonthly("0,00"); setGoalTargetMonth(""); setGoalContributionAmounts({}); setImportFormat("CSV"); setImportDestinationType("account"); setImportDestinationId(""); setImportFileName(""); setImportPreview([]); setBudgetSpend([]); setTransactions([]); setTxCategoryId(""); setBudgetCategoryId(""); setBudgetLimit(""); setRecurrenceCategoryId(""); setRecurrenceAccountId(""); setRecurrenceCardId(""); setRecurrenceName(""); setRecurrenceAmount(""); setRecurrenceEnd(""); setRecurrenceStart(todayInBrazil());
-        setTxAccountId(""); setTxCardId(""); setReceiptAccountId(""); setEditingTransactionId(null);
+        setTxAccountId(""); setTxCardId(""); setTxInstallmentCount("1"); setReceiptAccountId(""); setEditingTransactionId(null);
         setAssistantAnswer(""); setAssistantQuestion(""); setAssistantConsent(false);
         setReceiptDraft(null); setReceiptFile(null); setReceiptFiles([]); setReceiptConsent(false);
       }
@@ -292,7 +295,7 @@ export default function App() {
     let active = true;
     const load = async () => {
       try {
-        const [account, preferences, radar, radarFireRows, pushRows, whatsappRows, receiptFileRows, accountRows, transactionRows, cardRows, invoicePaymentRows, categoryRows, recurrenceRows, budgetRows, budgetSpendRows, goalRows, goalContributionRows, investmentAssetRows, investmentOperationRows, incomeEventRows] = await Promise.all([
+        const [account, preferences, radar, radarFireRows, pushRows, whatsappRows, receiptFileRows, accountRows, transactionRows, cardRows, invoicePaymentRows, cardInvoiceInstallmentRows, categoryRows, recurrenceRows, budgetRows, budgetSpendRows, goalRows, goalContributionRows, investmentAssetRows, investmentOperationRows, incomeEventRows] = await Promise.all([
           client.functions.invoke("minha-conta", { body: { action: "consultar" } }),
           client.functions.invoke("minhas-preferencias", { body: { action: "consultar" } }),
           client.functions.invoke("radar-alertas", { body: { action: "consultar" } }),
@@ -304,6 +307,7 @@ export default function App() {
           client.from("transactions").select("id,kind,status,amount,transaction_date,description,account_id,card_id,transfer_from_account_id,transfer_to_account_id,category_id").eq("user_id", session.user.id).order("transaction_date", { ascending: false }).limit(10000),
           client.from("cards").select("id,name,institution_name,last_four,brand,credit_limit,closing_day,due_day,is_archived").eq("user_id", session.user.id).eq("is_archived", false).order("created_at", { ascending: true }),
           client.from("card_invoice_payments").select("id,card_id,account_id,invoice_closing_date,amount,payment_date,description").eq("user_id", session.user.id).order("payment_date", { ascending: false }).limit(10000),
+          client.from("card_invoice_installments").select("id,transaction_id,card_id,invoice_closing_date,invoice_due_date,installment_number,installment_count,amount").eq("user_id", session.user.id).order("invoice_closing_date", { ascending: true }).limit(10000),
           client.from("categories").select("id,name,kind,color,icon").eq("user_id", session.user.id).order("kind", { ascending: true }).order("name", { ascending: true }),
           client.from("recurrence_rules").select("id,name,kind,amount,frequency,interval_count,weekday,month_day,month_of_year,starts_on,ends_on,next_occurrence_on,account_id,card_id,is_active").eq("user_id", session.user.id).order("next_occurrence_on", { ascending: true }),
           client.from("budgets").select("id,category_id,year,month,limit_amount").eq("user_id", session.user.id).eq("year", currentBudgetYear).eq("month", currentBudgetMonth).order("created_at", { ascending: true }),
@@ -343,6 +347,7 @@ export default function App() {
         setAccounts((accountRows.data ?? []) as AccountRow[]);
         setCards((cardRows.data ?? []) as CardRow[]);
         setInvoicePayments((invoicePaymentRows.data ?? []) as CardInvoicePaymentRow[]);
+        setCardInstallments(cardInvoiceInstallmentRows.error ? [] : (cardInvoiceInstallmentRows.data ?? []) as CardInvoiceInstallmentRow[]);
         if (cardRows.data?.[0]?.id) setInvoicePaymentCardId((current) => current || cardRows.data[0].id);
         if (accountRows.data?.[0]?.id) setInvoicePaymentAccountId((current) => current || accountRows.data[0].id);
         setCategories((categoryRows.data ?? []) as CategoryRow[]);
@@ -393,6 +398,19 @@ export default function App() {
       accountId: payment.account_id, cardId: payment.card_id,
     })),
   ], [transactions, invoicePayments]);
+  const cardInvoiceEntries = useMemo<LedgerEntry[]>(() => {
+    if (cardInstallments.length === 0) return ledgerEntries;
+    const nonCardEntries = ledgerEntries.filter((entry) => entry.kind !== "card_expense");
+    const installmentEntries = cardInstallments.map((item): LedgerEntry => ({
+      id: `${item.transaction_id}:${item.installment_number}`,
+      kind: "card_expense",
+      status: "paid",
+      amountCents: Number(decimalToCents(item.amount)),
+      date: item.invoice_closing_date,
+      cardId: item.card_id,
+    }));
+    return [...nonCardEntries, ...installmentEntries];
+  }, [ledgerEntries, cardInstallments]);
   const accountBalances = useMemo(() => Object.fromEntries(accounts.map((account) => [
     account.id,
     calculateAccountBalance(
@@ -417,8 +435,8 @@ export default function App() {
     for (const [key, rows] of paymentsByCardInvoice) {
       if (key.startsWith(`${card.id}:`)) payments.set(key.slice(card.id.length + 1), rows);
     }
-    return [card.id, calculateCardCommittedLimitCents(card.id, card.closing_day, card.due_day, ledgerEntries, payments, todayInBrazil()) / 100];
-  })), [cards, ledgerEntries, paymentsByCardInvoice]);
+    return [card.id, calculateCardCommittedLimitCents(card.id, card.closing_day, card.due_day, cardInvoiceEntries, payments, todayInBrazil()) / 100];
+  })), [cards, cardInvoiceEntries, paymentsByCardInvoice]);
   const enabledAlerts = useMemo(() => alerts.filter((alert) => alert.is_enabled).length, [alerts]);
   useEffect(() => {
     if (!supabase || !session?.user) {
@@ -1160,7 +1178,7 @@ export default function App() {
     const paymentCents = Math.round(Number(amount) * 100);
     const existingPayments = invoicePayments.filter((item) => item.card_id === card.id && item.invoice_closing_date === invoiceClosingDate)
       .map((item) => ({ amountCents: Math.round(Number(item.amount) * 100), date: item.payment_date, accountId: item.account_id }));
-    const invoice = calculateInvoice(card.id, card.closing_day, card.due_day, ledgerEntries, invoiceClosingDate, existingPayments, today);
+    const invoice = calculateInvoice(card.id, card.closing_day, card.due_day, cardInvoiceEntries, invoiceClosingDate, existingPayments, today);
     if (invoice.totalCents <= 0 || paymentCents > invoice.remainingCents) {
       setNotice(invoice.totalCents <= 0
         ? "Não encontramos compras para essa fatura e data de fechamento."
@@ -1201,7 +1219,9 @@ export default function App() {
     const amount = normalizeBrlAmount(txAmount);
     const validTransfer = txKind === "transfer" && Boolean(txTransferFromId) && Boolean(txTransferToId) && txTransferFromId !== txTransferToId;
     const selectedAccount = accounts.find((account) => account.id === txAccountId);
-    const validRegular = txKind !== "transfer" && (Boolean(txCardId) || (Boolean(selectedAccount) && selectedAccount?.account_type !== "investment")) && !(txCardId && txKind !== "expense");
+    const installmentCount = txCardId ? Number(txInstallmentCount) : 1;
+    const validInstallments = Number.isInteger(installmentCount) && installmentCount >= 1 && installmentCount <= 48;
+    const validRegular = txKind !== "transfer" && validInstallments && (Boolean(txCardId) || (Boolean(selectedAccount) && selectedAccount?.account_type !== "investment")) && !(txCardId && txKind !== "expense");
     if (!amount || !txDescription.trim() || (!validTransfer && !validRegular) || !txDate) {
       setNotice(txKind === "transfer"
         ? "Selecione contas de origem e destino diferentes, além de descrição, valor e data."
@@ -1224,6 +1244,9 @@ export default function App() {
             user_id: session.user.id, kind: txKind, status: txStatus, amount,
             transaction_date: txDate, description: txDescription.trim(),
             account_id: txCardId ? null : txAccountId, card_id: txCardId || null, category_id: txCategoryId || null,
+            installment_group_id: txCardId && installmentCount > 1 ? crypto.randomUUID() : null,
+            installment_number: txCardId && installmentCount > 1 ? 1 : null,
+            installment_count: txCardId && installmentCount > 1 ? installmentCount : null,
             transfer_from_account_id: null, transfer_to_account_id: null,
             settled_amount: txStatus === "paid" ? amount : "0.00",
             settled_at: txStatus === "paid" ? txDate : null, source: "manual",
@@ -1231,7 +1254,7 @@ export default function App() {
       const { data, error } = result;
       if (error) throw error;
       setTransactions((current) => [data as TransactionRow, ...current].slice(0, 10000));
-      setTxDescription(""); setTxAmount(""); setTxCategoryId("");
+      setTxDescription(""); setTxAmount(""); setTxCategoryId(""); setTxInstallmentCount("1");
       setNotice(txStatus === "paid" ? "Lançamento realizado criado." : "Lançamento previsto criado.");
       await refreshBudgetSpend();
     } catch (error) { setNotice(errorMessage(error)); }
@@ -1887,6 +1910,7 @@ export default function App() {
                 </> : <>
                   <label>Conta<select value={txAccountId} onChange={(event) => { setTxAccountId(event.target.value); if (event.target.value) setTxCardId(""); }}><option value="">Não usar conta</option>{accounts.filter((account) => account.account_type !== "investment").map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
                   <label>Cartão<select value={txCardId} onChange={(event) => { setTxCardId(event.target.value); if (event.target.value) setTxAccountId(""); }}><option value="">Não usar cartão</option>{cards.map((card) => <option key={card.id} value={card.id}>{card.name} · final {card.last_four}</option>)}</select></label>
+                  {txCardId && <label>Parcelamento<select value={txInstallmentCount} onChange={(event) => setTxInstallmentCount(event.target.value)}>{Array.from({ length: 48 }, (_, index) => index + 1).map((count) => <option key={count} value={count}>{count === 1 ? "À vista" : `${count}x`}</option>)}</select></label>}
                   <label>Categoria<select value={txCategoryId} onChange={(event) => setTxCategoryId(event.target.value)}><option value="">Sem categoria</option>{categories.filter((category) => category.kind === txKind).map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
                 </>}
                 <label className="wide-field">Descrição<input value={txDescription} onChange={(event) => setTxDescription(event.target.value)} maxLength={240} placeholder="Ex.: Mercado" required /></label>
