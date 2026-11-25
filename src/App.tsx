@@ -35,7 +35,7 @@ type GoalRow = { id: string; name: string; target_amount: string; current_amount
 type GoalContributionRow = { id: string; goal_id: string; amount: string; contribution_date: string; source: string; created_at: string };
 type InvestmentAssetRow = { id: string; symbol: string; name: string; asset_class: "stock" | "fii" | "etf" | "bdr" | "fixed_income" | "crypto"; currency: "BRL" | "USD"; current_price?: string | number | null; price_as_of?: string | null; price_source?: "manual" | "brapi.dev" | null; metadata?: Record<string, unknown> };
 type InvestmentOperationRow = { id: string; asset_id: string; operation_type: "opening" | "buy" | "sell"; operation_date: string; quantity: string; unit_price: string; gross_amount: string; fees: string };
-type IncomeEventRow = { id: string; asset_id: string; event_type: "dividend" | "jcp" | "distribution" | "coupon" | "interest" | "amortization" | "other"; reference_date: string; payment_date: string | null; announced_amount: string; received_amount: string; status: "announced" | "planned" | "received" | "cancelled" };
+type IncomeEventRow = { id: string; asset_id: string; event_type: "dividend" | "jcp" | "distribution" | "coupon" | "interest" | "amortization" | "other"; reference_date: string; payment_date: string | null; announced_amount: string; received_amount: string; status: "announced" | "planned" | "received" | "cancelled"; account_id?: string | null; transaction_id?: string | null; settlement_state?: "unsettled" | "settled" };
 type BudgetSpendRow = { category_id: string | null; settled_amount: string };
 type TransactionRow = { id: string; kind: "income" | "expense" | "transfer"; status: "paid" | "planned" | "cancelled"; payment_method?: "pix" | "debit" | "cash" | "credit" | null; amount: string; transaction_date: string; description: string; account_id: string | null; card_id: string | null; transfer_from_account_id: string | null; transfer_to_account_id: string | null; category_id: string | null };
 type CardInvoicePaymentRow = { id: string; card_id: string; account_id: string; invoice_closing_date: string; amount: string; payment_date: string; description: string };
@@ -174,6 +174,7 @@ export default function App() {
   const [incomeReferenceDate, setIncomeReferenceDate] = useState(todayInBrazil);
   const [incomePaymentDate, setIncomePaymentDate] = useState("");
   const [incomeStatus, setIncomeStatus] = useState<IncomeEventRow["status"]>("announced");
+  const [incomeDestinationAccountId, setIncomeDestinationAccountId] = useState("");
   const [investmentSymbol, setInvestmentSymbol] = useState("");
   const [investmentName, setInvestmentName] = useState("");
   const [investmentClass, setInvestmentClass] = useState<InvestmentAssetRow["asset_class"]>("stock");
@@ -317,7 +318,7 @@ export default function App() {
           client.from("goal_contributions").select("id,goal_id,amount,contribution_date,source,created_at").eq("user_id", session.user.id).order("created_at", { ascending: false }).limit(100),
           client.from("investment_assets").select("id,symbol,name,asset_class,currency,current_price,price_as_of,price_source,metadata").eq("user_id", session.user.id).order("symbol", { ascending: true }),
           client.from("investment_operations").select("id,asset_id,operation_type,operation_date,quantity,unit_price,gross_amount,fees").eq("user_id", session.user.id).in("operation_type", ["opening","buy","sell"]).order("operation_date", { ascending: true }),
-          client.from("income_events").select("id,asset_id,event_type,reference_date,payment_date,announced_amount,received_amount,status").eq("user_id", session.user.id).order("reference_date", { ascending: false }),
+          client.from("income_events").select("id,asset_id,event_type,reference_date,payment_date,announced_amount,received_amount,status,account_id,transaction_id,settlement_state").eq("user_id", session.user.id).order("reference_date", { ascending: false }),
         ]);
         if (account.error) throw account.error;
         if (preferences.error) throw preferences.error;
@@ -901,10 +902,15 @@ export default function App() {
     event.preventDefault();
     if (!supabase || !session) return;
     const amount = normalizeBrlAmount(incomeAmount);
-    if (!investmentAssets.some((asset) => asset.id === incomeAssetId) || !amount || !incomeReferenceDate ||
+    const selectedIncomeAsset = investmentAssets.find((asset) => asset.id === incomeAssetId);
+    if (!selectedIncomeAsset || !amount || !incomeReferenceDate ||
         (incomePaymentDate && incomePaymentDate < incomeReferenceDate) ||
-        (["announced", "planned", "received"].includes(incomeStatus) && !incomePaymentDate)) {
-      setNotice("Confira o ativo, valor e datas. Proventos anunciados, previstos ou recebidos precisam ter data de pagamento.");
+        (["announced", "planned", "received"].includes(incomeStatus) && !incomePaymentDate) ||
+        (incomeStatus === "received" && !incomeDestinationAccountId) ||
+        (incomeStatus === "received" && selectedIncomeAsset.currency !== "BRL")) {
+      setNotice(incomeStatus === "received" && selectedIncomeAsset?.currency === "USD"
+        ? "Proventos em USD ficam registrados como previstos até existir uma conta USD e conversão cambial explícita."
+        : "Confira o ativo, valor, datas e a conta de destino do recebimento.");
       return;
     }
     setBusy(true); setNotice("");
@@ -913,11 +919,12 @@ export default function App() {
         user_id: session.user.id, asset_id: incomeAssetId, event_type: incomeEventType,
         reference_date: incomeReferenceDate, payment_date: incomePaymentDate || null,
         announced_amount: amount, received_amount: incomeStatus === "received" ? amount : "0.00",
-        status: incomeStatus,
-      }).select("id,asset_id,event_type,reference_date,payment_date,announced_amount,received_amount,status").single();
+        status: incomeStatus, account_id: incomeStatus === "received" ? incomeDestinationAccountId : null,
+        settlement_idempotency_key: incomeStatus === "received" ? crypto.randomUUID() : null,
+      }).select("id,asset_id,event_type,reference_date,payment_date,announced_amount,received_amount,status,account_id,transaction_id,settlement_state").single();
       if (error) throw error;
       setIncomeEvents((current) => [data as IncomeEventRow, ...current]);
-      setIncomeAmount(""); setIncomePaymentDate("");
+      setIncomeAmount(""); setIncomePaymentDate(""); setIncomeDestinationAccountId("");
       setNotice("Provento registrado no histórico da carteira.");
     } catch (error) { setNotice(errorMessage(error)); }
     finally { setBusy(false); }
@@ -1730,14 +1737,16 @@ export default function App() {
                     <label>Valor (R$)<input inputMode="decimal" value={incomeAmount} onChange={(event) => setIncomeAmount(event.target.value)} placeholder="0,00" required /></label>
                     <label>Data de referência<input type="date" value={incomeReferenceDate} onChange={(event) => setIncomeReferenceDate(event.target.value)} required /></label>
                     <label>Data de pagamento<input type="date" min={incomeReferenceDate} value={incomePaymentDate} onChange={(event) => setIncomePaymentDate(event.target.value)} /></label>
-                    <label>Situação<select value={incomeStatus} onChange={(event) => setIncomeStatus(event.target.value as IncomeEventRow["status"])}><option value="announced">Anunciado</option><option value="planned">Previsto</option><option value="received">Recebido</option><option value="cancelled">Cancelado</option></select></label>
+                    <label>Situação<select value={incomeStatus} onChange={(event) => { const next = event.target.value as IncomeEventRow["status"]; setIncomeStatus(next); if (next !== "received") setIncomeDestinationAccountId(""); }}><option value="announced">Anunciado</option><option value="planned">Previsto</option><option value="received">Recebido</option><option value="cancelled">Cancelado</option></select></label>
+                    {incomeStatus === "received" && <label>Destino do provento<select value={incomeDestinationAccountId} onChange={(event) => setIncomeDestinationAccountId(event.target.value)} required><option value="">Selecione a conta</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}{account.account_type === "investment" ? " · reinvestir no caixa da corretora" : " · receber na conta"}</option>)}</select></label>}
+                    {incomeStatus === "received" && investmentAssets.find((asset) => asset.id === incomeAssetId)?.currency === "USD" && <p className="helper-text">Ativos em USD podem ter proventos previstos, mas o crédito em conta ficará bloqueado até existir conversão cambial explícita.</p>}
                     <button className="primary-button" type="submit" disabled={busy}>Registrar provento</button>
                   </form>
                 </>}
                 {incomeEvents.length > 0 && <ul className="account-list">{incomeEvents.slice(0, 20).map((item) => {
                   const asset = investmentAssets.find((entry) => entry.id === item.asset_id);
                   const amount = item.status === "received" ? item.received_amount : item.announced_amount;
-                  return <li key={item.id}><strong>{asset?.symbol ?? "Ativo"} · {item.event_type.toUpperCase()}</strong><span>{formatInvestmentCents(decimalToCents(amount), asset?.currency ?? "BRL")} · {item.status === "received" ? "Recebido" : item.status === "cancelled" ? "Cancelado" : item.status === "planned" ? "Previsto" : "Anunciado"}</span><small>Referência: {item.reference_date}{item.payment_date ? ` · Pagamento: ${item.payment_date}` : ""}</small></li>;
+                  return <li key={item.id}><strong>{asset?.symbol ?? "Ativo"} · {item.event_type.toUpperCase()}</strong><span>{formatInvestmentCents(decimalToCents(amount), asset?.currency ?? "BRL")} · {item.status === "received" ? (item.settlement_state === "settled" ? "Recebido · lançado no saldo" : "Recebido · sem conciliação") : item.status === "cancelled" ? "Cancelado" : item.status === "planned" ? "Previsto" : "Anunciado"}</span><small>Referência: {item.reference_date}{item.payment_date ? ` · Pagamento: ${item.payment_date}` : ""}</small></li>;
                 })}</ul>}
                 <div className="income-calendar"><strong>Próximos pagamentos</strong>{incomeEvents.filter((item) => item.payment_date && item.payment_date >= todayInBrazil() && ["announced","planned"].includes(item.status)).sort((a,b) => (a.payment_date ?? "").localeCompare(b.payment_date ?? "")).slice(0,6).map((item) => { const asset = investmentAssets.find((entry) => entry.id === item.asset_id); return <div key={item.id}><span>{item.payment_date}</span><b>{asset?.symbol ?? "Ativo"}</b><strong>{formatInvestmentCents(decimalToCents(item.announced_amount), asset?.currency ?? "BRL")}</strong></div>; })}{!incomeEvents.some((item) => item.payment_date && item.payment_date >= todayInBrazil() && ["announced","planned"].includes(item.status)) && <p className="empty-state">Nenhum pagamento futuro cadastrado.</p>}</div>
                 <p className="helper-text">Os valores são lançados manualmente e não são previsões automáticas de mercado. Somente itens marcados como recebidos entram no total recebido; o histórico não altera automaticamente o saldo da conta.</p>
