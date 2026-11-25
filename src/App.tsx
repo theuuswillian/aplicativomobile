@@ -37,7 +37,7 @@ type InvestmentAssetRow = { id: string; symbol: string; name: string; asset_clas
 type InvestmentOperationRow = { id: string; asset_id: string; operation_type: "opening" | "buy" | "sell"; operation_date: string; quantity: string; unit_price: string; gross_amount: string; fees: string };
 type IncomeEventRow = { id: string; asset_id: string; event_type: "dividend" | "jcp" | "distribution" | "coupon" | "interest" | "amortization" | "other"; reference_date: string; payment_date: string | null; announced_amount: string; received_amount: string; status: "announced" | "planned" | "received" | "cancelled" };
 type BudgetSpendRow = { category_id: string | null; settled_amount: string };
-type TransactionRow = { id: string; kind: "income" | "expense" | "transfer"; status: "paid" | "planned" | "cancelled"; amount: string; transaction_date: string; description: string; account_id: string | null; card_id: string | null; transfer_from_account_id: string | null; transfer_to_account_id: string | null; category_id: string | null };
+type TransactionRow = { id: string; kind: "income" | "expense" | "transfer"; status: "paid" | "planned" | "cancelled"; payment_method?: "pix" | "debit" | "cash" | "credit" | null; amount: string; transaction_date: string; description: string; account_id: string | null; card_id: string | null; transfer_from_account_id: string | null; transfer_to_account_id: string | null; category_id: string | null };
 type CardInvoicePaymentRow = { id: string; card_id: string; account_id: string; invoice_closing_date: string; amount: string; payment_date: string; description: string };
 type CardInvoiceInstallmentRow = { id: string; transaction_id: string; card_id: string; invoice_closing_date: string; invoice_due_date: string; installment_number: number; installment_count: number; amount: string };
 type ImportPreviewRow = ImportRow & { dedupeKey: string; duplicate: boolean };
@@ -242,6 +242,7 @@ export default function App() {
   const [txDescription, setTxDescription] = useState("");
   const [txAmount, setTxAmount] = useState("");
   const [txKind, setTxKind] = useState<"income" | "expense" | "transfer">("expense");
+  const [txPaymentMethod, setTxPaymentMethod] = useState<"pix" | "debit" | "cash" | "credit">("pix");
   const [txTransferFromId, setTxTransferFromId] = useState("");
   const [txTransferToId, setTxTransferToId] = useState("");
   const [txStatus, setTxStatus] = useState<"paid" | "planned">("paid");
@@ -304,7 +305,7 @@ export default function App() {
           client.functions.invoke("whatsapp-vincular", { body: { action: "consultar" } }),
           client.from("receipt_files").select("id,transaction_id,storage_path,mime_type,byte_size,created_at").eq("user_id", session.user.id).order("created_at", { ascending: false }).limit(100),
           client.from("accounts").select("id,name,account_type,opening_balance,opening_balance_date,is_primary,institution_name,institution_code,institution_logo_key").eq("user_id", session.user.id).eq("is_archived", false).order("created_at", { ascending: true }),
-          client.from("transactions").select("id,kind,status,amount,transaction_date,description,account_id,card_id,transfer_from_account_id,transfer_to_account_id,category_id").eq("user_id", session.user.id).order("transaction_date", { ascending: false }).limit(10000),
+          client.from("transactions").select("id,kind,status,payment_method,amount,transaction_date,description,account_id,card_id,transfer_from_account_id,transfer_to_account_id,category_id").eq("user_id", session.user.id).order("transaction_date", { ascending: false }).limit(10000),
           client.from("cards").select("id,name,institution_name,last_four,brand,credit_limit,closing_day,due_day,is_archived").eq("user_id", session.user.id).eq("is_archived", false).order("created_at", { ascending: true }),
           client.from("card_invoice_payments").select("id,card_id,account_id,invoice_closing_date,amount,payment_date,description").eq("user_id", session.user.id).order("payment_date", { ascending: false }).limit(10000),
           client.from("card_invoice_installments").select("id,transaction_id,card_id,invoice_closing_date,invoice_due_date,installment_number,installment_count,amount").eq("user_id", session.user.id).order("invoice_closing_date", { ascending: true }).limit(10000),
@@ -1219,9 +1220,16 @@ export default function App() {
     const amount = normalizeBrlAmount(txAmount);
     const validTransfer = txKind === "transfer" && Boolean(txTransferFromId) && Boolean(txTransferToId) && txTransferFromId !== txTransferToId;
     const selectedAccount = accounts.find((account) => account.id === txAccountId);
-    const installmentCount = txCardId ? Number(txInstallmentCount) : 1;
+    const isCreditExpense = txKind === "expense" && txPaymentMethod === "credit";
+    const installmentCount = isCreditExpense ? Number(txInstallmentCount) : 1;
     const validInstallments = Number.isInteger(installmentCount) && installmentCount >= 1 && installmentCount <= 48;
-    const validRegular = txKind !== "transfer" && validInstallments && (Boolean(txCardId) || (Boolean(selectedAccount) && selectedAccount?.account_type !== "investment")) && !(txCardId && txKind !== "expense");
+    const accountMatchesPayment = Boolean(selectedAccount) && selectedAccount?.account_type !== "investment" &&
+      (txKind !== "expense" || (txPaymentMethod === "cash"
+        ? selectedAccount?.account_type === "cash"
+        : selectedAccount?.account_type !== "cash"));
+    const validRegular = txKind !== "transfer" && validInstallments &&
+      (isCreditExpense ? Boolean(txCardId) : accountMatchesPayment) &&
+      !(txCardId && !isCreditExpense);
     if (!amount || !txDescription.trim() || (!validTransfer && !validRegular) || !txDate) {
       setNotice(txKind === "transfer"
         ? "Selecione contas de origem e destino diferentes, além de descrição, valor e data."
@@ -1230,7 +1238,7 @@ export default function App() {
     }
     setBusy(true); setNotice("");
     try {
-      const selectTransaction = "id,kind,status,amount,transaction_date,description,account_id,card_id,transfer_from_account_id,transfer_to_account_id,category_id";
+      const selectTransaction = "id,kind,status,payment_method,amount,transaction_date,description,account_id,card_id,transfer_from_account_id,transfer_to_account_id,category_id";
       const result = txKind === "transfer"
         ? await supabase.from("transactions").insert({
             user_id: session.user.id, kind: "transfer", status: txStatus, amount,
@@ -1243,7 +1251,8 @@ export default function App() {
         : await supabase.from("transactions").insert({
             user_id: session.user.id, kind: txKind, status: txStatus, amount,
             transaction_date: txDate, description: txDescription.trim(),
-            account_id: txCardId ? null : txAccountId, card_id: txCardId || null, category_id: txCategoryId || null,
+            account_id: isCreditExpense ? null : txAccountId, card_id: isCreditExpense ? txCardId : null, category_id: txCategoryId || null,
+            payment_method: txKind === "expense" ? (isCreditExpense ? "credit" : txPaymentMethod) : null,
             installment_group_id: txCardId && installmentCount > 1 ? crypto.randomUUID() : null,
             installment_number: txCardId && installmentCount > 1 ? 1 : null,
             installment_count: txCardId && installmentCount > 1 ? installmentCount : null,
@@ -1254,7 +1263,7 @@ export default function App() {
       const { data, error } = result;
       if (error) throw error;
       setTransactions((current) => [data as TransactionRow, ...current].slice(0, 10000));
-      setTxDescription(""); setTxAmount(""); setTxCategoryId(""); setTxInstallmentCount("1");
+      setTxDescription(""); setTxAmount(""); setTxCategoryId(""); setTxInstallmentCount("1"); setTxPaymentMethod("pix");
       setNotice(txStatus === "paid" ? "Lançamento realizado criado." : "Lançamento previsto criado.");
       await refreshBudgetSpend();
     } catch (error) { setNotice(errorMessage(error)); }
@@ -1900,7 +1909,7 @@ export default function App() {
                 <p className="helper-text">A regra apenas programa a próxima ocorrência. A geração de lançamentos será ativada com o processamento idempotente da agenda, sem marcar valores como realizados.</p>
               </section>
               <form className="finance-form transaction-form" id="gastos-lancamentos" onSubmit={(event) => void createTransaction(event)}>
-                <label>Tipo de lançamento<select value={txKind} onChange={(event) => { const nextKind = event.target.value as "income" | "expense" | "transfer"; setTxKind(nextKind); setTxCategoryId(""); if (nextKind !== "expense") setTxCardId(""); }}><option value="expense">Despesa</option><option value="income">Receita</option><option value="transfer">Transferência entre contas</option></select></label>
+                <label>Tipo de lançamento<select value={txKind} onChange={(event) => { const nextKind = event.target.value as "income" | "expense" | "transfer"; setTxKind(nextKind); setTxCategoryId(""); setTxCardId(""); setTxPaymentMethod("pix"); }}><option value="expense">Despesa</option><option value="income">Receita</option><option value="transfer">Transferência / aporte / resgate</option></select></label>
                 <label>Situação<select value={txStatus} onChange={(event) => setTxStatus(event.target.value as "paid" | "planned")}><option value="paid">Realizado</option><option value="planned">Previsto</option></select></label>
                 <label>Valor (R$)<input inputMode="decimal" value={txAmount} onChange={(event) => setTxAmount(event.target.value)} placeholder="0,00" required /></label>
                 <label>Data<input type="date" value={txDate} onChange={(event) => setTxDate(event.target.value)} required /></label>
@@ -1908,9 +1917,10 @@ export default function App() {
                   <label>Conta de origem<select value={txTransferFromId} onChange={(event) => setTxTransferFromId(event.target.value)} required><option value="">Selecione</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
                   <label>Conta de destino<select value={txTransferToId} onChange={(event) => setTxTransferToId(event.target.value)} required><option value="">Selecione</option>{accounts.filter((account) => account.id !== txTransferFromId).map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
                 </> : <>
-                  <label>Conta<select value={txAccountId} onChange={(event) => { setTxAccountId(event.target.value); if (event.target.value) setTxCardId(""); }}><option value="">Não usar conta</option>{accounts.filter((account) => account.account_type !== "investment").map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
-                  <label>Cartão<select value={txCardId} onChange={(event) => { setTxCardId(event.target.value); if (event.target.value) setTxAccountId(""); }}><option value="">Não usar cartão</option>{cards.map((card) => <option key={card.id} value={card.id}>{card.name} · final {card.last_four}</option>)}</select></label>
-                  {txCardId && <label>Parcelamento<select value={txInstallmentCount} onChange={(event) => setTxInstallmentCount(event.target.value)}>{Array.from({ length: 48 }, (_, index) => index + 1).map((count) => <option key={count} value={count}>{count === 1 ? "À vista" : `${count}x`}</option>)}</select></label>}
+                  {txKind === "expense" && <label>Como pagou?<select value={txPaymentMethod} onChange={(event) => { const method = event.target.value as "pix" | "debit" | "cash" | "credit"; setTxPaymentMethod(method); setTxAccountId(""); setTxCardId(""); setTxInstallmentCount("1"); }}><option value="pix">PIX</option><option value="debit">Débito</option><option value="cash">Dinheiro físico</option><option value="credit">Cartão de crédito</option></select></label>}
+                  {!(txKind === "expense" && txPaymentMethod === "credit") && <label>Conta<select value={txAccountId} onChange={(event) => setTxAccountId(event.target.value)}><option value="">Selecione a conta</option>{accounts.filter((account) => account.account_type !== "investment" && (txKind !== "expense" || (txPaymentMethod === "cash" ? account.account_type === "cash" : account.account_type !== "cash"))).map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>}
+                  {txKind === "expense" && txPaymentMethod === "credit" && <label>Cartão de crédito<select value={txCardId} onChange={(event) => setTxCardId(event.target.value)} required><option value="">Selecione o cartão</option>{cards.map((card) => <option key={card.id} value={card.id}>{card.name} · final {card.last_four}</option>)}</select></label>}
+                  {txKind === "expense" && txPaymentMethod === "credit" && txCardId && <label>Parcelamento<select value={txInstallmentCount} onChange={(event) => setTxInstallmentCount(event.target.value)}>{Array.from({ length: 48 }, (_, index) => index + 1).map((count) => <option key={count} value={count}>{count === 1 ? "À vista" : `${count}x`}</option>)}</select></label>}
                   <label>Categoria<select value={txCategoryId} onChange={(event) => setTxCategoryId(event.target.value)}><option value="">Sem categoria</option>{categories.filter((category) => category.kind === txKind).map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
                 </>}
                 <label className="wide-field">Descrição<input value={txDescription} onChange={(event) => setTxDescription(event.target.value)} maxLength={240} placeholder="Ex.: Mercado" required /></label>
