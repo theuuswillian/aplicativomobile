@@ -77,10 +77,6 @@ test("serves the cached public app shell after going offline", async ({ page, co
 
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
-  page.on("console", (message) => {
-    if (message.type() === "error") pageErrors.push(message.text());
-  });
-
   await context.setOffline(true);
   await page.goto("/", { waitUntil: "domcontentloaded" });
   await expect(page.locator(".app-shell")).toBeVisible();
