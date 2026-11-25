@@ -424,7 +424,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path=pg_catalog, public
-as $
+as $normalize$
 declare v_account_type text;
 begin
   if new.kind<>'expense' then
@@ -464,7 +464,7 @@ begin
   end if;
   return new;
 end;
-$;
+$normalize$;
 create trigger transactions_normalize_payment_method
 before insert or update on public.transactions
 for each row execute function private.normalize_transaction_payment_method();
