@@ -1,44 +1,47 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
-async function openAppearance(page: import("@playwright/test").Page) {
-  await page.getByRole("button", { name: /^Conta$/ }).click();
-  await page.getByRole("button", { name: /Personalização/ }).click();
-}
-
-test("renders the foundation and switches between dark and light themes", async ({ page }) => {
+test("renders the public foundation without exposing authenticated navigation", async ({ page }) => {
   await page.goto("/");
   const shell = page.locator(".app-shell");
   await expect(shell).toHaveAttribute("data-theme", "dark");
-  await expect(page.locator(".bottom-nav button")).toHaveCount(4);
-  await openAppearance(page);
-  await expect(shell).toHaveAttribute("data-theme", "light");
-
-  // A marca não deve recarregar a aplicação nem descartar a preferência.
-  await page.locator(".brand").click();
-  await expect(shell).toHaveAttribute("data-theme", "light");
-  await page.reload();
-  await expect(shell).toHaveAttribute("data-theme", "light");
-  await expect(page.locator(".bottom-nav button")).toHaveCount(4);
+  await expect(page.locator(".brand")).toBeVisible();
+  await expect(page.locator("#welcome-title")).toBeVisible();
+  // Sem sessão, as áreas financeiras e o dock autenticado não devem aparecer.
+  await expect(page.locator(".bottom-nav")).toHaveCount(0);
+  await expect(page.locator("#dashboard")).toHaveCount(0);
 });
 
-test("has no horizontal overflow and keeps a four-item mobile dock", async ({ page }) => {
+test("restores the saved appearance preference on reload", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("granaviva:theme:v1", "light"));
+  await page.goto("/");
+  const shell = page.locator(".app-shell");
+  await expect(shell).toHaveAttribute("data-theme", "light");
+  await expect(page.locator("#welcome-title")).toBeVisible();
+  await page.reload();
+  await expect(shell).toHaveAttribute("data-theme", "light");
+});
+
+test("has no horizontal overflow on the mobile welcome screen", async ({ page }) => {
   await page.goto("/");
   const dimensions = await page.evaluate(() => ({
     viewport: document.documentElement.clientWidth,
     content: document.documentElement.scrollWidth,
   }));
   expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport);
-  const dock = page.locator(".bottom-nav");
-  await expect(dock).toBeVisible();
-  await expect(dock.locator("button")).toHaveCount(4);
-  await expect(dock).toHaveCSS("grid-template-columns", /\d+px\s+\d+px\s+\d+px\s+\d+px/);
+  await expect(page.locator(".welcome")).toBeVisible();
+  await expect(page.locator(".bottom-nav")).toHaveCount(0);
 });
 
-test("passes automated WCAG 2.2 AA checks in both themes", async ({ page }) => {
+test("passes automated WCAG 2.2 AA checks in dark and light themes", async ({ page }) => {
   await page.goto("/");
+  const shell = page.locator(".app-shell");
   for (const theme of ["dark", "light"] as const) {
-    if (theme === "light") await openAppearance(page);
+    if (theme === "light") {
+      await page.evaluate(() => localStorage.setItem("granaviva:theme:v1", "light"));
+      await page.reload();
+      await expect(shell).toHaveAttribute("data-theme", "light");
+    }
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
       .analyze();
@@ -54,7 +57,7 @@ test("passes automated WCAG 2.2 AA checks in both themes", async ({ page }) => {
   }
 });
 
-test("serves the cached app shell after going offline", async ({ page, context }) => {
+test("serves the cached public app shell after going offline", async ({ page, context }) => {
   await page.goto("/");
   await page.evaluate(async () => {
     if (!("serviceWorker" in navigator)) throw new Error("Service Worker indisponível");
@@ -80,32 +83,19 @@ test("serves the cached app shell after going offline", async ({ page, context }
   });
 
   await context.setOffline(true);
-  const navigation = await page.goto("/", { waitUntil: "domcontentloaded" })
-    .then((response) => response?.status() ?? "sem resposta")
-    .catch((error: Error) => `erro de navegação: ${error.message}`);
-  const offlineSnapshot = {
-    navigation,
-    url: page.url(),
-    title: await page.title().catch(() => "indisponível"),
-    body: await page.locator("body").innerText().catch(() => "indisponível"),
-    pageErrors,
-  };
-  console.log("Diagnóstico offline:", JSON.stringify(offlineSnapshot));
+  await page.goto("/", { waitUntil: "domcontentloaded" });
   await expect(page.locator(".app-shell")).toBeVisible();
-  await expect(page.locator(".bottom-nav button")).toHaveCount(4);
+  await expect(page.locator("#welcome-title")).toBeVisible();
+  expect(pageErrors).toEqual([]);
   await context.setOffline(false);
 });
 
-test("supports keyboard navigation with a visible focus indicator", async ({ page }) => {
+test("keeps a visible keyboard focus indicator on the brand link", async ({ page }) => {
   await page.goto("/");
-  await page.keyboard.press("Tab");
-  await expect(page.locator(".brand")).toBeFocused();
-  const firstDockItem = page.locator(".bottom-nav button").first();
-  await firstDockItem.focus();
-  await expect(firstDockItem).toBeFocused();
-  await expect(firstDockItem).toHaveCSS("outline-style", "solid");
-  await page.keyboard.press("Enter");
-  await expect(page.locator(".bottom-nav button").nth(0)).toHaveAttribute("aria-current", "page");
+  const brand = page.locator(".brand");
+  await brand.focus();
+  await expect(brand).toBeFocused();
+  await expect(brand).toHaveCSS("outline-style", "solid");
 });
 
 test("publishes PWA metadata and an iOS home-screen icon", async ({ page }) => {
