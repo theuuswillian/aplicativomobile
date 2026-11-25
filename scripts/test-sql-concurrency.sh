@@ -185,6 +185,18 @@ psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
     'daily',1,current_date,current_date+2,current_date,'$account_id','cash',true
   );
 "
+bank_balance_after_card="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  select coalesce(sum(l.debit-l.credit),0)
+    from private.journal_lines l
+    join private.ledger_accounts a on a.id=l.ledger_account_id and a.user_id=l.user_id
+    join private.journal_entries j on j.id=l.journal_entry_id and j.user_id=l.user_id
+   where l.user_id='$user_id' and a.source_account_id='$account_id'
+     and a.account_kind in ('bank','cash') and j.status='posted'
+")"
+if [[ "$bank_balance_before_card" != "$bank_balance_after_card" ]]; then
+  echo "Falha: compra no crédito alterou o saldo bancário ($bank_balance_before_card -> $bank_balance_after_card)."
+  exit 1
+fi
 for suffix in a b; do
   psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 >"$tmp_dir/recurrence-$suffix.out" <<SQL &
 begin;
@@ -309,6 +321,14 @@ fi
 # fatura de R$ 100,00; duas tentativas simultâneas de R$ 60,00 => só uma aceita.
 card_id="90000000-0000-4000-8000-000000000001"
 invoice_transaction_id="90000000-0000-4000-8000-000000000002"
+bank_balance_before_card="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  select coalesce(sum(l.debit-l.credit),0)
+    from private.journal_lines l
+    join private.ledger_accounts a on a.id=l.ledger_account_id and a.user_id=l.user_id
+    join private.journal_entries j on j.id=l.journal_entry_id and j.user_id=l.user_id
+   where l.user_id='$user_id' and a.source_account_id='$account_id'
+     and a.account_kind in ('bank','cash') and j.status='posted'
+")"
 psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
   insert into public.cards(
     id,user_id,name,institution_name,last_four,credit_limit,closing_day,due_day
@@ -390,6 +410,13 @@ if [[ "$card_liability" != "40.00" ]]; then
   echo "Falha: compra no cartão menos pagamento deveria deixar R$ 40,00 de obrigação, encontrado $card_liability."
   exit 1
 fi
+if psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  insert into public.transactions(user_id,kind,status,amount,transaction_date,description,card_id,settled_amount,settled_at)
+  values ('$user_id','expense','paid',961.00,current_date,'Tentativa acima do limite','$card_id',961.00,current_date)
+" >"$tmp_dir/card-overlimit.out" 2>&1; then
+  echo "Falha: banco aceitou compra acima do limite disponível do cartão."
+  exit 1
+fi
 investment_cash_before="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
   select coalesce(sum(l.debit-l.credit),0)
     from private.journal_lines l
@@ -399,6 +426,55 @@ investment_cash_before="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
 ")"
 if [[ "$investment_cash_before" != "500.00" ]]; then
   echo "Falha: saldo investido inicial deveria permanecer R$ 500,00; encontrado $investment_cash_before."
+  exit 1
+fi
+
+# Uma despesa PIX no banco não altera o caixa de investimentos.
+psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  insert into public.transactions(user_id,kind,status,amount,transaction_date,description,account_id,payment_method,settled_amount,settled_at)
+  values ('$user_id','expense','paid',5.00,current_date,'Despesa PIX de teste','$account_id','pix',5.00,current_date)
+"
+investment_cash_after_pix="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  select coalesce(sum(l.debit-l.credit),0)
+    from private.journal_lines l
+    join private.ledger_accounts a on a.id=l.ledger_account_id and a.user_id=l.user_id
+    join private.journal_entries j on j.id=l.journal_entry_id and j.user_id=l.user_id
+   where l.user_id='$user_id' and j.status='posted' and a.account_kind='investment_cash'
+")"
+if [[ "$investment_cash_after_pix" != "500.00" ]]; then
+  echo "Falha: despesa PIX alterou o saldo investido ($investment_cash_before -> $investment_cash_after_pix)."
+  exit 1
+fi
+
+# Resgate acima do caixa da corretora é bloqueado; resgate e aporte válidos atualizam ambos os lados.
+if psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  insert into public.transactions(user_id,kind,status,amount,transaction_date,description,transfer_from_account_id,transfer_to_account_id)
+  values ('$user_id','transfer','paid',600.00,current_date,'Resgate acima do saldo','$investment_account_id','$account_id')
+" >"$tmp_dir/investment-over-redemption.out" 2>&1; then
+  echo "Falha: banco aceitou resgate acima do caixa de investimentos."
+  exit 1
+fi
+psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  insert into public.transactions(user_id,kind,status,amount,transaction_date,description,transfer_from_account_id,transfer_to_account_id)
+  values ('$user_id','transfer','paid',200.00,current_date,'Resgate válido','$investment_account_id','$account_id');
+  insert into public.transactions(user_id,kind,status,amount,transaction_date,description,transfer_from_account_id,transfer_to_account_id)
+  values ('$user_id','transfer','paid',50.00,current_date,'Aporte válido','$account_id','$investment_account_id');
+"
+investment_cash_after_bridge="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  select coalesce(sum(l.debit-l.credit),0)
+    from private.journal_lines l
+    join private.ledger_accounts a on a.id=l.ledger_account_id and a.user_id=l.user_id
+    join private.journal_entries j on j.id=l.journal_entry_id and j.user_id=l.user_id
+   where l.user_id='$user_id' and j.status='posted' and a.account_kind='investment_cash'
+")"
+if [[ "$investment_cash_after_bridge" != "350.00" ]]; then
+  echo "Falha: resgate de R$ 200,00 e aporte de R$ 50,00 deveriam deixar R$ 350,00; encontrado $investment_cash_after_bridge."
+  exit 1
+fi
+if psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  update public.accounts set opening_balance=501.00 where user_id='$user_id' and id='$investment_account_id'
+" >"$tmp_dir/opening-balance-update.out" 2>&1; then
+  echo "Falha: banco permitiu alterar saldo inicial sem ajuste contábil."
   exit 1
 fi
 
