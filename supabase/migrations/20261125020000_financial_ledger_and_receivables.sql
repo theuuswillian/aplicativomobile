@@ -648,8 +648,8 @@ begin
      or p_loan_date is null or length(coalesce(p_idempotency_key,'')) not between 8 and 120 then
     raise exception 'Dados do empréstimo inválidos' using errcode='22023';
   end if;
-  perform 1 from public.accounts where user_id=v_user and id=p_source_account_id for update;
-  if not found then raise exception 'Conta de origem inválida' using errcode='23503'; end if;
+  perform 1 from public.accounts where user_id=v_user and id=p_source_account_id and account_type<>'investment' for update;
+  if not found then raise exception 'Conta de origem inválida ou protegida como investimento' using errcode='23503'; end if;
   select * into v_row from public.receivable_loans
    where user_id=v_user and idempotency_key=p_idempotency_key;
   if found then
@@ -692,8 +692,8 @@ begin
   select * into v_loan from public.receivable_loans
    where user_id=v_user and id=p_loan_id for update;
   if not found then raise exception 'Título a receber não encontrado' using errcode='23503'; end if;
-  perform 1 from public.accounts where user_id=v_user and id=p_destination_account_id;
-  if not found then raise exception 'Conta de destino inválida' using errcode='23503'; end if;
+  perform 1 from public.accounts where user_id=v_user and id=p_destination_account_id and account_type<>'investment';
+  if not found then raise exception 'Conta de destino inválida ou protegida como investimento' using errcode='23503'; end if;
   select coalesce(sum(amount),0) into v_paid from public.receivable_repayments
    where user_id=v_user and loan_id=p_loan_id;
   if v_paid+p_amount>v_loan.principal_amount then
@@ -758,8 +758,8 @@ begin
   select * into v_batch from public.overtime_conversion_batches
    where user_id=v_user and idempotency_key=p_idempotency_key;
   if found then return v_batch; end if;
-  perform 1 from public.accounts where user_id=v_user and id=p_destination_account_id;
-  if not found then raise exception 'Conta de destino inválida' using errcode='23503'; end if;
+  perform 1 from public.accounts where user_id=v_user and id=p_destination_account_id and account_type<>'investment';
+  if not found then raise exception 'Conta de destino inválida ou protegida como investimento' using errcode='23503'; end if;
   perform 1 from public.overtime_entries
    where user_id=v_user and id=any(p_entry_ids) and status='pending'
    order by id for update;
@@ -835,5 +835,98 @@ end;
 $$;
 revoke all on function public.get_financial_summary() from public,anon;
 grant execute on function public.get_financial_summary() to authenticated;
+
+
+-- Backfill idempotente dos saldos existentes. O saldo inicial já representa a posição
+-- na data de abertura; movimentos anteriores não podem ser debitados novamente do banco.
+do $
+declare
+  a record; t record; p record; v_kind text; v_debit_kind text; v_credit_kind text;
+  v_debit_source uuid; v_credit_source uuid; v_journal uuid;
+begin
+  for a in select * from public.accounts where opening_balance<>0 loop
+    if not exists(select 1 from private.ledger_source_state
+      where user_id=a.user_id and source_type='account_opening' and source_id=a.id) then
+      v_kind:=case
+        when lower(a.account_type) in ('cash','physical_cash','dinheiro','dinheiro_fisico') then 'cash'
+        when lower(a.account_type)='investment' then 'investment_cash'
+        else 'bank' end;
+      if a.opening_balance>0 then
+        v_journal:=private.post_pair(a.user_id,a.opening_balance_date,'Saldo inicial · '||a.name,
+          'account_opening',a.id,v_kind,a.id,'opening_equity',null,a.opening_balance,null);
+      else
+        v_journal:=private.post_pair(a.user_id,a.opening_balance_date,'Saldo inicial negativo · '||a.name,
+          'account_opening',a.id,'opening_equity',null,v_kind,a.id,abs(a.opening_balance),null);
+      end if;
+      insert into private.ledger_source_state(user_id,source_type,source_id,active_journal_id)
+      values(a.user_id,'account_opening',a.id,v_journal)
+      on conflict(user_id,source_type,source_id) do nothing;
+    end if;
+  end loop;
+
+  for t in select * from public.transactions where status='paid' order by transaction_date,created_at loop
+    if exists(select 1 from private.ledger_source_state
+      where user_id=t.user_id and source_type='transaction' and source_id=t.id) then
+      continue;
+    end if;
+    v_journal:=null;
+    if t.kind='expense' and t.card_id is not null then
+      v_journal:=private.post_pair(t.user_id,t.transaction_date,t.description,'transaction',t.id,
+        'expense',null,'card_liability',t.card_id,t.amount,t.category_id);
+    elsif t.kind in ('income','expense') and t.account_id is not null then
+      select * into a from public.accounts where user_id=t.user_id and id=t.account_id;
+      if found and t.transaction_date>=a.opening_balance_date then
+        if t.kind='income' then
+          v_journal:=private.post_pair(t.user_id,t.transaction_date,t.description,'transaction',t.id,
+            'bank',t.account_id,'income',null,t.amount,t.category_id);
+        elsif a.account_type<>'investment' then
+          v_journal:=private.post_pair(t.user_id,t.transaction_date,t.description,'transaction',t.id,
+            'expense',null,'bank',t.account_id,t.amount,t.category_id);
+        end if;
+      end if;
+    elsif t.kind='transfer' then
+      select * into a from public.accounts where user_id=t.user_id and id=t.transfer_from_account_id;
+      v_credit_kind:=case when found and t.transaction_date<a.opening_balance_date then 'opening_equity' else 'bank' end;
+      v_credit_source:=case when v_credit_kind='bank' then t.transfer_from_account_id else null end;
+      select * into p from public.accounts where user_id=t.user_id and id=t.transfer_to_account_id;
+      v_debit_kind:=case when found and t.transaction_date<p.opening_balance_date then 'opening_equity' else 'bank' end;
+      v_debit_source:=case when v_debit_kind='bank' then t.transfer_to_account_id else null end;
+      if v_credit_kind='opening_equity' and v_debit_kind='opening_equity' then
+        -- Ambos os lados já estão refletidos nos saldos iniciais.
+        v_journal:=null;
+      else
+        v_journal:=private.post_pair(t.user_id,t.transaction_date,t.description,'transaction',t.id,
+          v_debit_kind,v_debit_source,v_credit_kind,v_credit_source,t.amount,null);
+      end if;
+    end if;
+    if v_journal is not null then
+      insert into private.ledger_source_state(user_id,source_type,source_id,active_journal_id)
+      values(t.user_id,'transaction',t.id,v_journal)
+      on conflict(user_id,source_type,source_id) do nothing;
+    end if;
+  end loop;
+
+  for p in select pay.*,a.opening_balance_date,a.account_type
+    from public.card_invoice_payments pay
+    join public.accounts a on a.user_id=pay.user_id and a.id=pay.account_id
+    order by pay.payment_date,pay.created_at loop
+    if exists(select 1 from private.ledger_source_state
+      where user_id=p.user_id and source_type='card_invoice_payment' and source_id=p.id) then
+      continue;
+    end if;
+    if p.payment_date>=p.opening_balance_date then
+      v_journal:=private.post_pair(p.user_id,p.payment_date,
+        coalesce(p.description,'Pagamento de fatura'),'card_invoice_payment',p.id,
+        'card_liability',p.card_id,'bank',p.account_id,p.amount,null);
+    else
+      v_journal:=private.post_pair(p.user_id,p.payment_date,
+        coalesce(p.description,'Pagamento de fatura'),'card_invoice_payment',p.id,
+        'card_liability',p.card_id,'opening_equity',null,p.amount,null);
+    end if;
+    insert into private.ledger_source_state(user_id,source_type,source_id,active_journal_id)
+    values(p.user_id,'card_invoice_payment',p.id,v_journal)
+    on conflict(user_id,source_type,source_id) do nothing;
+  end loop;
+end $;
 
 commit;
