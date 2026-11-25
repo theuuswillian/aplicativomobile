@@ -764,3 +764,178 @@
 @media (prefers-reduced-motion: reduce) {
   #gastos-cartoes .card-list .card-list-item { transition: none; }
 }
+
+/* Investimentos, proventos, recebíveis e relatórios: acabamento consistente. */
+#patrimonio .subpanel,
+#planejamento .planning-content,
+#conta-relatorios {
+  min-width: 0;
+}
+#patrimonio .investment-allocation {
+  margin-top: 14px;
+  padding: 17px;
+  border: 1px solid var(--color-line);
+  border-radius: 17px;
+  background: var(--color-surface-raised);
+}
+#patrimonio .allocation-group {
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  background: var(--color-surface);
+}
+#patrimonio .allocation-group > strong {
+  display: block;
+  margin-bottom: 12px;
+  color: var(--color-text);
+  font-size: 12px;
+}
+#patrimonio .allocation-legend li {
+  padding: 5px 0;
+  border-bottom: 1px solid var(--color-line);
+}
+#patrimonio .allocation-legend li:last-child { border-bottom: 0; }
+#patrimonio .subpanel > .account-list li,
+#planejamento .planning-content > .account-list > li {
+  margin-top: 7px;
+  padding: 14px;
+  border: 1px solid var(--color-line);
+  border-radius: 13px;
+  background: var(--color-surface-raised);
+}
+#patrimonio .subpanel > .account-list li > strong,
+#planejamento .planning-content > .account-list > li > strong {
+  font-size: 13px;
+}
+#patrimonio .income-calendar {
+  margin-top: 18px;
+  padding: 15px;
+  border: 1px solid var(--color-line);
+  border-radius: 15px;
+  background: var(--color-surface-raised);
+}
+#patrimonio .income-calendar > strong {
+  display: block;
+  margin-bottom: 9px;
+  color: var(--color-text);
+  font-size: 12px;
+}
+#patrimonio .income-calendar > div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid var(--color-line);
+  font-size: 11px;
+}
+#patrimonio .income-calendar > div span { color: var(--color-muted); font-variant-numeric: tabular-nums; }
+#patrimonio .income-calendar > div b { color: var(--color-text); }
+#patrimonio .income-calendar > div strong { color: var(--gv-accent); font-variant-numeric: tabular-nums; }
+#planejamento .receivables-panel { display: grid; gap: 14px; }
+#planejamento .receivables-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+#planejamento .receivables-summary article {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 17px;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  background: radial-gradient(circle at 100% 0, color-mix(in srgb, var(--gv-accent) 9%, transparent), transparent 52%), var(--color-surface-raised);
+}
+#planejamento .receivables-summary article span {
+  color: var(--color-muted);
+  font-size: 11px;
+}
+#planejamento .receivables-summary article strong {
+  color: var(--color-text);
+  font-size: clamp(18px, 3vw, 24px);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+#planejamento .receivables-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px;
+}
+#planejamento .receivable-card {
+  min-width: 0;
+  margin: 0;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--color-surface-raised);
+  box-shadow: none;
+}
+#planejamento .receivable-card:last-child { grid-column: 1 / -1; }
+#planejamento .receivable-card .transaction-heading { margin-top: 0; }
+#planejamento .receivable-card .account-list li {
+  padding: 11px 0;
+}
+#planejamento .receivable-card .finance-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#planejamento .receivable-card .finance-form .wide-field { grid-column: 1 / -1; }
+#conta-relatorios .report-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 11px;
+  margin-top: 17px;
+}
+#conta-relatorios .report-metrics article {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--color-line);
+  border-radius: 15px;
+  background: var(--color-surface-raised);
+}
+#conta-relatorios .report-metrics article span {
+  color: var(--color-muted);
+  font-size: 11px;
+}
+#conta-relatorios .report-metrics article strong {
+  font-size: clamp(15px, 2.4vw, 21px);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+#conta-relatorios > .account-list li {
+  padding: 13px 14px;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  background: var(--color-surface-raised);
+}
+.bottom-nav button {
+  min-width: 0;
+  transition: background-color .18s ease, color .18s ease, transform .18s ease;
+}
+.bottom-nav button:focus-visible,
+.section-jump a:focus-visible,
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--gv-accent);
+  outline-offset: 3px;
+}
+@media (max-width: 760px) {
+  #planejamento .receivables-grid { grid-template-columns: 1fr; }
+  #planejamento .receivable-card:last-child { grid-column: auto; }
+  #conta-relatorios .report-metrics { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) {
+  #planejamento .receivables-summary { grid-template-columns: 1fr; }
+  #planejamento .receivable-card .finance-form { grid-template-columns: 1fr; }
+  #planejamento .receivable-card .finance-form .wide-field { grid-column: auto; }
+  #patrimonio .income-calendar > div { grid-template-columns: 1fr auto; }
+  #patrimonio .income-calendar > div span { grid-column: 1 / -1; }
+  .bottom-nav { gap: 2px; }
+  .bottom-nav button { padding-inline: 3px; font-size: 9px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bottom-nav button { transition: none; }
+}
