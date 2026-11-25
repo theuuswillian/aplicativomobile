@@ -429,9 +429,10 @@ begin
     select status into v_status from private.journal_entries where id=old.journal_entry_id;
     if v_status='posted' then raise exception 'Linhas contabilizadas são imutáveis; use estorno' using errcode='55000'; end if;
   end if;
-  return old;
+  if tg_op='DELETE' then return old; end if;
+  return new;
 end;
-$$;
+$;
 
 create constraint trigger journal_entries_balanced
 after insert or update on private.journal_entries
