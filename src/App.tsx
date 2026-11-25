@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { Home, ReceiptText, TrendingUp, UserRound, Target } from "lucide-react";
+import { Home, ReceiptText, TrendingUp, UserRound, Target, Bell, Eye, EyeOff, CircleMinus, CirclePlus, ChartNoAxesColumn } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import { BANK_CATALOG, bankLogoStyle } from "./data/bank-catalog";
 import { clearFinancialRecordsForUser } from "./lib/secure-storage";
@@ -15,7 +15,7 @@ type WhatsappLinkState = { phone: string; weekly_summary_enabled: boolean };
 type RadarFireRow = { alert_key: string; fired_at: string; observed_price: string; source: string | null; quote_observed_at: string | null };
 
 type Theme = "dark" | "light";
-type DashboardTab = "inicio" | "gastos" | "patrimonio" | "planejamento" | "conta";
+type DashboardTab = "inicio" | "gastos" | "patrimonio" | "planejamento" | "relatorios" | "conta";
 type RadarAlert = {
   id: string;
   asset_class: "stock" | "fii" | "etf" | "bdr" | "crypto";
@@ -1548,19 +1548,12 @@ export default function App() {
   return (
     <main className="app-shell" data-theme={theme} data-balances-hidden={balancesHidden ? "true" : "false"}>
       <div className="app-frame">
-        <header className="topbar">
+        <header className="topbar topbar-minimal">
           <a className="brand" href="/" onClick={(event) => event.preventDefault()}>
-            <span className="brand-mark" aria-hidden="true">G</span>
+            <span className="brand-mark" aria-hidden="true"><ChartNoAxesColumn size={22} strokeWidth={2.8} /></span>
             <span>Grana<span className="brand-accent">Viva</span></span>
           </a>
-          <div className="topbar-actions">
-            {signedIn && <span className="account-chip">{profile?.display_name || session?.user.email}</span>}
-            <button className="theme-toggle" type="button" aria-label={theme === "dark" ? "Tema claro" : "Tema escuro"} aria-pressed={theme === "light"} onClick={() => void toggleTheme()}>
-              <span aria-hidden="true">{theme === "dark" ? "☼" : "◐"}</span>
-              <span>{theme === "dark" ? "Tema claro" : "Tema escuro"}</span>
-            </button>
-            {signedIn && <button className="quiet-button" type="button" onClick={() => void handleSignOut()} disabled={busy}>Sair</button>}
-          </div>
+          {signedIn && <button className="notification-button" type="button" aria-label={`Radar e notificações: ${alerts.length} alertas`} onClick={() => setActiveTab("patrimonio")}><Bell size={21} strokeWidth={2} /><span className="notification-dot" /></button>}
         </header>
         {signedIn && quickEntryOpen && <div className="quick-entry-backdrop" role="presentation" onClick={() => setQuickEntryOpen(false)}>
           <section className="quick-entry-modal" role="dialog" aria-modal="true" aria-labelledby="quick-entry-title" onClick={(event) => event.stopPropagation()}>
@@ -1606,17 +1599,14 @@ export default function App() {
           </section>
         ) : (
           <section className="dashboard" aria-labelledby="dashboard-title">
-            {activeTab === "inicio" && <div className="dashboard-heading" id="inicio">
-              <div><span className="eyebrow"><span className="live-dot" /> ÁREA PESSOAL</span><h1 id="dashboard-title">Olá{profile?.display_name ? `, ${profile.display_name}` : ""}.</h1><p>Seus dados estão sincronizados com sua conta.</p></div>
-              <div className="metric-card"><strong>{alerts.length}</strong><span>alertas no Radar</span><small>{enabledAlerts} ativos</small></div>
-            </div>}
+            {activeTab === "inicio" && <div className="dashboard-heading dashboard-heading-compact" id="inicio"><h1 id="dashboard-title" className="sr-only">Visão geral</h1></div>}
             {activeTab === "inicio" && <section className="overview-grid" aria-label="Resumo financeiro">
               <article className="overview-balance">
-                <div className="overview-label"><span>Saldo livre hoje</span><button className="balance-visibility-toggle" type="button" aria-label={balancesHidden ? "Mostrar saldos" : "Ocultar saldos"} aria-pressed={balancesHidden} onClick={() => setBalancesHidden((hidden) => !hidden)}>{balancesHidden ? "Mostrar" : "Ocultar"}</button></div>
+                <div className="overview-label"><span>Saldo disponível</span><button className="balance-visibility-toggle icon-visibility" type="button" aria-label={balancesHidden ? "Mostrar saldos" : "Ocultar saldos"} aria-pressed={balancesHidden} onClick={() => setBalancesHidden((hidden) => !hidden)}>{balancesHidden ? <EyeOff size={18} /> : <Eye size={18} />}</button></div>
                 <strong>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(accounts.filter((account) => account.account_type !== "investment").reduce((sum, account) => sum + (accountBalances[account.id] ?? 0), 0))}</strong>
                 <small>{accounts.filter((account) => account.account_type !== "investment").length} contas bancárias e dinheiro físico</small>
               </article>
-              <article className="overview-stat"><span>Compromissos & extras</span><strong>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Object.values(cardCommittedAmounts).reduce((sum, value) => sum + value, 0))}</strong><small>Faturas e limite comprometido · a receber: {financialSummary ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(financialSummary.receivables_brl ?? 0) + Number(financialSummary.overtime_forecast_brl ?? 0)) : "aguardando ativação do ledger"}</small></article>
+              
               <article className="overview-stat"><span>Patrimônio investido</span>{(() => {
                 const totals = investmentAssets.reduce((sum, asset) => {
                   const summary = investmentSummary(asset.id);
@@ -1629,7 +1619,12 @@ export default function App() {
                 const usdTotal = financialSummary?.investment_reference_usd == null ? totals.usd : Number(financialSummary.investment_reference_usd);
                 return <><strong>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(brlTotal)}</strong><small>{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(usdTotal)} · separado da liquidez</small></>;
               })()}</article>
-              <div className="quick-entry-launch"><button className="primary-button" type="button" onClick={() => setQuickEntryOpen(true)}>+ Novo lançamento</button></div>
+              <div className="quick-actions-grid" aria-label="Ações rápidas">
+                <button type="button" onClick={() => { setTxKind("expense"); setTxPaymentMethod("pix"); setTxAccountId(""); setTxCardId(""); setQuickEntryOpen(true); }}><CircleMinus /><span>Adicionar<br/>despesa</span></button>
+                <button type="button" onClick={() => { setTxKind("income"); setTxPaymentMethod("pix"); setTxAccountId(""); setTxCardId(""); setQuickEntryOpen(true); }}><CirclePlus /><span>Adicionar<br/>receita</span></button>
+                <button type="button" onClick={() => setActiveTab("planejamento")}><Target /><span>Metas</span></button>
+                <button type="button" onClick={() => setActiveTab("relatorios")}><ChartNoAxesColumn /><span>Relatórios</span></button>
+              </div>
               <article className="overview-recent">
                 <div className="overview-recent-heading"><strong>Últimos lançamentos</strong><button type="button" onClick={() => setActiveTab("gastos")}>Ver gastos <span aria-hidden="true">›</span></button></div>
                 {transactions.length === 0 ? <p className="empty-state">Seus lançamentos aparecerão aqui.</p> : <ul className="recent-list">{transactions.slice(0, 4).map((item) => <li key={item.id}><span className={item.kind === "income" ? "recent-icon income" : "recent-icon"}>{item.kind === "income" ? "↗" : "↘"}</span><span className="recent-description"><strong>{item.description}</strong><small>{new Date(item.transaction_date + "T12:00:00").toLocaleDateString("pt-BR")}</small></span><strong className={item.kind === "income" ? "amount-income" : "amount-expense"}>{item.kind === "income" ? "+" : "−"}{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(item.amount))}</strong></li>)}</ul>}
@@ -1980,7 +1975,7 @@ export default function App() {
             </section>
 
 
-            <section className="panel reports-panel" id="conta-relatorios" hidden={activeTab !== "conta"} aria-labelledby="reports-title">
+            <section className="panel reports-panel" id="conta-relatorios" hidden={activeTab !== "relatorios"} aria-labelledby="reports-title">
               <span className="principles-label">ACOMPANHAMENTO DO MÊS</span>
               <h2 id="reports-title">Relatório mensal</h2>
               <p>Resumo calculado a partir dos lançamentos realizados no mês atual. Valores previstos não entram neste resultado.</p>
@@ -2038,10 +2033,9 @@ export default function App() {
 
         {signedIn && <nav className="bottom-nav" aria-label="Navegação principal">
           <button type="button" className={activeTab === "inicio" ? "active" : ""} aria-current={activeTab === "inicio" ? "page" : undefined} onClick={() => setActiveTab("inicio")}><Home size={20} strokeWidth={2.2} /><span>Início</span></button>
-          <button type="button" className={activeTab === "gastos" ? "active" : ""} aria-current={activeTab === "gastos" ? "page" : undefined} onClick={() => setActiveTab("gastos")}><ReceiptText size={20} strokeWidth={2.2} /><span>Cartões</span></button>
-          <button type="button" className={activeTab === "patrimonio" ? "active" : ""} aria-current={activeTab === "patrimonio" ? "page" : undefined} onClick={() => setActiveTab("patrimonio")}><TrendingUp size={20} strokeWidth={2.2} /><span>Investimentos</span></button>
-          <button type="button" className={activeTab === "planejamento" ? "active" : ""} aria-current={activeTab === "planejamento" ? "page" : undefined} onClick={() => setActiveTab("planejamento")}><Target size={20} strokeWidth={2.2} /><span>A Receber & Extras</span></button>
-          <button type="button" className={activeTab === "conta" ? "active" : ""} aria-current={activeTab === "conta" ? "page" : undefined} onClick={() => setActiveTab("conta")}><UserRound size={20} strokeWidth={2.2} /><span>Contas & Relatórios</span></button>
+          <button type="button" className={activeTab === "gastos" ? "active" : ""} aria-current={activeTab === "gastos" ? "page" : undefined} onClick={() => setActiveTab("gastos")}><ReceiptText size={20} strokeWidth={2.2} /><span>Gastos</span></button>
+          <button type="button" className={activeTab === "patrimonio" || activeTab === "planejamento" ? "active" : ""} aria-current={activeTab === "patrimonio" ? "page" : undefined} onClick={() => setActiveTab("patrimonio")}><TrendingUp size={20} strokeWidth={2.2} /><span>Patrimônio</span></button>
+          <button type="button" className={activeTab === "conta" || activeTab === "relatorios" ? "active" : ""} aria-current={activeTab === "conta" ? "page" : undefined} onClick={() => setActiveTab("conta")}><UserRound size={20} strokeWidth={2.2} /><span>Conta</span></button>
         </nav>}
         <footer className="app-footer"><span>GRANAVIVA</span><span>Privacidade · Clareza · Gratuito para todos</span></footer>
       </div>
