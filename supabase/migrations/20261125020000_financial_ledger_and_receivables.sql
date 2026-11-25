@@ -872,7 +872,7 @@ grant execute on function public.get_financial_summary() to authenticated;
 
 -- Backfill idempotente dos saldos existentes. O saldo inicial já representa a posição
 -- na data de abertura; movimentos anteriores não podem ser debitados novamente do banco.
-do $
+do $backfill$
 declare
   a record; t record; p record; v_kind text; v_debit_kind text; v_credit_kind text;
   v_debit_source uuid; v_credit_source uuid; v_journal uuid;
@@ -964,6 +964,6 @@ begin
     values(p.user_id,'card_invoice_payment',p.id,v_journal)
     on conflict(user_id,source_type,source_id) do nothing;
   end loop;
-end $;
+end $backfill$;
 
 commit;
