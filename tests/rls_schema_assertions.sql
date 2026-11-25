@@ -36,7 +36,8 @@ begin
     ('radar_alerts'),('radar_fires'),('push_subscriptions'),('push_deliveries'),
     ('ai_usage'),('ai_usage_reservations'),('rate_limit_buckets'),('function_errors'),
     ('whatsapp_links'),('whatsapp_link_codes'),('whatsapp_link_attempts'),
-    ('whatsapp_pending_transactions'),('whatsapp_inbox'),('whatsapp_outbox')
+    ('whatsapp_pending_transactions'),('whatsapp_inbox'),('whatsapp_outbox'),
+      ('card_invoice_payments')
   ) expected(table_name)
   left join information_schema.tables actual
     on actual.table_schema='public' and actual.table_name=expected.table_name
@@ -135,7 +136,8 @@ begin
     'public.whatsapp_pending_confirm(text)'::regprocedure,
     'public.recurrence_next_date(text,integer,date,smallint,smallint)'::regprocedure,
     'public.recurrence_generate_due(date,integer)'::regprocedure,
-    'public.market_data_reserve(text,text,integer)'::regprocedure
+    'public.market_data_reserve(text,text,integer)'::regprocedure,
+    'public.enforce_card_invoice_payment_balance()'::regprocedure
   ] loop
     if not (select p.prosecdef and p.proconfig @> array['search_path=pg_catalog, public']
             from pg_proc p where p.oid = v_fn) then
@@ -169,7 +171,7 @@ declare
   v_table text;
 begin
   foreach v_table in array array[
-    'profiles','settings','categories','accounts','cards','recurrence_rules','import_batches',
+    'profiles','settings','categories','accounts','cards','recurrence_rules','import_batches','card_invoice_payments',
     'transactions','budgets','goals','goal_contributions','tangible_assets','liabilities',
     'net_worth_snapshots','receivables','import_items','receipt_files',
     'investment_assets','investment_operations','income_events','radar_alerts','radar_fires',
