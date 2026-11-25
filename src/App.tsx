@@ -135,6 +135,7 @@ function normalizeBrlAmount(value: string, allowZero = false, allowNegative = fa
 export default function App() {
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const [activeTab, setActiveTab] = useState<DashboardTab>("inicio");
+  const [quickEntryOpen, setQuickEntryOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(!supabase);
   const [email, setEmail] = useState("");
