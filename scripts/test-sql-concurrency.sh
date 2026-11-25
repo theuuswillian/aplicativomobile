@@ -368,4 +368,152 @@ if psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
   exit 1
 fi
 
-echo "Concorrência PostgreSQL validada: quota de IA, rate limit, Radar, metas, WhatsApp, recorrências e pagamentos de fatura foram serializados e testados."
+
+# Regras contábeis de firewall, empréstimos, horas extras e parcelas exatas.
+psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select set_config('request.jwt.claim.sub','$user_id',false)" >/dev/null
+investment_account_id="50000000-0000-4000-8000-000000000002"
+psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  insert into public.accounts(id,user_id,name,account_type,opening_balance,opening_balance_date)
+  values ('$investment_account_id','$user_id','Corretora protegida','investment',500.00,current_date);
+"
+
+liquid_before_card="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select get_financial_summary()->>'liquid_balance_brl'")"
+card_liability="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  select coalesce(sum(l.credit-l.debit),0)
+    from private.journal_lines l
+    join private.ledger_accounts a on a.id=l.ledger_account_id and a.user_id=l.user_id
+    join private.journal_entries j on j.id=l.journal_entry_id and j.user_id=l.user_id
+   where l.user_id='$user_id' and j.status='posted' and a.account_kind='card_liability'
+")"
+if [[ "$card_liability" != "40.00" ]]; then
+  echo "Falha: compra no cartão menos pagamento deveria deixar R$ 40,00 de obrigação, encontrado $card_liability."
+  exit 1
+fi
+investment_cash_before="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  select coalesce(sum(l.debit-l.credit),0)
+    from private.journal_lines l
+    join private.ledger_accounts a on a.id=l.ledger_account_id and a.user_id=l.user_id
+    join private.journal_entries j on j.id=l.journal_entry_id and j.user_id=l.user_id
+   where l.user_id='$user_id' and j.status='posted' and a.account_kind='investment_cash'
+")"
+if [[ "$investment_cash_before" != "500.00" ]]; then
+  echo "Falha: saldo investido inicial deveria permanecer R$ 500,00; encontrado $investment_cash_before."
+  exit 1
+fi
+
+# Uma despesa não pode debitar a conta classificada como investimento.
+if psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  insert into public.transactions(user_id,kind,status,amount,transaction_date,description,account_id,settled_amount,settled_at)
+  values ('$user_id','expense','paid',10.00,current_date,'Tentativa de gasto na corretora','$investment_account_id',10.00,current_date)
+" >"$tmp_dir/investment-expense.out" 2>&1; then
+  echo "Falha: despesa foi debitada de conta de investimentos."
+  exit 1
+fi
+
+# Empréstimo cria ativo a receber, reduz liquidez e não gera despesa pessoal.
+loan_result="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  select (public.create_receivable_loan(
+    'Pessoa de teste',30.00,current_date,current_date+30,
+    '$account_id','Teste de contabilização','loan-ledger-test-0001'
+  )).id
+")"
+loan_id="$loan_result"
+loan_receivable="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  select coalesce(sum(l.debit-l.credit),0)
+    from private.journal_lines l
+    join private.ledger_accounts a on a.id=l.ledger_account_id and a.user_id=l.user_id
+    join private.journal_entries j on j.id=l.journal_entry_id and j.user_id=l.user_id
+   where l.user_id='$user_id' and j.status='posted' and a.account_kind='receivable_asset'
+")"
+if [[ "$loan_receivable" != "30.00" ]]; then
+  echo "Falha: empréstimo deveria criar R$ 30,00 em valores a receber; encontrado $loan_receivable."
+  exit 1
+fi
+loan_expense_postings="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  select count(*) from private.journal_entries
+   where user_id='$user_id' and source_type='receivable_loan' and status='posted'
+")"
+if [[ "$loan_expense_postings" != "1" ]]; then
+  echo "Falha: lançamento contábil do empréstimo ausente."
+  exit 1
+fi
+
+# Devolução parcial volta ao banco e reduz o título, sem registrar salário.
+psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  select public.register_receivable_repayment(
+    '$loan_id','$account_id',10.00,current_date,'loan-repayment-test-0001'
+  );
+" >/dev/null
+loan_remaining="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  select principal_amount-coalesce((select sum(amount) from public.receivable_repayments where loan_id=receivable_loans.id),0)
+    from public.receivable_loans where id='$loan_id' and user_id='$user_id'
+")"
+if [[ "$loan_remaining" != "20.00" ]]; then
+  echo "Falha: devolução parcial deveria deixar R$ 20,00 em aberto; encontrado $loan_remaining."
+  exit 1
+fi
+repayment_income_postings="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  select count(*) from private.journal_entries
+   where user_id='$user_id' and source_type='receivable_repayment' and status='posted'
+")"
+if [[ "$repayment_income_postings" != "1" ]]; then
+  echo "Falha: recebimento de empréstimo não foi contabilizado como retorno de ativo."
+  exit 1
+fi
+
+# Horas extras ficam como previsão até conversão explícita.
+overtime_id="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  select (public.record_overtime_entry(
+    current_date,2.00,50.00,50.00,'Plantão de teste','overtime-ledger-test-0001'
+  )).id
+")"
+forecast_before="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select get_financial_summary()->>'overtime_forecast_brl'")"
+if [[ "$forecast_before" != "150.00" ]]; then
+  echo "Falha: previsão de hora extra deveria ser R$ 150,00; encontrado $forecast_before."
+  exit 1
+fi
+psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  select public.convert_overtime_to_receipt(
+    array['$overtime_id']::uuid[],'$account_id',current_date,'overtime-convert-test-0001'
+  );
+" >/dev/null
+forecast_after="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "select get_financial_summary()->>'overtime_forecast_brl'")"
+overtime_journals="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  select count(*) from private.journal_entries
+   where user_id='$user_id' and source_type='overtime_conversion' and status='posted'
+")"
+if [[ "$forecast_after" != "0.00" || "$overtime_journals" != "1" ]]; then
+  echo "Falha: conversão de hora extra não zerou previsão ou não gerou diário."
+  exit 1
+fi
+
+# Compra parcelada soma exatamente o total em centavos e deixa o resíduo na primeira.
+installment_tx_id="90000000-0000-4000-8000-000000000003"
+installment_group_id="90000000-0000-4000-8000-000000000004"
+psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  insert into public.transactions(
+    id,user_id,kind,status,amount,transaction_date,description,card_id,
+    installment_group_id,installment_number,installment_count,settled_amount,settled_at,source
+  ) values (
+    '$installment_tx_id','$user_id','expense','paid',100.01,current_date,
+    'Compra parcelada de teste','$card_id','$installment_group_id',1,3,100.01,current_date,'manual'
+  );
+"
+installment_total="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  select coalesce(sum(amount),0) from public.card_invoice_installments
+   where user_id='$user_id' and transaction_id='$installment_tx_id'
+")"
+installment_first="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  select amount from public.card_invoice_installments
+   where user_id='$user_id' and transaction_id='$installment_tx_id' and installment_number=1
+")"
+installment_count="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  select count(*) from public.card_invoice_installments
+   where user_id='$user_id' and transaction_id='$installment_tx_id'
+")"
+if [[ "$installment_total" != "100.01" || "$installment_first" != "33.35" || "$installment_count" != "3" ]]; then
+  echo "Falha: parcelamento de R$ 100,01 em 3x gerou total=$installment_total, primeira=$installment_first, parcelas=$installment_count."
+  exit 1
+fi
+
+\necho "Concorrência PostgreSQL validada: quota de IA, rate limit, Radar, metas, WhatsApp, recorrências pagamentos de fatura, ledger, firewall de investimentos, empréstimos, horas extras e parcelas foram testados."
