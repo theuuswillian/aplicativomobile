@@ -283,3 +283,64 @@
   .app-frame { padding-bottom: calc(124px + env(safe-area-inset-bottom, 0px)); }
   .dashboard > .panel { padding: 17px; }
 }
+
+
+/* Superfícies que ainda tinham cores Obsidian fixas em componentes internos. */
+.app-shell[data-theme="light"] .overview-month-summary,
+.app-shell[data-theme="light"] .expense-overview,
+.app-shell[data-theme="light"] .account-data-details,
+.app-shell[data-theme="light"] .income-calendar,
+.app-shell[data-theme="light"] .investment-suggestions,
+.app-shell[data-theme="light"] .bank-selected,
+.app-shell[data-theme="light"] #patrimonio .allocation-group {
+  color: #17201b;
+  border-color: #dce5df;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgb(24 55 37 / 6%);
+}
+.app-shell[data-theme="light"] .quick-actions-grid button {
+  color: #17201b;
+  border-color: #dce5df;
+  background: #ffffff;
+}
+.app-shell[data-theme="light"] .quick-actions-grid button svg { color: var(--color-accent); }
+.app-shell[data-theme="light"] .overview-month-summary strong,
+.app-shell[data-theme="light"] .expense-overview strong,
+.app-shell[data-theme="light"] .income-calendar strong,
+.app-shell[data-theme="light"] .investment-suggestions button,
+.app-shell[data-theme="light"] .bank-selected strong,
+.app-shell[data-theme="light"] .account-data-details summary {
+  color: #17201b;
+}
+.app-shell[data-theme="light"] .overview-month-summary span,
+.app-shell[data-theme="light"] .expense-overview span,
+.app-shell[data-theme="light"] .income-calendar span,
+.app-shell[data-theme="light"] .investment-suggestions small,
+.app-shell[data-theme="light"] .bank-selected small,
+.app-shell[data-theme="light"] .account-data-details p {
+  color: #59665f;
+}
+.app-shell[data-theme="light"] .account-menu-list button {
+  border-color: #e3ebe6;
+}
+.app-shell[data-theme="light"] .account-menu-icon.green { color: #087b45; background: #e7f5ec; }
+.app-shell[data-theme="light"] .account-menu-icon.purple { color: #7041a6; background: #f1eafa; }
+.app-shell[data-theme="light"] .account-menu-icon.blue { color: #1d5fa7; background: #eaf2fb; }
+.app-shell[data-theme="light"] .account-menu-icon.emerald { color: #087b45; background: #e7f5ec; }
+.app-shell[data-theme="light"] .topbar {
+  border-color: #e0e8e3;
+  background: rgb(255 255 255 / 94%);
+  box-shadow: 0 8px 24px rgb(24 55 37 / 5%);
+}
+.app-shell[data-theme="light"] .notification-button { color: #26372d; }
+.app-shell[data-theme="light"] .section-jump a {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 520px) {
+  .app-shell[data-theme="light"] .overview-month-columns {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .app-shell[data-theme="light"] .overview-month-columns > * { min-width: 0; }
+}
