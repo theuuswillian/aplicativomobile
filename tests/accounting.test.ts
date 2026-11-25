@@ -9,7 +9,7 @@ import {
 describe("financial accounting invariants", () => {
   it("allocates installments exactly and places all residual cents in the first installment", () => {
     expect(allocateInstallments(10_000, 3)).toEqual([3_334, 3_333, 3_333]);
-    expect(allocateInstallments(1_001, 4)).toEqual([254, 249, 249, 249]);
+    expect(allocateInstallments(1_001, 4)).toEqual([251, 250, 250, 250]);
     expect(allocateInstallments(9_999, 1)).toEqual([9_999]);
   });
 
