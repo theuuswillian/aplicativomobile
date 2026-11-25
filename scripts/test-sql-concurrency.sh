@@ -487,6 +487,71 @@ if [[ "$investment_cash_after_bridge" != "350.00" ]]; then
   "
   exit 1
 fi
+
+# Proventos BRL são liquidados atomicamente na conta bancária ou no caixa da corretora.
+income_asset_id="90000000-0000-4000-8000-000000000003"
+income_asset_usd_id="90000000-0000-4000-8000-000000000004"
+psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  insert into public.investment_assets(id,user_id,symbol,name,asset_class,currency,quantity,average_cost)
+  values
+    ('$income_asset_id','$user_id','TST3','Ativo de teste BRL','stock','BRL',0,0),
+    ('$income_asset_usd_id','$user_id','TSTU','Ativo de teste USD','stock','USD',0,0);
+  insert into public.income_events(
+    user_id,asset_id,event_type,reference_date,payment_date,announced_amount,received_amount,status,
+    account_id,settlement_idempotency_key
+  ) values (
+    '$user_id','$income_asset_id','dividend',current_date,current_date,15.00,15.00,'received',
+    '$account_id','income-bank-test-0001'
+  );
+  insert into public.income_events(
+    user_id,asset_id,event_type,reference_date,payment_date,announced_amount,received_amount,status,
+    account_id,settlement_idempotency_key
+  ) values (
+    '$user_id','$income_asset_id','dividend',current_date,current_date,20.00,20.00,'received',
+    '$investment_account_id','income-broker-test-0001'
+  );
+"
+income_settlements="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  select count(*) from public.income_events
+   where user_id='$user_id' and asset_id='$income_asset_id'
+     and settlement_state='settled' and transaction_id is not null
+")"
+if [[ "$income_settlements" != "2" ]]; then
+  echo "Falha: os dois proventos deveriam gerar liquidações contábeis; encontrado $income_settlements."
+  exit 1
+fi
+investment_cash_after_income="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  select coalesce(sum(l.debit-l.credit),0)
+    from private.journal_lines l
+    join private.ledger_accounts a on a.id=l.ledger_account_id and a.user_id=l.user_id
+    join private.journal_entries j on j.id=l.journal_entry_id and j.user_id=l.user_id
+   where l.user_id='$user_id' and j.status='posted' and a.account_kind='investment_cash'
+")"
+if [[ "$investment_cash_after_income" != "370.00" ]]; then
+  echo "Falha: provento reinvestido no caixa da corretora deveria elevar o saldo para R$ 370,00; encontrado $investment_cash_after_income."
+  exit 1
+fi
+if psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  insert into public.income_events(
+    user_id,asset_id,event_type,reference_date,payment_date,announced_amount,received_amount,status,
+    account_id,settlement_idempotency_key
+  ) values (
+    '$user_id','$income_asset_usd_id','dividend',current_date,current_date,5.00,5.00,'received',
+    '$account_id','income-usd-test-0001'
+  )
+" >"$tmp_dir/income-usd.out" 2>&1; then
+  echo "Falha: banco aceitou misturar provento USD com conta BRL."
+  exit 1
+fi
+income_transaction_id="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  select transaction_id from public.income_events
+   where user_id='$user_id' and settlement_idempotency_key='income-bank-test-0001'
+")"
+if psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "delete from public.transactions where user_id='$user_id' and id='$income_transaction_id'" >"$tmp_dir/income-delete.out" 2>&1; then
+  echo "Falha: banco permitiu apagar lançamento contábil originado de provento."
+  exit 1
+fi
+
 if psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
   update public.accounts set opening_balance=501.00 where user_id='$user_id' and id='$investment_account_id'
 " >"$tmp_dir/opening-balance-update.out" 2>&1; then
