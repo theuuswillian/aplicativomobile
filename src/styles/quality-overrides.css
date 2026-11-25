@@ -1,0 +1,346 @@
+/* GranaViva — correções de consistência visual e legibilidade.
+   Carregado depois do refinamento anterior para eliminar sobrescritas conflitantes.
+   Não altera regras financeiras, autenticação ou integração com o Supabase. */
+
+.app-shell {
+  min-width: 0;
+  overflow-x: clip;
+  color: var(--color-text);
+}
+
+.app-frame,
+.dashboard,
+.dashboard > *,
+.panel,
+.panel-heading,
+.overview-grid,
+.overview-grid > * {
+  min-width: 0;
+}
+
+.brand {
+  color: var(--color-text);
+  text-decoration: none;
+}
+.brand-accent { color: var(--color-accent); }
+.brand-mark {
+  flex: 0 0 auto;
+  background: transparent;
+  color: var(--color-accent);
+  box-shadow: none;
+}
+.topbar-actions { flex: 0 0 auto; }
+
+/* O índice de módulos pode ocupar mais de uma linha em telas estreitas.
+   Evita chips cortados sem indicação de rolagem horizontal. */
+.section-jump {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  overflow: visible;
+}
+.section-jump a {
+  flex: 0 0 auto;
+  max-width: 100%;
+  white-space: normal;
+  text-align: center;
+}
+
+/* Área de navegação fixa: quatro destinos reais, sem coluna fantasma. */
+.bottom-nav {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  width: min(560px, calc(100% - 24px));
+  right: auto;
+  left: 50%;
+  transform: translateX(-50%);
+  gap: 4px;
+  padding: 8px;
+  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+}
+.bottom-nav button {
+  min-width: 0;
+  min-height: 54px;
+  padding: 6px 3px;
+  line-height: 1.2;
+  white-space: normal;
+}
+.bottom-nav button span {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: 10px;
+}
+@media (max-width: 390px) {
+  .bottom-nav { width: calc(100% - 20px); gap: 2px; padding-inline: 5px; }
+  .bottom-nav button { min-height: 50px; }
+  .bottom-nav button span { font-size: 9px; }
+}
+
+/* Tema claro: substitui as cores escuras que haviam sido fixadas em
+   componentes individuais, causa do texto branco sobre cartões brancos. */
+.app-shell[data-theme="light"] {
+  color-scheme: light;
+  color: #17201b;
+  --color-bg: #f3f6f4;
+  --color-surface: #ffffff;
+  --color-surface-raised: #f7faf8;
+  --color-text: #17201b;
+  --color-muted: #59665f;
+  --color-line: #dce5df;
+  --color-accent: #087b45;
+  --color-accent-strong: #15803d;
+  --color-accent-soft: #e8f6ed;
+  --gv-accent: #087b45;
+  --gv-accent-contrast: #ffffff;
+  --gv-card-shadow: 0 12px 32px rgb(24 55 37 / 8%);
+  background: radial-gradient(ellipse 110% 28% at 50% -4%, rgb(22 163 74 / 8%), transparent 72%), #f3f6f4;
+}
+
+.app-shell[data-theme="light"] .topbar,
+.app-shell[data-theme="light"] .panel,
+.app-shell[data-theme="light"] .auth-card,
+.app-shell[data-theme="light"] .metric-card,
+.app-shell[data-theme="light"] .overview-recent,
+.app-shell[data-theme="light"] .overview-flow,
+.app-shell[data-theme="light"] .overview-stat,
+.app-shell[data-theme="light"] .subpanel,
+.app-shell[data-theme="light"] .planning-content,
+.app-shell[data-theme="light"] .reports-panel,
+.app-shell[data-theme="light"] .investment-allocation,
+.app-shell[data-theme="light"] .allocation-group,
+.app-shell[data-theme="light"] .management-drawer,
+.app-shell[data-theme="light"] .area-summary article,
+.app-shell[data-theme="light"] .report-metrics article,
+.app-shell[data-theme="light"] .receivables-summary article,
+.app-shell[data-theme="light"] .receivable-card,
+.app-shell[data-theme="light"] .investment-total-preview,
+.app-shell[data-theme="light"] .account-profile-card,
+.app-shell[data-theme="light"] .account-menu-list,
+.app-shell[data-theme="light"] .account-menu-list button,
+.app-shell[data-theme="light"] .card-list .card-list-item,
+.app-shell[data-theme="light"] .invoice-payment-list li,
+.app-shell[data-theme="light"] .planning-content,
+.app-shell[data-theme="light"] .overview-action,
+.app-shell[data-theme="light"] .notice,
+.app-shell[data-theme="light"] .empty-state {
+  color: #17201b;
+  border-color: #dce5df;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgb(24 55 37 / 6%);
+}
+
+.app-shell[data-theme="light"] .overview-balance {
+  color: #17201b;
+  border-color: #c8e3d2;
+  background: radial-gradient(circle at 92% 8%, rgb(22 163 74 / 10%), transparent 42%), linear-gradient(135deg, #ffffff, #edf8f1);
+}
+.app-shell[data-theme="light"] .overview-balance > strong,
+.app-shell[data-theme="light"] .overview-stat > strong,
+.app-shell[data-theme="light"] .overview-month-columns strong,
+.app-shell[data-theme="light"] .area-summary article strong,
+.app-shell[data-theme="light"] .report-metrics article strong,
+.app-shell[data-theme="light"] .receivables-summary strong,
+.app-shell[data-theme="light"] .panel h2,
+.app-shell[data-theme="light"] .panel-heading h2,
+.app-shell[data-theme="light"] .auth-card h2,
+.app-shell[data-theme="light"] .brand,
+.app-shell[data-theme="light"] .account-list strong,
+.app-shell[data-theme="light"] .transaction-list strong,
+.app-shell[data-theme="light"] .transaction-heading,
+.app-shell[data-theme="light"] .overview-recent-heading,
+.app-shell[data-theme="light"] .overview-recent-heading > strong,
+.app-shell[data-theme="light"] .management-drawer > summary,
+.app-shell[data-theme="light"] .account-menu-list button strong,
+.app-shell[data-theme="light"] .account-menu-list button b,
+.app-shell[data-theme="light"] .card-list-item > strong,
+.app-shell[data-theme="light"] .report-category-list li strong {
+  color: #17201b;
+}
+.app-shell[data-theme="light"] .panel p,
+.app-shell[data-theme="light"] .panel-heading p,
+.app-shell[data-theme="light"] .helper-text,
+.app-shell[data-theme="light"] .muted-copy,
+.app-shell[data-theme="light"] .overview-label,
+.app-shell[data-theme="light"] .overview-balance > small,
+.app-shell[data-theme="light"] .overview-stat > span,
+.app-shell[data-theme="light"] .overview-stat small,
+.app-shell[data-theme="light"] .overview-month-columns span,
+.app-shell[data-theme="light"] .area-summary article span,
+.app-shell[data-theme="light"] .area-summary article small,
+.app-shell[data-theme="light"] .report-metrics article span,
+.app-shell[data-theme="light"] .receivables-summary article span,
+.app-shell[data-theme="light"] .account-list span,
+.app-shell[data-theme="light"] .account-list small,
+.app-shell[data-theme="light"] .transaction-list span,
+.app-shell[data-theme="light"] .transaction-list small,
+.app-shell[data-theme="light"] .transaction-heading span,
+.app-shell[data-theme="light"] .account-menu-list button small,
+.app-shell[data-theme="light"] .report-category-list li span,
+.app-shell[data-theme="light"] .card-list-item > span,
+.app-shell[data-theme="light"] .card-list-item > small {
+  color: #59665f;
+}
+.app-shell[data-theme="light"] .section-jump a {
+  color: #34483b;
+  border-color: #d5e2d9;
+  background: #ffffff;
+}
+.app-shell[data-theme="light"] .section-jump a:hover,
+.app-shell[data-theme="light"] .section-jump a:focus-visible {
+  color: #075b34;
+  border-color: #6bb98b;
+  background: #eaf7ef;
+}
+.app-shell[data-theme="light"] .brand-mark {
+  color: #16a34a;
+  background: transparent;
+  box-shadow: none;
+}
+.app-shell[data-theme="light"] .brand-accent { color: #087b45; }
+.app-shell[data-theme="light"] .theme-toggle,
+.app-shell[data-theme="light"] .quiet-button,
+.app-shell[data-theme="light"] .management-drawer,
+.app-shell[data-theme="light"] .balance-visibility-toggle {
+  color: #26372d;
+  border-color: #d5e2d9;
+  background: #f7faf8;
+}
+.app-shell[data-theme="light"] .finance-form input,
+.app-shell[data-theme="light"] .finance-form select,
+.app-shell[data-theme="light"] .radar-form input,
+.app-shell[data-theme="light"] .radar-form select,
+.app-shell[data-theme="light"] .assistant-form textarea,
+.app-shell[data-theme="light"] .assistant-form input,
+.app-shell[data-theme="light"] .receipt-preview input,
+.app-shell[data-theme="light"] .receipt-preview select,
+.app-shell[data-theme="light"] .transaction-edit-form input,
+.app-shell[data-theme="light"] .transaction-edit-form select {
+  color: #17201b;
+  border-color: #cbd8cf;
+  background: #ffffff;
+}
+.app-shell[data-theme="light"] input::placeholder,
+.app-shell[data-theme="light"] textarea::placeholder {
+  color: #68776e;
+  opacity: 1;
+}
+.app-shell[data-theme="light"] .bottom-nav {
+  border: 1px solid #d8e5dc;
+  background: rgb(255 255 255 / 96%);
+  box-shadow: 0 10px 30px rgb(22 48 32 / 14%);
+}
+.app-shell[data-theme="light"] .bottom-nav button { color: #526158; }
+.app-shell[data-theme="light"] .bottom-nav button.active {
+  color: #086b3d;
+  border-color: #c7e8d3;
+  background: #e5f5eb;
+}
+.app-shell[data-theme="light"] .bottom-nav button svg { color: currentColor; }
+.app-shell[data-theme="light"] .text-button {
+  color: #075b34;
+  background: transparent;
+}
+.app-shell[data-theme="light"] .primary-button {
+  color: #ffffff;
+  background: linear-gradient(110deg, #16864a, #087b45);
+}
+.app-shell[data-theme="light"] .income-value,
+.app-shell[data-theme="light"] .amount-income { color: #087b45 !important; }
+.app-shell[data-theme="light"] .expense-value,
+.app-shell[data-theme="light"] .amount-expense { color: #b42332 !important; }
+
+/* Mantém cartões internos legíveis sem depender da cor herdada do tema. */
+.app-shell[data-theme="light"] .account-profile-card *,
+.app-shell[data-theme="light"] .account-menu-list *,
+.app-shell[data-theme="light"] .management-drawer *,
+.app-shell[data-theme="light"] .subpanel *,
+.app-shell[data-theme="light"] .planning-content *,
+.app-shell[data-theme="light"] .reports-panel * {
+  text-shadow: none;
+}
+
+/* Safari iOS: reserva espaço real para o dock e respeita a área segura.
+   A barra do Safari é dinâmica; não fixa a altura do viewport em 100vh. */
+@supports (height: 100dvh) {
+  .app-shell { min-height: 100dvh; }
+}
+.app-frame {
+  padding-bottom: calc(116px + env(safe-area-inset-bottom, 0px));
+}
+.dashboard { padding-bottom: 24px; }
+.bottom-nav {
+  bottom: max(8px, env(safe-area-inset-bottom, 0px));
+}
+@media (display-mode: standalone) {
+  .app-shell {
+    padding-top: max(14px, env(safe-area-inset-top, 0px));
+    padding-bottom: max(14px, env(safe-area-inset-bottom, 0px));
+  }
+  .bottom-nav { bottom: max(10px, env(safe-area-inset-bottom, 0px)); }
+}
+@media (max-width: 520px) {
+  .app-frame { padding-bottom: calc(124px + env(safe-area-inset-bottom, 0px)); }
+  .dashboard > .panel { padding: 17px; }
+}
+
+
+/* Superfícies que ainda tinham cores Obsidian fixas em componentes internos. */
+.app-shell[data-theme="light"] .overview-month-summary,
+.app-shell[data-theme="light"] .expense-overview,
+.app-shell[data-theme="light"] .account-data-details,
+.app-shell[data-theme="light"] .income-calendar,
+.app-shell[data-theme="light"] .investment-suggestions,
+.app-shell[data-theme="light"] .bank-selected,
+.app-shell[data-theme="light"] #patrimonio .allocation-group {
+  color: #17201b;
+  border-color: #dce5df;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgb(24 55 37 / 6%);
+}
+.app-shell[data-theme="light"] .quick-actions-grid button {
+  color: #17201b;
+  border-color: #dce5df;
+  background: #ffffff;
+}
+.app-shell[data-theme="light"] .quick-actions-grid button svg { color: var(--color-accent); }
+.app-shell[data-theme="light"] .overview-month-summary strong,
+.app-shell[data-theme="light"] .expense-overview strong,
+.app-shell[data-theme="light"] .income-calendar strong,
+.app-shell[data-theme="light"] .investment-suggestions button,
+.app-shell[data-theme="light"] .bank-selected strong,
+.app-shell[data-theme="light"] .account-data-details summary {
+  color: #17201b;
+}
+.app-shell[data-theme="light"] .overview-month-summary span,
+.app-shell[data-theme="light"] .expense-overview span,
+.app-shell[data-theme="light"] .income-calendar span,
+.app-shell[data-theme="light"] .investment-suggestions small,
+.app-shell[data-theme="light"] .bank-selected small,
+.app-shell[data-theme="light"] .account-data-details p {
+  color: #59665f;
+}
+.app-shell[data-theme="light"] .account-menu-list button {
+  border-color: #e3ebe6;
+}
+.app-shell[data-theme="light"] .account-menu-icon.green { color: #087b45; background: #e7f5ec; }
+.app-shell[data-theme="light"] .account-menu-icon.purple { color: #7041a6; background: #f1eafa; }
+.app-shell[data-theme="light"] .account-menu-icon.blue { color: #1d5fa7; background: #eaf2fb; }
+.app-shell[data-theme="light"] .account-menu-icon.emerald { color: #087b45; background: #e7f5ec; }
+.app-shell[data-theme="light"] .topbar {
+  border-color: #e0e8e3;
+  background: rgb(255 255 255 / 94%);
+  box-shadow: 0 8px 24px rgb(24 55 37 / 5%);
+}
+.app-shell[data-theme="light"] .notification-button { color: #26372d; }
+.app-shell[data-theme="light"] .section-jump a {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 520px) {
+  .app-shell[data-theme="light"] .overview-month-columns {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .app-shell[data-theme="light"] .overview-month-columns > * { min-width: 0; }
+}
