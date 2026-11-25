@@ -426,7 +426,7 @@ declare v_status text;
 begin
   if tg_table_name='journal_entries' then
     if old.status='posted' and not (
-      tg_op='DELETE' and current_setting('app.cleanup_financial_ledger_user',true)=old.user_id::text
+      tg_op='DELETE' and current_setting('app.cleanup_financial_ledger_user',true) is not distinct from old.user_id::text
     ) then
       raise exception 'Diários contabilizados são imutáveis; use estorno' using errcode='55000';
     end if;
