@@ -452,6 +452,7 @@ begin
     raise exception 'Conta de investimentos é protegida e não pode pagar despesas' using errcode='23514';
   end if;
 
+  if new.payment_method='whatsapp' then new.payment_method:=null; end if;
   if new.payment_method is null then
     new.payment_method:=case when v_account_type='cash' then 'cash' else 'pix' end;
   end if;
