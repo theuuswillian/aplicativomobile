@@ -54,3 +54,10 @@ export function calculateInvestmentSummary(operations: readonly InvestmentOperat
 }
 
 function roundQuantity(value: number): number { return Math.round(value * 1e8) / 1e8; }
+
+export function normalizeManualReferencePrice(input: string): string | null {
+  const normalized = input.trim().replace(",", ".");
+  if (!/^[0-9]{1,10}(?:[.][0-9]{1,8})?$/.test(normalized)) return null;
+  const value = Number(normalized);
+  return Number.isFinite(value) && value > 0 ? normalized : null;
+}

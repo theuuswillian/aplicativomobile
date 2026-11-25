@@ -1,4 +1,4 @@
-const CACHE_NAME = "granaviva-shell-v9";
+const CACHE_NAME = "granaviva-shell-v10";
 const SHELL = ["/manifest.webmanifest", "/icon.svg", "/apple-touch-icon.png"];
 
 self.addEventListener("install", (event) => {
@@ -44,6 +44,40 @@ self.addEventListener("activate", (event) => {
       .then((keys) => Promise.all(keys.filter((key) => key.startsWith("granaviva-shell-") && key !== CACHE_NAME).map((key) => caches.delete(key))))
       .then(() => self.clients.claim())
   );
+});
+
+
+self.addEventListener("push", (event) => {
+  event.waitUntil((async () => {
+    let payload = {};
+    try { payload = event.data ? event.data.json() : {}; } catch { payload = {}; }
+    const title = typeof payload.title === "string" ? payload.title.slice(0, 80) : "GranaViva";
+    const body = typeof payload.body === "string" ? payload.body.slice(0, 240) : "Você tem uma nova atualização.";
+    const url = typeof payload.url === "string" && payload.url.startsWith("/") && !payload.url.startsWith("//")
+      ? payload.url : "/";
+    await self.registration.showNotification(title, {
+      body, icon: "/icon.svg", badge: "/icon.svg",
+      tag: typeof payload.tag === "string" ? payload.tag.slice(0, 120) : "granaviva-update",
+      data: { url }, renotify: false,
+    });
+  })());
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const path = event.notification.data?.url;
+  const target = typeof path === "string" && path.startsWith("/") && !path.startsWith("//") ? path : "/";
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    for (const client of windows) {
+      if ("focus" in client) {
+        await client.focus();
+        if ("navigate" in client) await client.navigate(target);
+        return;
+      }
+    }
+    await self.clients.openWindow(target);
+  })());
 });
 
 self.addEventListener("fetch", (event) => {

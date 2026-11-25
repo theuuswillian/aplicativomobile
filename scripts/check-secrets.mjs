@@ -26,7 +26,13 @@ async function walk(path) {
 const violations = [];
 for (const root of roots) {
   for (const file of await walk(root)) {
-    const content = await readFile(file, "utf8");
+    const rawContent = await readFile(file, "utf8");
+    // Referenciar um secret do GitHub Actions não versiona seu valor; só esta
+    // expressão exata é permitida. Valores literais continuam bloqueados.
+    const content = rawContent.replace(
+      /SUPABASE_SERVICE_ROLE_KEY\s*:\s*\$\{\{\s*secrets\.SUPABASE_SERVICE_ROLE_KEY\s*\}\}/g,
+      "",
+    );
     for (const [label, pattern] of forbidden) {
       if (pattern.test(content)) violations.push(`${file}: possível ${label}`);
     }

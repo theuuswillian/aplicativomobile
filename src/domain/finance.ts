@@ -168,7 +168,7 @@ export function calculateInvoice(
   const paidCents = payments.reduce((sum, payment) => {
     parseDate(payment.date);
     assertCents(payment.amountCents);
-    return sum + (isEffectiveStatus(payment.status) ? payment.amountCents : 0);
+    return sum + (isEffectiveStatus(payment.status) && payment.date <= today ? payment.amountCents : 0);
   }, 0);
   if (!Number.isSafeInteger(totalCents) || !Number.isSafeInteger(paidCents)) throw new RangeError("Total de fatura excede o limite seguro de centavos.");
   const remainingCents = Math.max(0, totalCents - paidCents);
@@ -193,7 +193,6 @@ export function calculateCardCommittedLimitCents(
     if (entry.cardId !== cardId || entry.kind !== "card_expense" || !isEffectiveStatus(entry.status)) continue;
     assertCents(entry.amountCents);
     const cycle = calculateCardCycle(entry.date, closingDay, dueDay);
-    if (cycle.dueDate < today) continue;
     const current = invoices.get(cycle.closingDate) ?? { total: 0, dueDate: cycle.dueDate };
     current.total += entry.amountCents;
     if (!Number.isSafeInteger(current.total)) throw new RangeError("Limite comprometido excede o limite seguro de centavos.");
@@ -204,7 +203,7 @@ export function calculateCardCommittedLimitCents(
     const paid = (paymentsByClosingDate.get(closingDate) ?? []).reduce((sum, payment) => {
       parseDate(payment.date);
       assertCents(payment.amountCents);
-      return sum + (isEffectiveStatus(payment.status) ? payment.amountCents : 0);
+      return sum + (isEffectiveStatus(payment.status) && payment.date <= today ? payment.amountCents : 0);
     }, 0);
     if (!Number.isSafeInteger(paid)) throw new RangeError("Pagamento de fatura excede o limite seguro de centavos.");
     committed += Math.max(0, invoice.total - paid);

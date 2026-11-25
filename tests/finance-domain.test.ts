@@ -83,6 +83,9 @@ describe("financial domain regression rules", () => {
       .toEqual({ totalCents: 20000, paidCents: 5000, remainingCents: 15000, status: "partial" });
     expect(calculateInvoice("c", 10, 5, entries, "2026-10-10", [], "2026-11-06").status).toBe("overdue");
     expect(calculateInvoice("c", 10, 20, entries, "2026-10-10", [{ amountCents: 20000, date: "2026-10-20" }], "2026-11-01").status).toBe("paid");
+    expect(calculateInvoice("c", 10, 20, entries, "2026-10-10", [
+      { amountCents: 20000, date: "2026-11-02" }
+    ], "2026-11-01").remainingCents).toBe(20000);
   });
 
   it("releases card limit after invoice payment and ignores overdue cycles", () => {
@@ -97,7 +100,23 @@ describe("financial domain regression rules", () => {
         { amountCents: 2000, date: "2026-11-12" },
         { amountCents: 1000, date: "2026-11-13", status: "planned" }
       ]]
-    ]), "2026-11-15")).toBe(3000);
+    ]), "2026-11-15")).toBe(10000);
+  });
+
+  it("does not release credit limit for future-dated or planned payments", () => {
+    const entries = [
+      { id: "overdue", kind: "card_expense" as const, cardId: "c", amountCents: 9000, date: "2026-09-05" },
+      { id: "current", kind: "card_expense" as const, cardId: "c", amountCents: 6000, date: "2026-11-05" }
+    ];
+    const payments = new Map([
+      ["2026-09-10", [{ amountCents: 9000, date: "2026-11-16" }]],
+      ["2026-11-10", [{ amountCents: 2000, date: "2026-11-14", status: "planned" as const }]]
+    ]);
+    expect(calculateCardCommittedLimitCents("c", 10, 20, entries, payments, "2026-11-15")).toBe(15000);
+    expect(calculateCardCommittedLimitCents("c", 10, 20, entries, new Map([
+      ["2026-09-10", [{ amountCents: 9000, date: "2026-11-14" }]],
+      ["2026-11-10", [{ amountCents: 2000, date: "2026-11-14" }]]
+    ]), "2026-11-15")).toBe(4000);
   });
 
   it("splits installments exactly in integer cents and preserves month-end anchors", () => {

@@ -1,6 +1,25 @@
--- Assertions de segurança para executar após as cinco migrations em Supabase/PostgreSQL isolado.
+-- Assertions de segurança para executar após as migrations em Supabase/PostgreSQL isolado.
 -- Executar como postgres/superuser. Tudo é revertido ao final.
 begin;
+
+do $assert_manual_price_source$
+begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema='public' and table_name='investment_assets'
+      and column_name='price_source' and data_type='text'
+  ) then
+    raise exception 'Origem do preço de referência não foi criada';
+  end if;
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid='public.investment_assets'::regclass
+      and conname='investment_assets_price_source_check'
+  ) then
+    raise exception 'Restrição da origem do preço de referência ausente';
+  end if;
+end
+$assert_manual_price_source$;
 
 do $$
 declare
@@ -13,11 +32,15 @@ begin
     ('accounts'),('cards'),('recurrence_rules'),('import_batches'),('transactions'),
     ('budgets'),('goals'),('goal_contributions'),('tangible_assets'),('liabilities'),
     ('net_worth_snapshots'),('receivables'),('import_items'),('receipt_files'),
-    ('investment_assets'),('investment_operations'),('income_events'),('quote_cache'),
+    ('investment_assets'),('investment_operations'),('income_events'),('quote_cache'),('market_data_usage'),('market_data_cursor'),
     ('radar_alerts'),('radar_fires'),('push_subscriptions'),('push_deliveries'),
     ('ai_usage'),('ai_usage_reservations'),('rate_limit_buckets'),('function_errors'),
     ('whatsapp_links'),('whatsapp_link_codes'),('whatsapp_link_attempts'),
-    ('whatsapp_pending_transactions'),('whatsapp_inbox'),('whatsapp_outbox')
+    ('whatsapp_pending_transactions'),('whatsapp_inbox'),('whatsapp_outbox'),
+      ('receivable_loans'),('receivable_repayments'),('overtime_conversion_batches'),
+      ('overtime_entries'),('card_invoice_installments'),
+      ('card_invoice_payments'),
+      ('card_invoice_payments')
   ) expected(table_name)
   left join information_schema.tables actual
     on actual.table_schema='public' and actual.table_name=expected.table_name
@@ -34,7 +57,7 @@ begin
       ('accounts'),('cards'),('recurrence_rules'),('import_batches'),('transactions'),
       ('budgets'),('goals'),('goal_contributions'),('tangible_assets'),('liabilities'),
       ('net_worth_snapshots'),('receivables'),('import_items'),('receipt_files'),
-      ('investment_assets'),('investment_operations'),('income_events'),('quote_cache'),
+      ('investment_assets'),('investment_operations'),('income_events'),('quote_cache'),('market_data_usage'),('market_data_cursor'),
       ('radar_alerts'),('radar_fires'),('push_subscriptions'),('push_deliveries'),
       ('ai_usage'),('ai_usage_reservations'),('rate_limit_buckets'),('function_errors'),
       ('whatsapp_links'),('whatsapp_link_codes'),('whatsapp_link_attempts'),
@@ -51,6 +74,10 @@ do $$
 begin
   if has_table_privilege('anon','public.quote_cache','select')
      or has_table_privilege('authenticated','public.quote_cache','select')
+     or has_table_privilege('anon','public.market_data_usage','select')
+     or has_table_privilege('authenticated','public.market_data_usage','select')
+     or has_table_privilege('anon','public.market_data_cursor','select')
+     or has_table_privilege('authenticated','public.market_data_cursor','select')
      or has_table_privilege('anon','public.ai_usage','select')
      or has_table_privilege('authenticated','public.ai_usage','select')
      or has_table_privilege('anon','public.ai_usage_reservations','select')
@@ -70,6 +97,22 @@ begin
      or has_sequence_privilege('anon','public.function_errors_id_seq','usage')
      or has_sequence_privilege('authenticated','public.function_errors_id_seq','usage') then
     raise exception 'Tabela interna concedeu acesso de leitura a anon/authenticated';
+  end if;
+
+  if not exists (select 1 from storage.buckets where id='receipt-files' and public=false and file_size_limit=5242880) then
+    raise exception 'Bucket privado de comprovantes ausente ou com limites incorretos';
+  end if;
+  if (select relrowsecurity from pg_class where oid='storage.objects'::regclass) is not true then
+    raise exception 'Storage objects precisa manter RLS habilitado';
+  end if;
+  if not exists (select 1 from pg_policies where schemaname='storage' and tablename='objects' and policyname='receipt_files_insert_own_transaction')
+     or not exists (select 1 from pg_policies where schemaname='storage' and tablename='objects' and policyname='receipt_files_select_own_transaction')
+     or not exists (select 1 from pg_policies where schemaname='storage' and tablename='objects' and policyname='receipt_files_delete_own_transaction') then
+    raise exception 'Policies de Storage privado de comprovantes incompletas';
+  end if;
+  if (select column_default from information_schema.columns
+       where table_schema='public' and table_name='settings' and column_name='whatsapp_weekly_summary') <> 'false' then
+    raise exception 'Consentimento WhatsApp deve iniciar desativado';
   end if;
 
   if exists (select 1 from pg_policies where schemaname='public' and tablename='quote_cache') then
@@ -92,7 +135,12 @@ begin
     'public.whatsapp_inbox_finalize(text,uuid,boolean,text)'::regprocedure,
     'public.whatsapp_outbox_reserve(text,text,jsonb,integer)'::regprocedure,
     'public.whatsapp_outbox_finalize(text,uuid,text,text,text)'::regprocedure,
-    'public.whatsapp_summary_reserve(uuid,date)'::regprocedure
+    'public.whatsapp_summary_reserve(uuid,date)'::regprocedure,
+    'public.whatsapp_pending_confirm(text)'::regprocedure,
+    'public.recurrence_next_date(text,integer,date,smallint,smallint)'::regprocedure,
+    'public.recurrence_generate_due(date,integer)'::regprocedure,
+    'public.market_data_reserve(text,text,integer)'::regprocedure,
+    'public.enforce_card_invoice_payment_balance()'::regprocedure
   ] loop
     if not (select p.prosecdef and p.proconfig @> array['search_path=pg_catalog, public']
             from pg_proc p where p.oid = v_fn) then
@@ -106,13 +154,29 @@ begin
   end loop;
 end $$;
 
+do $assert_radar_rpc_grants$
+declare
+  v_fn regprocedure := 'public.radar_alert_set_enabled(uuid,boolean)'::regprocedure;
+begin
+  if has_function_privilege('anon', v_fn, 'EXECUTE')
+     or not has_function_privilege('authenticated', v_fn, 'EXECUTE')
+     or has_function_privilege('service_role', v_fn, 'EXECUTE') then
+    raise exception 'Grants incorretos para RPC de geração do Radar';
+  end if;
+  if (select p.prosecdef from pg_proc p where p.oid = v_fn) then
+    raise exception 'RPC de Radar deve respeitar RLS como SECURITY INVOKER';
+  end if;
+end
+$assert_radar_rpc_grants$;
+
 do $assert_grants$
 declare
   v_table text;
 begin
   foreach v_table in array array[
-    'profiles','settings','categories','accounts','cards','recurrence_rules','import_batches',
+    'profiles','settings','categories','accounts','cards','recurrence_rules','import_batches','card_invoice_payments',
     'transactions','budgets','goals','goal_contributions','tangible_assets','liabilities',
+    'receivable_loans','receivable_repayments','overtime_conversion_batches','overtime_entries','card_invoice_installments',
     'net_worth_snapshots','receivables','import_items','receipt_files',
     'investment_assets','investment_operations','income_events','radar_alerts','radar_fires',
     'push_subscriptions','push_deliveries','whatsapp_links'
@@ -141,12 +205,35 @@ values
  ('10000000-0000-4000-8000-000000000002','authenticated','authenticated','gv-rls-b@example.invalid','', '{}'::jsonb, '{}'::jsonb, now(), now())
 on conflict (id) do nothing;
 
-insert into public.accounts(user_id,name,account_type,opening_balance,opening_balance_date)
+insert into public.accounts(id,user_id,name,account_type,opening_balance,opening_balance_date)
 values
- ('10000000-0000-4000-8000-000000000001','Conta fixture A','checking',100,'2026-01-01'),
- ('10000000-0000-4000-8000-000000000002','Conta fixture B','checking',200,'2026-01-01');
+ ('40000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','Conta fixture A','checking',100,'2026-01-01'),
+ ('40000000-0000-4000-8000-000000000002','10000000-0000-4000-8000-000000000002','Conta fixture B','checking',200,'2026-01-01');
+
+insert into public.radar_alerts(id,user_id,asset_class,symbol,condition_type,threshold)
+values
+ ('20000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','stock','TEST3','above',10),
+ ('20000000-0000-4000-8000-000000000002','10000000-0000-4000-8000-000000000002','stock','TEST4','below',5);
+
+insert into public.transactions(
+  id,user_id,kind,status,amount,transaction_date,description,account_id,settled_amount,settled_at,source
+) values
+ ('60000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001','expense','paid',10,'2026-01-01','Comprovante fixture A','40000000-0000-4000-8000-000000000001',10,'2026-01-01','manual'),
+ ('60000000-0000-4000-8000-000000000002','10000000-0000-4000-8000-000000000002','expense','paid',20,'2026-01-01','Comprovante fixture B','40000000-0000-4000-8000-000000000002',20,'2026-01-01','manual');
+
 
 set local role authenticated;
+do $assert_market_data_private$
+begin
+  begin
+    perform 1 from public.market_data_usage;
+    perform 1 from public.market_data_cursor;
+    raise exception 'Usuário autenticado conseguiu ler a cota global do provedor';
+  exception when insufficient_privilege then
+    null;
+  end;
+end
+$assert_market_data_private$;
 select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000001',true);
 
 do $$
@@ -156,6 +243,23 @@ begin
   if v_count <> 1 then
     raise exception 'RLS de accounts vazou dados entre usuários: esperado 1, recebido %', v_count;
   end if;
+
+  insert into storage.objects(bucket_id,name)
+  values ('receipt-files','10000000-0000-4000-8000-000000000001/60000000-0000-4000-8000-000000000001/receipt.pdf');
+  select count(*) into v_count from storage.objects where bucket_id='receipt-files';
+  if v_count <> 1 then
+    raise exception 'Storage não permitiu acesso ao comprovante próprio';
+  end if;
+  begin
+    insert into storage.objects(bucket_id,name)
+    values ('receipt-files','10000000-0000-4000-8000-000000000002/60000000-0000-4000-8000-000000000002/receipt.pdf');
+    raise exception 'Storage permitiu inserir comprovante de outro usuário';
+  exception when insufficient_privilege then
+    null;
+  end;
+  delete from storage.objects
+   where bucket_id='receipt-files'
+     and name='10000000-0000-4000-8000-000000000001/60000000-0000-4000-8000-000000000001/receipt.pdf';
 
   begin
     insert into public.accounts(user_id,name,account_type,opening_balance,opening_balance_date)
@@ -180,6 +284,42 @@ begin
     raise exception 'RLS permitiu DELETE de conta de outro usuário';
   end if;
 end $$;
+
+
+do $assert_radar_generation$
+declare
+  v_id uuid;
+  v_generation integer;
+  v_enabled boolean;
+begin
+  -- Desativar preserva a geração; reativar avança exatamente uma vez.
+  select id, generation, is_enabled into v_id, v_generation, v_enabled
+    from public.radar_alert_set_enabled('20000000-0000-4000-8000-000000000001', false);
+  if v_id is null or v_generation <> 1 or v_enabled then
+    raise exception 'Desativação do Radar alterou geração ou falhou';
+  end if;
+
+  select generation into v_generation
+    from public.radar_alert_set_enabled('20000000-0000-4000-8000-000000000001', true);
+  if v_generation <> 2 then
+    raise exception 'Reativação do Radar não incrementou geração';
+  end if;
+
+  select generation into v_generation
+    from public.radar_alert_set_enabled('20000000-0000-4000-8000-000000000001', true);
+  if v_generation <> 2 then
+    raise exception 'Ativação repetida incrementou geração indevidamente';
+  end if;
+
+  if exists (
+    select 1 from public.radar_alert_set_enabled(
+      '20000000-0000-4000-8000-000000000002', false
+    )
+  ) then
+    raise exception 'RPC do Radar permitiu alterar alerta de outro usuário';
+  end if;
+end
+$assert_radar_generation$;
 
 reset role;
 set local role service_role;
@@ -214,6 +354,11 @@ begin
   end if;
   if public.ai_usage_reserve(v_other, 'receipt', 1, 1) is null then
     raise exception 'Reserva liberada não devolveu a cota de IA';
+  end if;
+
+  if not public.market_data_reserve('brapi', 'PETR4', 1)
+     or public.market_data_reserve('brapi', 'VALE3', 1) then
+    raise exception 'Quota mensal do provedor não foi reservada atomicamente';
   end if;
 
   if not public.rate_limit_allow(v_user, 'sql-assertion', 20261122, 1)
@@ -289,12 +434,19 @@ begin
     raise exception 'Outbox aceitou confirmação com fencing token expirado';
   end if;
 
-  insert into public.whatsapp_links(user_id, phone)
-  values (v_user, '+5511777777777')
-  on conflict (user_id) do nothing;
+  update public.settings set whatsapp_weekly_summary=true where user_id=v_user;
+  insert into public.whatsapp_links(user_id, phone, weekly_summary_enabled)
+  values (v_user, '+5511777777777', true)
+  on conflict (user_id) do update set weekly_summary_enabled=true;
   if not public.whatsapp_summary_reserve(v_user, date '2026-11-23')
      or public.whatsapp_summary_reserve(v_user, date '2026-11-23') then
     raise exception 'Resumo semanal não preservou reserva idempotente';
+  end if;
+  if public.recurrence_next_date('monthly', 1, date '2026-01-31', 31::smallint, null::smallint) <> date '2026-02-28' then
+    raise exception 'Recorrência mensal não preservou o último dia em fevereiro';
+  end if;
+  if public.recurrence_next_date('yearly', 1, date '2024-02-29', 29::smallint, 2::smallint) <> date '2025-02-28' then
+    raise exception 'Recorrência anual não tratou ano bissexto';
   end if;
 end $assert_usage$;
 
