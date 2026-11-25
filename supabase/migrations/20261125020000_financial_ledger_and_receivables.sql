@@ -506,12 +506,31 @@ create trigger transactions_normalize_payment_method
 before insert or update on public.transactions
 for each row execute function private.normalize_transaction_payment_method();
 
+create or replace function private.protect_account_opening_balance()
+returns trigger
+language plpgsql
+security definer
+set search_path=pg_catalog, public
+as $account_guard$
+begin
+  if old.opening_balance is distinct from new.opening_balance
+     or old.opening_balance_date is distinct from new.opening_balance_date
+     or old.account_type is distinct from new.account_type then
+    raise exception 'Saldo inicial, data-base e tipo da conta são imutáveis após o cadastro; registre um ajuste contábil' using errcode='55000';
+  end if;
+  return new;
+end;
+$account_guard$;
+create trigger accounts_opening_balance_immutable
+before update of opening_balance,opening_balance_date,account_type on public.accounts
+for each row execute function private.protect_account_opening_balance();
+
 create or replace function private.sync_transaction_ledger()
 returns trigger
 language plpgsql security definer
 set search_path=pg_catalog, public
 as $$
-declare v_user uuid; v_id uuid; v_active uuid; v_journal uuid; v_kind text; v_debit_kind text; v_credit_kind text; v_debit_source uuid; v_credit_source uuid; v_from_opening date; v_to_opening date;
+declare v_user uuid; v_id uuid; v_active uuid; v_journal uuid; v_kind text; v_debit_kind text; v_credit_kind text; v_debit_source uuid; v_credit_source uuid; v_from_opening date; v_to_opening date; v_from_account_type text; v_investment_balance numeric(15,2); v_investment_ledger_id uuid; v_credit_limit numeric(15,2); v_card_balance numeric(15,2); v_card_ledger_id uuid;
 begin
   v_user := case when tg_op='DELETE' then old.user_id else new.user_id end;
   v_id := case when tg_op='DELETE' then old.id else new.id end;
@@ -529,10 +548,21 @@ begin
   if tg_op='DELETE' then return old; end if;
   if new.status='paid' then
     if new.kind='transfer' then
-      select opening_balance_date into v_from_opening from public.accounts
+      select opening_balance_date,account_type into v_from_opening,v_from_account_type from public.accounts
        where user_id=v_user and id=new.transfer_from_account_id;
       select opening_balance_date into v_to_opening from public.accounts
        where user_id=v_user and id=new.transfer_to_account_id;
+      if v_from_account_type='investment' and new.transaction_date>=v_from_opening then
+        perform pg_advisory_xact_lock(hashtextextended(v_user::text||':investment-resgate:'||new.transfer_from_account_id::text,0));
+        v_investment_ledger_id:=private.ensure_ledger_account(v_user,'investment_cash',new.transfer_from_account_id,'investment_cash');
+        select coalesce(sum(l.debit-l.credit),0) into v_investment_balance
+          from private.journal_lines l
+          join private.journal_entries j on j.user_id=l.user_id and j.id=l.journal_entry_id
+         where l.user_id=v_user and l.ledger_account_id=v_investment_ledger_id and j.status='posted';
+        if v_investment_balance<new.amount then
+          raise exception 'Resgate excede o saldo disponível na conta de investimentos' using errcode='23514';
+        end if;
+      end if;
       v_debit_kind:=case when new.transaction_date<v_to_opening then 'opening_equity' else 'bank' end;
       v_credit_kind:=case when new.transaction_date<v_from_opening then 'opening_equity' else 'bank' end;
       v_debit_source:=case when v_debit_kind='bank' then new.transfer_to_account_id else null end;
@@ -548,6 +578,17 @@ begin
         'bank',new.account_id,'income',null,new.amount,new.category_id);
       end if;
     elsif new.kind='expense' and new.card_id is not null then
+      select credit_limit into v_credit_limit from public.cards
+       where user_id=v_user and id=new.card_id for update;
+      if not found then raise exception 'Cartão não pertence ao usuário' using errcode='23503'; end if;
+      v_card_ledger_id:=private.ensure_ledger_account(v_user,'card_liability',new.card_id,'card_liability');
+      select coalesce(sum(l.credit-l.debit),0) into v_card_balance
+        from private.journal_lines l
+        join private.journal_entries j on j.user_id=l.user_id and j.id=l.journal_entry_id
+       where l.user_id=v_user and l.ledger_account_id=v_card_ledger_id and j.status='posted';
+      if v_card_balance+new.amount>v_credit_limit then
+        raise exception 'Compra excede o limite disponível do cartão' using errcode='23514';
+      end if;
       v_journal := private.post_pair(v_user,new.transaction_date,new.description,'transaction',new.id,
         'expense',null,'card_liability',new.card_id,new.amount,new.category_id);
     elsif new.kind='expense' then
@@ -668,8 +709,17 @@ set search_path=pg_catalog, public
 as $$
 declare v_count integer; v_total_cents bigint; v_base bigint; v_remainder bigint;
   v_closing date; v_first_closing date; v_due date; v_month date; v_last integer; v_due_month date; v_amount numeric;
-  v_card public.cards%rowtype; i integer;
+  v_card public.cards%rowtype; i integer; v_user uuid; v_card_ids uuid[]; v_lock_card uuid;
 begin
+  v_user:=case when tg_op='DELETE' then old.user_id else new.user_id end;
+  v_card_ids:=array[]::uuid[];
+  if tg_op<>'INSERT' and old.card_id is not null then v_card_ids:=array_append(v_card_ids,old.card_id); end if;
+  if tg_op<>'DELETE' and new.card_id is not null then v_card_ids:=array_append(v_card_ids,new.card_id); end if;
+  for v_lock_card in
+    select distinct card_id from unnest(v_card_ids) as ids(card_id) order by card_id
+  loop
+    perform 1 from public.cards where user_id=v_user and id=v_lock_card for update;
+  end loop;
   if tg_op='DELETE' then
     if exists(
       select 1 from public.card_invoice_installments i
@@ -702,7 +752,7 @@ begin
     delete from public.card_invoice_installments where user_id=old.user_id and transaction_id=old.id;
   end if;
   if new.card_id is null or new.kind<>'expense' or new.status<>'paid' then return new; end if;
-  select * into v_card from public.cards where user_id=new.user_id and id=new.card_id;
+  select * into v_card from public.cards where user_id=new.user_id and id=new.card_id for update;
   if not found then raise exception 'Cartão não encontrado' using errcode='23503'; end if;
   v_count:=coalesce(new.installment_count,1);
   if v_count<1 or v_count>48 then raise exception 'Número de parcelas inválido' using errcode='22023'; end if;
