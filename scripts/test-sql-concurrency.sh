@@ -372,6 +372,21 @@ fi
 
 # Pagamento anterior à data-base da conta reduz o passivo do cartão,
 # mas não pode descontar novamente o saldo inicial já informado pelo usuário.
+preopening_card_id="90000000-0000-4000-8000-000000000005"
+preopening_transaction_id="90000000-0000-4000-8000-000000000006"
+psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  insert into public.cards(
+    id,user_id,name,institution_name,last_four,credit_limit,closing_day,due_day
+  ) values (
+    '$preopening_card_id','$user_id','Cartão data-base','Fixture','5678',1000,10,20
+  );
+  insert into public.transactions(
+    id,user_id,kind,status,amount,transaction_date,description,card_id,settled_amount,settled_at,source
+  ) values (
+    '$preopening_transaction_id','$user_id','expense','paid',40.00,'2026-11-05',
+    'Compra para teste da data-base','$preopening_card_id',40.00,'2026-11-05','manual'
+  );
+"
 bank_before_preopening_payment="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
   select coalesce(sum(l.debit-l.credit),0)
     from private.journal_lines l
@@ -383,7 +398,7 @@ bank_before_preopening_payment="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -
 preopening_payment_id="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
   insert into public.card_invoice_payments(
     user_id,card_id,account_id,invoice_closing_date,amount,payment_date
-  ) values ('$user_id','$card_id','$account_id','2026-11-10',40.00,current_date-1)
+  ) values ('$user_id','$preopening_card_id','$account_id','2026-11-10',40.00,current_date-1)
   returning id
 ")"
 bank_after_preopening_payment="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
