@@ -4,6 +4,25 @@ begin;
 create schema if not exists private;
 revoke all on schema private from public, anon, authenticated;
 
+-- Forma de pagamento explícita: crédito nunca é confundido com débito bancário.
+alter table public.transactions add column if not exists payment_method text;
+update public.transactions t
+   set payment_method=case
+     when t.kind='expense' and t.card_id is not null then 'credit'
+     when t.kind='expense' and t.account_id is not null and exists(
+       select 1 from public.accounts a where a.user_id=t.user_id and a.id=t.account_id and a.account_type='cash'
+     ) then 'cash'
+     when t.kind='expense' and t.account_id is not null then 'pix'
+     else null end;
+do $payment_method_constraint$
+begin
+  if not exists(select 1 from pg_constraint where conname='transactions_payment_method_check'
+    and conrelid='public.transactions'::regclass) then
+    alter table public.transactions add constraint transactions_payment_method_check
+      check(payment_method is null or payment_method in ('pix','debit','cash','credit'));
+  end if;
+end $payment_method_constraint$;
+
 create table private.ledger_accounts (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -12,6 +31,7 @@ create table private.ledger_accounts (
     'expense','income','opening_equity'
   )),
   name text not null check (length(btrim(name)) between 1 and 160),
+  currency text not null default 'BRL' check(currency in ('BRL','USD')),
   source_account_id uuid,
   source_card_id uuid,
   source_investment_asset_id uuid,
@@ -227,7 +247,7 @@ create or replace function private.ensure_ledger_account(
 language plpgsql security definer
 set search_path=pg_catalog, public
 as $$
-declare v_id uuid; v_account_type text;
+declare v_id uuid; v_account_type text; v_currency text:='BRL';
 begin
   if p_kind in ('bank','cash','investment_cash') then
     select account_type into v_account_type from public.accounts
@@ -242,9 +262,9 @@ begin
       raise exception 'Cartão não pertence ao usuário' using errcode='23503';
     end if;
   elsif p_kind='investment_asset' then
-    if not exists(select 1 from public.investment_assets where user_id=p_user_id and id=p_source_id) then
-      raise exception 'Ativo não pertence ao usuário' using errcode='23503';
-    end if;
+    select currency into v_currency from public.investment_assets
+     where user_id=p_user_id and id=p_source_id;
+    if not found then raise exception 'Ativo não pertence ao usuário' using errcode='23503'; end if;
   elsif p_kind='receivable_asset' then
     if not exists(select 1 from public.receivable_loans where user_id=p_user_id and id=p_source_id) then
       raise exception 'Título a receber não pertence ao usuário' using errcode='23503';
@@ -274,10 +294,10 @@ begin
   if v_id is not null then return v_id; end if;
 
   insert into private.ledger_accounts(
-    user_id,account_kind,name,source_account_id,source_card_id,
+    user_id,account_kind,name,currency,source_account_id,source_card_id,
     source_investment_asset_id,source_receivable_loan_id
   ) values (
-    p_user_id,p_kind,left(coalesce(nullif(btrim(p_name),''),p_kind),160),
+    p_user_id,p_kind,left(coalesce(nullif(btrim(p_name),''),p_kind),160),v_currency,
     case when p_kind in ('bank','cash','investment_cash') then p_source_id end,
     case when p_kind='card_liability' then p_source_id end,
     case when p_kind='investment_asset' then p_source_id end,
@@ -295,13 +315,19 @@ create or replace function private.post_pair(
 language plpgsql security definer
 set search_path=pg_catalog, public
 as $$
-declare v_journal uuid; v_debit_account uuid; v_credit_account uuid;
+declare v_journal uuid; v_debit_account uuid; v_credit_account uuid; v_debit_currency text; v_credit_currency text;
 begin
   if p_amount is null or p_amount <= 0 or p_amount <> round(p_amount,2) then
     raise exception 'Valor contábil deve ser positivo e ter no máximo duas casas decimais' using errcode='22023';
   end if;
   v_debit_account := private.ensure_ledger_account(p_user_id,p_debit_kind,p_debit_source,p_debit_kind);
   v_credit_account := private.ensure_ledger_account(p_user_id,p_credit_kind,p_credit_source,p_credit_kind);
+  select currency into v_debit_currency from private.ledger_accounts where user_id=p_user_id and id=v_debit_account;
+  select currency into v_credit_currency from private.ledger_accounts where user_id=p_user_id and id=v_credit_account;
+  if v_debit_currency is distinct from v_credit_currency then
+    raise exception 'Moeda incompatível entre as partidas (% / %); conversão cambial explícita necessária',
+      v_debit_currency,v_credit_currency using errcode='23514';
+  end if;
   insert into private.journal_entries(
     user_id,transaction_date,description,source_type,source_id,event_type,status
   ) values (p_user_id,p_date,left(p_description,240),p_source_type,p_source_id,'posting','draft')
@@ -390,6 +416,57 @@ create trigger journal_entries_immutable before update or delete on private.jour
 for each row execute function private.protect_posted_journal();
 create trigger journal_lines_immutable before update or delete on private.journal_lines
 for each row execute function private.protect_posted_journal();
+
+
+create or replace function private.normalize_transaction_payment_method()
+returns trigger
+language plpgsql
+security definer
+set search_path=pg_catalog, public
+as $
+declare v_account_type text;
+begin
+  if new.kind<>'expense' then
+    new.payment_method:=null;
+    return new;
+  end if;
+
+  if new.card_id is not null then
+    if new.account_id is not null then
+      raise exception 'Despesa no crédito não pode debitar uma conta bancária' using errcode='23514';
+    end if;
+    new.payment_method:='credit';
+    return new;
+  end if;
+
+  if new.account_id is null then
+    new.payment_method:=null;
+    return new;
+  end if;
+
+  select account_type into v_account_type from public.accounts
+   where user_id=new.user_id and id=new.account_id;
+  if not found then raise exception 'Conta de pagamento não encontrada' using errcode='23503'; end if;
+  if v_account_type='investment' then
+    raise exception 'Conta de investimentos é protegida e não pode pagar despesas' using errcode='23514';
+  end if;
+
+  if new.payment_method is null then
+    new.payment_method:=case when v_account_type='cash' then 'cash' else 'pix' end;
+  end if;
+  if new.payment_method='credit' then
+    raise exception 'Selecione um cartão para pagamento no crédito' using errcode='23514';
+  elsif new.payment_method='cash' and v_account_type<>'cash' then
+    raise exception 'Pagamento em dinheiro exige a carteira Dinheiro Físico' using errcode='23514';
+  elsif new.payment_method in ('pix','debit') and v_account_type='cash' then
+    raise exception 'Carteira Dinheiro Físico exige forma de pagamento Dinheiro' using errcode='23514';
+  end if;
+  return new;
+end;
+$;
+create trigger transactions_normalize_payment_method
+before insert or update on public.transactions
+for each row execute function private.normalize_transaction_payment_method();
 
 create or replace function private.sync_transaction_ledger()
 returns trigger
