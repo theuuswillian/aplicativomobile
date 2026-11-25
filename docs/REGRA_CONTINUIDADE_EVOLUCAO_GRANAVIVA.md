@@ -36,6 +36,23 @@ O objetivo é evoluir o produto continuamente, sem reconstruções desnecessári
 - Economizar deployments: agrupar alterações coerentes, validar primeiro por CI e só solicitar Preview quando houver motivo e disponibilidade.
 - Se a solução exigir mudança arquitetural maior, apresentar motivo, alternativas e impacto antes de executá-la.
 
+
+## Protocolo obrigatório de economia da Vercel
+
+A Vercel deve ser usada de forma planejada. Deploys desnecessários consomem a quota do projeto e podem bloquear uma validação realmente importante.
+
+1. **Não fazer deploy por alteração pequena:** commits, ajustes de texto, documentação, refatorações internas e correções isoladas não justificam automaticamente um novo deployment.
+2. **Agrupar mudanças:** reunir alterações coerentes em um lote de trabalho e evitar gerar vários Previews para a mesma etapa.
+3. **Validar antes na CI:** executar os checks aplicáveis no GitHub Actions (lint, tipos, testes unitários, build, testes de browser, SQL e integrações, conforme o escopo). Só considerar Preview depois de a CI relevante estar verde.
+4. **Usar Preview com propósito:** criar um Preview consolidado quando ele for necessário para validar comportamento real de interface, integração ou ambiente que a CI não cobre. Registrar o motivo antes de solicitar.
+5. **Checar disponibilidade e histórico:** antes de solicitar Preview, conferir deployments recentes, quota/limites conhecidos e se já existe um Preview adequado para o mesmo HEAD. Não criar outro se um deployment existente atender à validação.
+6. **Respeitar bloqueios:** se a Vercel retornar limite de quota (por exemplo, HTTP 402) ou bloqueio/permissão (por exemplo, HTTP 403), interromper novas tentativas equivalentes. Registrar o erro e aguardar a janela de recuperação ou uma mudança real de condição; não insistir, não contornar limites e não disparar deploy alternativo sem necessidade.
+7. **Separar Preview de Production:** Preview serve para validação. Nunca promover, publicar ou fazer deploy em Production sem autorização explícita do usuário.
+8. **Não sacrificar qualidade:** economizar deployments não significa pular CI, testes ou revisão. Se não houver Preview disponível, informar exatamente o que foi validado pela CI e o que continua pendente de validação em ambiente real.
+9. **Registrar cada decisão:** ao encerrar a etapa, anotar se houve deployment, qual ambiente/HEAD foi validado, o resultado ou o bloqueio, e se ficou alguma validação manual pendente.
+
+**Regra padrão:** primeiro desenvolver e agrupar; depois validar pela CI; só então, se houver necessidade real e disponibilidade, gerar um único Preview consolidado. Production permanece intocada sem autorização expressa.
+
 ## Modelo de análise para cada melhoria
 
 Antes de implementar, responder internamente e registrar quando relevante:
