@@ -37,6 +37,7 @@ begin
     ('ai_usage'),('ai_usage_reservations'),('rate_limit_buckets'),('function_errors'),
     ('whatsapp_links'),('whatsapp_link_codes'),('whatsapp_link_attempts'),
     ('whatsapp_pending_transactions'),('whatsapp_inbox'),('whatsapp_outbox'),
+      ('card_invoice_payments'),
       ('card_invoice_payments')
   ) expected(table_name)
   left join information_schema.tables actual
