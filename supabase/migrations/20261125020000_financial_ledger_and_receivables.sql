@@ -225,7 +225,7 @@ create or replace function private.ensure_ledger_account(
   p_user_id uuid,p_kind text,p_source_id uuid,p_name text
 ) returns uuid
 language plpgsql security definer
-set search_path=pg_catalog,public,private
+set search_path=pg_catalog, public
 as $$
 declare v_id uuid; v_account_type text;
 begin
@@ -293,7 +293,7 @@ create or replace function private.post_pair(
   p_amount numeric,p_category_id uuid default null
 ) returns uuid
 language plpgsql security definer
-set search_path=pg_catalog,public,private
+set search_path=pg_catalog, public
 as $$
 declare v_journal uuid; v_debit_account uuid; v_credit_account uuid;
 begin
@@ -318,7 +318,7 @@ $$;
 create or replace function private.reverse_journal(p_journal_id uuid,p_date date,p_reason text)
 returns uuid
 language plpgsql security definer
-set search_path=pg_catalog,public,private
+set search_path=pg_catalog, public
 as $$
 declare v_original private.journal_entries%rowtype; v_reversal uuid;
 begin
@@ -391,7 +391,7 @@ for each row execute function private.protect_posted_journal();
 create or replace function private.sync_transaction_ledger()
 returns trigger
 language plpgsql security definer
-set search_path=pg_catalog,public,private
+set search_path=pg_catalog, public
 as $$
 declare v_user uuid; v_id uuid; v_active uuid; v_journal uuid; v_kind text;
 begin
@@ -443,7 +443,7 @@ for each row execute function private.sync_transaction_ledger();
 
 create or replace function private.sync_card_invoice_payment_ledger()
 returns trigger language plpgsql security definer
-set search_path=pg_catalog,public,private
+set search_path=pg_catalog, public
 as $$
 declare v_user uuid; v_id uuid; v_active uuid; v_journal uuid;
 begin
@@ -479,7 +479,7 @@ for each row execute function private.sync_card_invoice_payment_ledger();
 
 create or replace function private.post_account_opening_balance()
 returns trigger language plpgsql security definer
-set search_path=pg_catalog,public,private
+set search_path=pg_catalog, public
 as $$
 declare v_kind text; v_journal uuid; v_amount numeric;
 begin
@@ -530,7 +530,7 @@ $$;
 
 create or replace function private.allocate_card_installments()
 returns trigger language plpgsql security definer
-set search_path=pg_catalog,public,private
+set search_path=pg_catalog, public
 as $$
 declare v_count integer; v_total_cents bigint; v_base bigint; v_remainder bigint;
   v_closing date; v_first_closing date; v_due date; v_month date; v_last integer; v_due_month date; v_amount numeric;
@@ -578,7 +578,7 @@ create or replace function public.enforce_card_invoice_payment_balance()
 returns trigger
 language plpgsql
 security definer
-set search_path=pg_catalog,public,private
+set search_path=pg_catalog, public
 as $$
 declare v_invoice_total numeric(15,2); v_already_paid numeric(15,2);
   v_lock_key text; v_lock_keys text[]; v_closing_day smallint;
@@ -638,7 +638,7 @@ create or replace function public.create_receivable_loan(
   p_source_account_id uuid,p_notes text,p_idempotency_key text
 ) returns public.receivable_loans
 language plpgsql security definer
-set search_path=pg_catalog,public,private
+set search_path=pg_catalog, public
 as $$
 declare v_user uuid:=auth.uid(); v_row public.receivable_loans%rowtype;
 begin
@@ -676,7 +676,7 @@ create or replace function public.register_receivable_repayment(
   p_received_date date,p_idempotency_key text
 ) returns public.receivable_repayments
 language plpgsql security definer
-set search_path=pg_catalog,public,private
+set search_path=pg_catalog, public
 as $$
 declare v_user uuid:=auth.uid(); v_loan public.receivable_loans%rowtype;
   v_paid numeric(15,2); v_row public.receivable_repayments%rowtype;
@@ -745,7 +745,7 @@ create or replace function public.convert_overtime_to_receipt(
   p_entry_ids uuid[],p_destination_account_id uuid,p_received_date date,p_idempotency_key text
 ) returns public.overtime_conversion_batches
 language plpgsql security definer
-set search_path=pg_catalog,public,private
+set search_path=pg_catalog, public
 as $$
 declare v_user uuid:=auth.uid(); v_batch public.overtime_conversion_batches%rowtype;
   v_total numeric(15,2); v_count integer; v_journal uuid;
@@ -790,7 +790,7 @@ grant execute on function public.convert_overtime_to_receipt(uuid[],uuid,date,te
 create or replace function public.get_financial_summary()
 returns jsonb
 language plpgsql security definer
-set search_path=pg_catalog,public,private
+set search_path=pg_catalog, public
 as $$
 declare v_user uuid:=auth.uid(); v_liquid numeric(15,2); v_card numeric(15,2);
   v_receivable numeric(15,2); v_overtime numeric(15,2); v_investment_brl numeric(15,2);
