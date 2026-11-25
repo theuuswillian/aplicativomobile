@@ -344,3 +344,19 @@
 
 .overview-flow { grid-column:1 / -1; }
 .cashflow-chart { width:100%; }
+
+
+.receivables-panel { display:grid; gap:14px; margin:14px 0 24px; }
+.receivables-summary { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.receivables-summary article { min-width:0; padding:15px; border:1px solid var(--color-line); border-radius:16px; background:var(--color-surface-raised); }
+.receivables-summary span { display:block; color:var(--color-muted); font-size:11px; }
+.receivables-summary strong { display:block; margin-top:8px; font-size:clamp(18px,4vw,24px); overflow-wrap:anywhere; }
+.receivables-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.receivable-card { min-width:0; padding:16px; }
+.receivable-card .finance-form { margin-bottom:14px; }
+.overtime-select { display:flex; align-items:center; gap:9px; min-width:0; }
+.overtime-select span { display:grid; gap:4px; }
+.overtime-select input { width:18px; height:18px; accent-color:var(--gv-accent); }
+.overtime-convert { padding-top:12px; border-top:1px solid var(--color-line); }
+@media (max-width:700px) { .receivables-grid { grid-template-columns:1fr; } }
+@media (max-width:390px) { .receivables-summary article { padding:12px; } }
