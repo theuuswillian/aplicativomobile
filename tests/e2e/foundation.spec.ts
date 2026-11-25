@@ -184,7 +184,7 @@ test("renders authenticated sections with accessible navigation in dark and ligh
   await expect(page.locator(".account-chip")).toHaveCount(0);
 
   const tabs = [
-    { name: "Início", selector: "#inicio" },
+    { name: "Início", selector: ".overview-grid" },
     { name: "Gastos", selector: "#gastos" },
     { name: "Patrimônio", selector: "#patrimonio" },
     { name: "Conta", selector: "#conta" },
