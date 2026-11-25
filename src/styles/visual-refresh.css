@@ -1807,3 +1807,76 @@ html, body, #root { background: #090A0B; }
   .management-drawer .finance-form { grid-template-columns: 1fr; }
   .management-drawer .finance-form .wide-field { grid-column: auto; }
 }
+
+
+/* Organização das áreas: ações secundárias sob demanda */
+.management-drawer {
+  overflow: clip;
+  transition: border-color .18s ease, background-color .18s ease;
+}
+.management-drawer > summary {
+  min-height: 54px;
+  gap: 10px;
+  font-size: 13px;
+  letter-spacing: -.01em;
+}
+.management-drawer[open] {
+  border-color: rgb(34 197 94 / 42%);
+  background: #15191A;
+}
+.management-drawer[open] > summary { color: #22C55E; }
+.management-drawer .finance-form,
+.management-drawer .radar-form { padding: 16px 0 8px; }
+.management-drawer .finance-form label,
+.management-drawer .radar-form label { min-width: 0; }
+.management-drawer .finance-form input,
+.management-drawer .finance-form select,
+.management-drawer .radar-form input,
+.management-drawer .radar-form select { width: 100%; min-width: 0; }
+.subpanel {
+  border-color: #23262B;
+  border-radius: 17px;
+  background: rgb(20 22 25 / 76%);
+}
+.subpanel > .transaction-heading { align-items: center; gap: 10px; }
+.subpanel > .transaction-heading strong { color: #F8FAFC; }
+.subpanel > .transaction-heading span { color: #9CA3AF; text-align: right; }
+.account-list, .transaction-list { gap: 0; }
+.account-list > li, .transaction-list > li {
+  padding-top: 13px;
+  padding-bottom: 13px;
+  border-color: #23262B;
+}
+.account-list > li > strong, .transaction-list .transaction-main strong { color: #F8FAFC; }
+.account-list small, .transaction-list small { color: #9CA3AF; }
+.investment-allocation { padding: 14px; }
+.allocation-donut { border: 5px solid rgb(255 255 255 / 5%); }
+.allocation-legend li { min-width: 0; }
+.allocation-legend li strong { color: #F8FAFC; }
+.privacy-panel .section-jump { display: none; }
+.privacy-panel .account-profile-card { margin-bottom: 14px; }
+.privacy-panel .account-menu-list { overflow: hidden; border-radius: 17px; }
+.privacy-panel .account-menu-list button {
+  min-height: 68px;
+  padding: 12px 14px;
+  text-align: left;
+}
+.privacy-panel .account-menu-list button > span:nth-child(2) {
+  display: grid;
+  gap: 3px;
+}
+.privacy-panel .account-menu-list button small { color: #9CA3AF; }
+.account-data-details { margin-top: 14px; }
+.account-data-details > summary {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  font-weight: 700;
+}
+.privacy-actions { display: grid; gap: 12px; padding-top: 14px; }
+@media (max-width: 520px) {
+  .management-drawer > summary { min-height: 52px; font-size: 12px; }
+  .subpanel { padding: 14px; }
+  .account-list > li, .transaction-list > li { gap: 7px; }
+  .privacy-panel .account-menu-list button { min-height: 64px; }
+}
