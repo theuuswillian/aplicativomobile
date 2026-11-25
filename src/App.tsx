@@ -387,7 +387,7 @@ export default function App() {
     };
     void load();
     return () => { active = false; };
-  }, [session]);
+  }, [session, currentBudgetYear, currentBudgetMonth, currentBudgetMonthStart, nextBudgetMonthStart]);
 
   const signedIn = Boolean(session?.user);
   const ledgerEntries = useMemo<LedgerEntry[]>(() => [
@@ -2075,10 +2075,10 @@ export default function App() {
                 {receiptDraft.warnings.length > 0 && <ul>{receiptDraft.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul>}
                 {receiptDraft.sufficient && <><label>Conta para registrar<select value={receiptAccountId} onChange={(event) => setReceiptAccountId(event.target.value)}><option value="">Selecione</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>{receiptDraft.installment_count && receiptDraft.installment_count > 1 && <p>Parcelamento identificado ({receiptDraft.installment_count} vezes). O registro parcelado ainda não está habilitado neste fluxo.</p>}<button className="primary-button" type="button" disabled={busy || !receiptAccountId || Boolean(receiptDraft.installment_count && receiptDraft.installment_count > 1)} onClick={() => void confirmReceiptDraft()}>Confirmar e criar lançamento</button></>}
               </div>}
-              <p className="muted-copy">A confirmação cria somente o lançamento. O armazenamento privado do arquivo e o vínculo do anexo ainda serão implementados separadamente.</p>
+              <p className="muted-copy">A confirmação cria somente o lançamento. O comprovante original fica armazenado em área privada, vinculado ao lançamento e acessível somente à sua conta.</p>
             </section>
 
-            <section className="panel coming-panel" id="conta-proximos-passos" hidden={activeTab !== "conta"}><span className="principles-label">PRÓXIMAS CONEXÕES</span><h2>Seu financeiro em expansão</h2><p>Importação CSV/OFX, notificações e automações serão conectadas em etapas testadas, preservando a separação entre valores realizados e previstos.</p></section>
+            <section className="panel coming-panel" id="conta-proximos-passos" hidden={activeTab !== "conta"}><span className="principles-label">PRÓXIMAS CONEXÕES</span><h2>Seu financeiro em expansão</h2><p>As integrações externas dependem da configuração de cada serviço. Nenhuma automação ou notificação é ativada sem a autorização necessária.</p></section>
             {notice && <p className="notice" role="status">{notice}</p>}
           </section>
         )}
