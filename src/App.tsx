@@ -1553,7 +1553,7 @@ export default function App() {
             <span className="brand-mark" aria-hidden="true"><ChartNoAxesColumn size={22} strokeWidth={2.8} /></span>
             <span>Grana<span className="brand-accent">Viva</span></span>
           </a>
-          {signedIn && <button className="notification-button" type="button" aria-label={`Radar e notificações: ${alerts.length} alertas`} onClick={() => setActiveTab("patrimonio")}><Bell size={21} strokeWidth={2} /><span className="notification-dot" /></button>}
+          {signedIn && <button className="notification-button" type="button" aria-label={`Radar e notificações: ${alerts.length} alertas`} onClick={() => setActiveTab("patrimonio")}><Bell size={21} strokeWidth={2} />{enabledAlerts > 0 && <span className="notification-dot" />}</button>}
         </header>
         {signedIn && quickEntryOpen && <div className="quick-entry-backdrop" role="presentation" onClick={() => setQuickEntryOpen(false)}>
           <section className="quick-entry-modal" role="dialog" aria-modal="true" aria-labelledby="quick-entry-title" onClick={(event) => event.stopPropagation()}>
@@ -1649,7 +1649,18 @@ export default function App() {
             </section>}
             <section className="panel privacy-panel" hidden={activeTab !== "conta"} id="conta" aria-labelledby="privacy-title">
               <div className="panel-heading"><div><span className="principles-label">PRIVACIDADE E CONTROLE</span><h2 id="privacy-title">Seus dados e sua conta</h2><p>Exporte uma cópia dos seus dados ou solicite a exclusão permanente da conta e dos comprovantes privados.</p></div></div>
+              <div className="account-profile-card">
+                <span className="account-avatar">{(profile?.display_name || session?.user.email || "GV").split(/\s+/).map((part) => part[0]).join("").slice(0,2).toUpperCase()}</span>
+                <span><strong>{profile?.display_name || "Minha conta"}</strong><small>{session?.user.email}</small></span>
+              </div>
+              <div className="account-menu-list">
+                <button type="button" onClick={() => setActiveTab("relatorios")}><span className="account-menu-icon green">▥</span><span><strong>Relatórios</strong><small>Acompanhamento financeiro</small></span><span aria-hidden="true">›</span></button>
+                <button type="button" onClick={() => void toggleTheme()}><span className="account-menu-icon purple">◐</span><span><strong>Personalização</strong><small>Tema e aparência</small></span><span aria-hidden="true">›</span></button>
+                <button type="button" onClick={() => setQuickEntryOpen(true)}><span className="account-menu-icon blue">＋</span><span><strong>Atalhos financeiros</strong><small>Registrar receita ou despesa</small></span><span aria-hidden="true">›</span></button>
+              </div>
               <nav className="section-jump" aria-label="Atalhos da área da conta"><a href="#conta">Dados e privacidade</a><a href="#conta-relatorios">Relatórios</a><a href="#conta-assistente">Assistente</a><a href="#conta-comprovante">Leitor de comprovantes</a><a href="#conta-proximos-passos">Próximos recursos</a></nav>
+              <details className="account-data-details">
+                <summary>Dados, backup e privacidade <span aria-hidden="true">⌄</span></summary>
               <div className="privacy-actions">
                 <button className="primary-button" type="button" onClick={() => void exportPersonalData()} disabled={busy}>Exportar meus dados (JSON)</button>
                 <label>Para excluir, digite EXCLUIR_CONTA
@@ -1658,6 +1669,8 @@ export default function App() {
                 <button className="quiet-button danger-button" type="button" onClick={() => void deletePersonalAccount()} disabled={busy || deleteConfirmText !== "EXCLUIR_CONTA"}>Excluir minha conta permanentemente</button>
               </div>
               <p className="helper-text">A exportação inclui metadados dos comprovantes; os arquivos podem ser abertos individualmente no histórico. A exclusão exige autenticação recente (últimos 15 minutos), remove comprovantes do Storage e apaga os dados vinculados à conta. Essa ação não pode ser desfeita.</p>
+              </details>
+              <button className="account-signout-button" type="button" onClick={() => void handleSignOut()} disabled={busy}>Sair da conta</button>
             </section>
             <section className="panel" id="patrimonio" hidden={activeTab !== "patrimonio"} aria-labelledby="radar-title">
               <div className="panel-heading"><div><span className="principles-label">ACOMPANHAMENTO DE ATIVOS</span><h2 id="radar-title">Radar de preços</h2><p>Crie alertas para acompanhar seus ativos. O disparo usa somente cotações recentes de uma fonte validada; nenhuma fonte de preços está conectada ainda.</p></div></div>
