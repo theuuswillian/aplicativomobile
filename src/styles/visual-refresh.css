@@ -1880,3 +1880,88 @@ html, body, #root { background: #090A0B; }
   .account-list > li, .transaction-list > li { gap: 7px; }
   .privacy-panel .account-menu-list button { min-height: 64px; }
 }
+
+
+/* Metas, relatórios e navegação contextual da Conta */
+.goal-contribution-drawer {
+  margin: 12px 0 4px;
+  border-style: dashed;
+  background: rgb(20 22 25 / 55%);
+}
+.goal-contribution-drawer > summary { min-height: 44px; }
+.planning-panel .panel-heading { margin-bottom: 16px; }
+.planning-panel .planning-content {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid #23262B;
+  border-radius: 18px;
+  background: #141619;
+}
+.planning-panel .planning-content > .transaction-heading { margin-bottom: 14px; }
+.planning-panel .account-list > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+.planning-panel .account-list > li > progress,
+.planning-panel .account-list > li > small,
+.planning-panel .account-list > li > .goal-contribution-history,
+.planning-panel .account-list > li > .goal-contribution-drawer {
+  grid-column: 1 / -1;
+}
+.planning-panel .account-list > li > progress { width: 100%; }
+.report-category-list {
+  display: grid;
+  gap: 14px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.report-category-list li { display: grid; gap: 8px; }
+.report-category-list li > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.report-category-list li strong { color: #F8FAFC; font-size: 13px; }
+.report-category-list li span { color: #9CA3AF; font-size: 12px; text-align: right; }
+.report-category-list progress {
+  display: block;
+  width: 100%;
+  height: 8px;
+  border: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #292D33;
+}
+.report-category-list progress::-webkit-progress-bar { background: #292D33; border-radius: 999px; }
+.report-category-list progress::-webkit-progress-value { background: linear-gradient(90deg, #16A34A, #4ADE80); border-radius: 999px; }
+.report-category-list progress::-moz-progress-bar { background: #22C55E; border-radius: 999px; }
+.reports-panel .report-metrics article {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #23262B;
+  border-radius: 15px;
+  background: #141619;
+}
+.reports-panel .report-metrics article strong {
+  display: block;
+  overflow-wrap: anywhere;
+  color: #FFFFFF;
+  font-variant-numeric: tabular-nums;
+}
+.privacy-panel .account-menu-list button:active { background: rgb(34 197 94 / 7%); }
+.privacy-panel .account-menu-list button:focus-visible,
+.management-drawer > summary:focus-visible {
+  outline: 2px solid #22C55E;
+  outline-offset: 2px;
+}
+@media (max-width: 520px) {
+  .planning-panel .planning-content { padding: 13px; }
+  .report-category-list li > div { align-items: flex-start; }
+  .report-category-list li span { max-width: 62%; }
+  .reports-panel .report-metrics { gap: 8px; }
+  .reports-panel .report-metrics article { padding: 11px; }
+}
