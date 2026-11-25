@@ -371,22 +371,25 @@ export default function App() {
   }, [session]);
 
   const signedIn = Boolean(session?.user);
-  const ledgerEntries = useMemo<LedgerEntry[]>(() => transactions.map((item) => ({
-    id: item.id,
-    kind: item.card_id ? "card_expense" : item.kind,
-    status: item.status,
-    amountCents: Math.round(Number(item.amount) * 100),
-    date: item.transaction_date,
-    accountId: item.account_id,
-    cardId: item.card_id,
-    transferFromAccountId: item.transfer_from_account_id,
-    transferToAccountId: item.transfer_to_account_id,
-    categoryId: item.category_id,
-  })).concat(invoicePayments.map((payment) => ({
-    id: payment.id, kind: "card_payment" as const, status: "paid" as const,
-    amountCents: Math.round(Number(payment.amount) * 100), date: payment.payment_date,
-    accountId: payment.account_id, cardId: payment.card_id,
-  }))), [transactions, invoicePayments]);
+  const ledgerEntries = useMemo<LedgerEntry[]>(() => [
+    ...transactions.map((item): LedgerEntry => ({
+      id: item.id,
+      kind: item.card_id ? "card_expense" : item.kind,
+      status: item.status,
+      amountCents: Math.round(Number(item.amount) * 100),
+      date: item.transaction_date,
+      accountId: item.account_id,
+      cardId: item.card_id,
+      transferFromAccountId: item.transfer_from_account_id,
+      transferToAccountId: item.transfer_to_account_id,
+      categoryId: item.category_id,
+    })),
+    ...invoicePayments.map((payment): LedgerEntry => ({
+      id: payment.id, kind: "card_payment", status: "paid",
+      amountCents: Math.round(Number(payment.amount) * 100), date: payment.payment_date,
+      accountId: payment.account_id, cardId: payment.card_id,
+    })),
+  ], [transactions, invoicePayments]);
   const accountBalances = useMemo(() => Object.fromEntries(accounts.map((account) => [
     account.id,
     calculateAccountBalance(
@@ -1184,23 +1187,25 @@ export default function App() {
     }
     setBusy(true); setNotice("");
     try {
-      const payload = txKind === "transfer" ? {
-        user_id: session.user.id, kind: "transfer" as const, status: txStatus, amount,
-        transaction_date: txDate, description: txDescription.trim(),
-        account_id: null, card_id: null, category_id: null,
-        transfer_from_account_id: txTransferFromId, transfer_to_account_id: txTransferToId,
-        settled_amount: txStatus === "paid" ? amount : "0.00",
-        settled_at: txStatus === "paid" ? txDate : null, source: "manual",
-      } : {
-        user_id: session.user.id, kind: txKind, status: txStatus, amount,
-        transaction_date: txDate, description: txDescription.trim(),
-        account_id: txCardId ? null : txAccountId, card_id: txCardId || null, category_id: txCategoryId || null,
-        transfer_from_account_id: null, transfer_to_account_id: null,
-        settled_amount: txStatus === "paid" ? amount : "0.00",
-        settled_at: txStatus === "paid" ? txDate : null, source: "manual",
-      };
-      const { data, error } = await supabase.from("transactions").insert(payload)
-        .select("id,kind,status,amount,transaction_date,description,account_id,card_id,transfer_from_account_id,transfer_to_account_id,category_id").single();
+      const selectTransaction = "id,kind,status,amount,transaction_date,description,account_id,card_id,transfer_from_account_id,transfer_to_account_id,category_id";
+      const result = txKind === "transfer"
+        ? await supabase.from("transactions").insert({
+            user_id: session.user.id, kind: "transfer", status: txStatus, amount,
+            transaction_date: txDate, description: txDescription.trim(),
+            account_id: null, card_id: null, category_id: null,
+            transfer_from_account_id: txTransferFromId, transfer_to_account_id: txTransferToId,
+            settled_amount: txStatus === "paid" ? amount : "0.00",
+            settled_at: txStatus === "paid" ? txDate : null, source: "manual",
+          }).select(selectTransaction).single()
+        : await supabase.from("transactions").insert({
+            user_id: session.user.id, kind: txKind, status: txStatus, amount,
+            transaction_date: txDate, description: txDescription.trim(),
+            account_id: txCardId ? null : txAccountId, card_id: txCardId || null, category_id: txCategoryId || null,
+            transfer_from_account_id: null, transfer_to_account_id: null,
+            settled_amount: txStatus === "paid" ? amount : "0.00",
+            settled_at: txStatus === "paid" ? txDate : null, source: "manual",
+          }).select(selectTransaction).single();
+      const { data, error } = result;
       if (error) throw error;
       setTransactions((current) => [data as TransactionRow, ...current].slice(0, 10000));
       setTxDescription(""); setTxAmount(""); setTxCategoryId("");
