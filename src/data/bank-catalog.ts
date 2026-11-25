@@ -110,12 +110,6 @@ export const BANK_CATALOG = [
     "logoIndex": 17
   },
   {
-    "code": "323",
-    "name": "Mercado Pago",
-    "logoKey": "mercadopago.com.br",
-    "logoIndex": 18
-  },
-  {
     "code": "389",
     "name": "Mercantil do Brasil",
     "logoKey": "mercantildobrasil.com.br",
