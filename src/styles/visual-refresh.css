@@ -2118,3 +2118,49 @@ html, body, #root { background: #090A0B; }
   .panel { padding:15px; }
   .bottom-nav { width:calc(100% - 20px); }
 }
+
+
+/* Gráfico do saldo: somente fluxo líquido observado nos lançamentos */
+.overview-balance-chart {
+  display:block;
+  width:100%;
+  height:58px;
+  margin-top:12px;
+  overflow:visible;
+}
+.overview-balance-chart path { vector-effect:non-scaling-stroke; }
+.overview-balance > small { position:relative; z-index:1; }
+.overview-balance-chart { position:relative; z-index:1; }
+#patrimonio > .panel-heading h2 { font-size:24px; }
+#patrimonio > #patrimonio-investimentos { margin-top:14px; }
+#patrimonio .radar-fire-history { margin-top:16px; }
+#patrimonio .allocation-currency { display:grid; gap:14px; }
+#patrimonio .allocation-group { padding:12px; border:1px solid #23262B; border-radius:15px; background:#141619; }
+#patrimonio .allocation-group > strong { color:#E5E7EB; font-size:12px; }
+#patrimonio .allocation-chart-row { display:grid; grid-template-columns:112px minmax(0,1fr); align-items:center; gap:12px; margin-top:12px; }
+#patrimonio .allocation-donut { width:108px; height:108px; }
+#patrimonio .allocation-legend { min-width:0; }
+#patrimonio .allocation-legend li { grid-template-columns:8px minmax(0,1fr) auto; }
+.card-list .card-list-item {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:start;
+  gap:6px 12px;
+  padding:14px 0;
+}
+.card-list .card-list-item > strong { color:#F9FAFB; font-size:13px; }
+.card-list .card-list-item > span { color:#9CA3AF; font-size:11px; text-align:right; }
+.card-list .card-list-item > small { grid-column:1/-1; display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; color:#9CA3AF; font-size:11px; }
+.transaction-list .transaction-main { align-items:center; gap:10px; }
+.transaction-list .transaction-main > div { min-width:0; }
+.transaction-list .transaction-main strong { font-size:13px; }
+.transaction-list .transaction-main > strong { white-space:nowrap; font-size:12px; font-variant-numeric:tabular-nums; }
+@media (max-width:390px) {
+  .expense-chart-row { grid-template-columns:96px minmax(0,1fr); gap:8px; }
+  .expense-donut { width:92px; }
+  .expense-legend { gap:8px; }
+  .expense-legend li { font-size:10px; }
+  .overview-month-columns strong { font-size:11px; }
+  #patrimonio .allocation-chart-row { grid-template-columns:94px minmax(0,1fr); gap:8px; }
+  #patrimonio .allocation-donut { width:90px; height:90px; }
+}
