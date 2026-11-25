@@ -167,6 +167,7 @@ create table public.overtime_conversion_batches (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   destination_account_id uuid not null,
+  entry_ids uuid[] not null check(cardinality(entry_ids)>0),
   total_amount numeric(15,2) not null check (total_amount > 0),
   received_date date not null,
   idempotency_key text not null check (length(idempotency_key) between 8 and 120),
@@ -544,6 +545,7 @@ declare v_user uuid; v_id uuid; v_active uuid; v_journal uuid;
 begin
   v_user := case when tg_op='DELETE' then old.user_id else new.user_id end;
   v_id := case when tg_op='DELETE' then old.id else new.id end;
+  if tg_op='UPDATE' and new.user_id<>old.user_id then raise exception 'Não é permitido transferir a titularidade do pagamento' using errcode='42501'; end if;
   if auth.uid() is not null and auth.uid()<>v_user then
     raise exception 'Pagamento não pertence à sessão autenticada' using errcode='42501';
   end if;
@@ -651,8 +653,14 @@ begin
         on p.user_id=i.user_id and p.card_id=i.card_id
        and p.invoice_closing_date=i.invoice_closing_date
       where i.user_id=old.user_id and i.transaction_id=old.id
+    ) and (
+      old.amount is distinct from new.amount
+      or old.transaction_date is distinct from new.transaction_date
+      or old.card_id is distinct from new.card_id
+      or old.installment_count is distinct from new.installment_count
+      or old.status is distinct from new.status
     ) then
-      raise exception 'Não é possível alterar uma compra após pagamento parcial ou total da fatura' using errcode='23514';
+      raise exception 'Não é possível alterar valor, data ou parcelamento após pagamento parcial ou total da fatura' using errcode='23514';
     end if;
     delete from public.card_invoice_installments where user_id=old.user_id and transaction_id=old.id;
   end if;
@@ -758,7 +766,8 @@ begin
   if v_user is null then raise exception 'Autenticação obrigatória' using errcode='42501'; end if;
   if length(btrim(coalesce(p_person_name,''))) not between 1 and 120
      or p_amount<=0 or p_amount<>round(p_amount,2)
-     or p_loan_date is null or length(coalesce(p_idempotency_key,'')) not between 8 and 120 then
+     or p_loan_date is null or (p_expected_date is not null and p_expected_date<p_loan_date)
+     or length(coalesce(p_idempotency_key,'')) not between 8 and 120 then
     raise exception 'Dados do empréstimo inválidos' using errcode='22023';
   end if;
   perform 1 from public.accounts where user_id=v_user and id=p_source_account_id and account_type<>'investment' for update;
@@ -767,7 +776,8 @@ begin
    where user_id=v_user and idempotency_key=p_idempotency_key;
   if found then
     if v_row.principal_amount<>p_amount or v_row.person_name<>btrim(p_person_name)
-       or v_row.source_account_id<>p_source_account_id then
+       or v_row.source_account_id<>p_source_account_id or v_row.loan_date<>p_loan_date
+       or v_row.expected_date is distinct from p_expected_date then
       raise exception 'Chave de idempotência reutilizada com dados diferentes' using errcode='23505';
     end if;
     return v_row;
@@ -801,7 +811,13 @@ begin
   end if;
   select * into v_row from public.receivable_repayments
    where user_id=v_user and idempotency_key=p_idempotency_key;
-  if found then return v_row; end if;
+  if found then
+    if v_row.loan_id<>p_loan_id or v_row.destination_account_id<>p_destination_account_id
+       or v_row.amount<>p_amount or v_row.received_date<>p_received_date then
+      raise exception 'Chave de idempotência reutilizada com dados diferentes' using errcode='23505';
+    end if;
+    return v_row;
+  end if;
   select * into v_loan from public.receivable_loans
    where user_id=v_user and id=p_loan_id for update;
   if not found then raise exception 'Título a receber não encontrado' using errcode='23503'; end if;
@@ -843,7 +859,13 @@ begin
   end if;
   select * into v_row from public.overtime_entries
    where user_id=v_user and idempotency_key=p_idempotency_key;
-  if found then return v_row; end if;
+  if found then
+    if v_row.work_date<>p_work_date or v_row.hours<>p_hours or v_row.hourly_rate<>p_hourly_rate
+       or v_row.premium_percent<>p_premium_percent then
+      raise exception 'Chave de idempotência reutilizada com dados diferentes' using errcode='23505';
+    end if;
+    return v_row;
+  end if;
   insert into public.overtime_entries(
     user_id,work_date,hours,hourly_rate,premium_percent,description,idempotency_key
   ) values(v_user,p_work_date,p_hours,p_hourly_rate,p_premium_percent,p_description,p_idempotency_key)
@@ -861,16 +883,26 @@ language plpgsql security definer
 set search_path=pg_catalog, public
 as $$
 declare v_user uuid:=auth.uid(); v_batch public.overtime_conversion_batches%rowtype;
-  v_total numeric(15,2); v_count integer; v_journal uuid;
+  v_total numeric(15,2); v_count integer; v_journal uuid; v_entry_ids uuid[];
 begin
   if v_user is null then raise exception 'Autenticação obrigatória' using errcode='42501'; end if;
   if coalesce(cardinality(p_entry_ids),0)=0 or cardinality(p_entry_ids)>100
      or p_received_date is null or length(coalesce(p_idempotency_key,'')) not between 8 and 120 then
     raise exception 'Selecione horas extras válidas para converter' using errcode='22023';
   end if;
+  v_entry_ids:=array(select distinct entry_id from unnest(p_entry_ids) as ids(entry_id) order by entry_id);
+  if cardinality(v_entry_ids)<>cardinality(p_entry_ids) then
+    raise exception 'Lista de horas extras contém IDs duplicados' using errcode='22023';
+  end if;
   select * into v_batch from public.overtime_conversion_batches
    where user_id=v_user and idempotency_key=p_idempotency_key;
-  if found then return v_batch; end if;
+  if found then
+    if v_batch.destination_account_id<>p_destination_account_id
+       or v_batch.received_date<>p_received_date or v_batch.entry_ids<>v_entry_ids then
+      raise exception 'Chave de idempotência reutilizada com dados diferentes' using errcode='23505';
+    end if;
+    return v_batch;
+  end if;
   perform 1 from public.accounts where user_id=v_user and id=p_destination_account_id and account_type<>'investment';
   if not found then raise exception 'Conta de destino inválida ou protegida como investimento' using errcode='23503'; end if;
   perform 1 from public.overtime_entries
@@ -884,8 +916,8 @@ begin
     raise exception 'Há horas extras inválidas, já convertidas ou de outro usuário' using errcode='23514';
   end if;
   insert into public.overtime_conversion_batches(
-    user_id,destination_account_id,total_amount,received_date,idempotency_key
-  ) values(v_user,p_destination_account_id,v_total,p_received_date,p_idempotency_key)
+    user_id,destination_account_id,entry_ids,total_amount,received_date,idempotency_key
+  ) values(v_user,p_destination_account_id,v_entry_ids,v_total,p_received_date,p_idempotency_key)
   returning * into v_batch;
   v_journal:=private.post_pair(v_user,p_received_date,'Recebimento de horas extras',
     'overtime_conversion',v_batch.id,'bank',p_destination_account_id,'income',null,v_total,null);
