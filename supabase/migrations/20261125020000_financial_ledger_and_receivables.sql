@@ -732,6 +732,7 @@ returns trigger language plpgsql security definer
 set search_path=pg_catalog, public
 as $$
 declare v_user uuid; v_id uuid; v_active uuid; v_journal uuid;
+  v_opening_date date; v_account_type text; v_credit_kind text; v_credit_source uuid;
 begin
   v_user := case when tg_op='DELETE' then old.user_id else new.user_id end;
   v_id := case when tg_op='DELETE' then old.id else new.id end;
@@ -747,12 +748,17 @@ begin
      where user_id=v_user and source_type='card_invoice_payment' and source_id=v_id;
   end if;
   if tg_op='DELETE' then return old; end if;
-  if exists(select 1 from public.accounts where user_id=v_user and id=new.account_id and account_type='investment') then
+  select opening_balance_date,account_type into v_opening_date,v_account_type
+    from public.accounts where user_id=v_user and id=new.account_id;
+  if not found then raise exception 'Conta de pagamento não pertence ao usuário' using errcode='23503'; end if;
+  if v_account_type='investment' then
     raise exception 'Conta de investimentos não pode pagar fatura de cartão' using errcode='23514';
   end if;
+  v_credit_kind:=case when new.payment_date<v_opening_date then 'opening_equity' else 'bank' end;
+  v_credit_source:=case when v_credit_kind='bank' then new.account_id else null end;
   v_journal := private.post_pair(v_user,new.payment_date,
     coalesce(new.description,'Pagamento de fatura'),'card_invoice_payment',new.id,
-    'card_liability',new.card_id,'bank',new.account_id,new.amount,null);
+    'card_liability',new.card_id,v_credit_kind,v_credit_source,new.amount,null);
   insert into private.ledger_source_state(user_id,source_type,source_id,active_journal_id)
   values(v_user,'card_invoice_payment',v_id,v_journal)
   on conflict(user_id,source_type,source_id) do update
