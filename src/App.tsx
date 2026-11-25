@@ -1605,6 +1605,20 @@ export default function App() {
                 <div className="overview-label"><span>Saldo disponível</span><button className="balance-visibility-toggle icon-visibility" type="button" aria-label={balancesHidden ? "Mostrar saldos" : "Ocultar saldos"} aria-pressed={balancesHidden} onClick={() => setBalancesHidden((hidden) => !hidden)}>{balancesHidden ? <EyeOff size={18} /> : <Eye size={18} />}</button></div>
                 <strong>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(accounts.filter((account) => account.account_type !== "investment").reduce((sum, account) => sum + (accountBalances[account.id] ?? 0), 0))}</strong>
                 <small>{accounts.filter((account) => account.account_type !== "investment").length} contas bancárias e dinheiro físico</small>
+                {(() => {
+                  const reference = new Date(currentBudgetDate + "T12:00:00");
+                  const points = Array.from({ length: 6 }, (_, index) => {
+                    const date = new Date(reference.getFullYear(), reference.getMonth() - (5-index), 1, 12);
+                    const key = String(date.getFullYear()) + "-" + String(date.getMonth()+1).padStart(2,"0");
+                    const rows = transactions.filter((item) => item.status === "paid" && item.transaction_date.startsWith(key));
+                    return rows.filter((item) => item.kind === "income").reduce((sum,item)=>sum+Number(item.amount),0) - rows.filter((item) => item.kind === "expense").reduce((sum,item)=>sum+Number(item.amount),0);
+                  });
+                  const max = Math.max(1,...points.map((value)=>Math.abs(value)));
+                  const coords = points.map((value,index)=>({x:8+index*56,y:46-(value/max*27)}));
+                  const path = coords.map((point,index)=>(index===0?"M":"L")+point.x+" "+point.y).join(" ");
+                  const area = path+" L "+coords[coords.length-1].x+" 54 L "+coords[0].x+" 54 Z";
+                  return <svg className="overview-balance-chart" viewBox="0 0 296 58" preserveAspectRatio="none" role="img" aria-label="Evolução do fluxo líquido nos últimos seis meses"><defs><linearGradient id="balance-area-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#22C55E" stopOpacity=".34"/><stop offset="100%" stopColor="#22C55E" stopOpacity="0"/></linearGradient></defs><path d={area} fill="url(#balance-area-fill)"/><path d={path} fill="none" stroke="#22C55E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+                })()}
               </article>
               
               <article className="overview-stat"><span>Patrimônio investido</span>{(() => {
