@@ -1678,13 +1678,13 @@ export default function App() {
                 <a href="#patrimonio-radar">Radar</a><a href="#patrimonio-investimentos">Carteira</a><a href="#patrimonio-proventos">Proventos</a>
               </nav>
               <div className="transaction-heading"><strong>Radar de preços</strong><span>{alerts.length} alertas cadastrados</span></div>
-              <form className="radar-form" id="patrimonio-radar" onSubmit={(event) => void createAlert(event)}>
+              <details className="management-drawer"><summary>＋ Criar alerta de preço</summary><form className="radar-form" id="patrimonio-radar" onSubmit={(event) => void createAlert(event)}>
                 <label>Classe<select value={assetClass} onChange={(event) => setAssetClass(event.target.value as RadarAlert["asset_class"])}><option value="stock">Ação</option><option value="fii">FII</option><option value="etf">ETF</option><option value="bdr">BDR</option><option value="crypto">Cripto</option></select></label>
                 <label>Ativo<input value={symbol} onChange={(event) => setSymbol(event.target.value.toUpperCase())} placeholder="Ex.: PETR4" maxLength={32} required /></label>
                 <label>Condição<select value={condition} onChange={(event) => setCondition(event.target.value as RadarAlert["condition_type"])}><option value="above">Preço acima de</option><option value="below">Preço abaixo de</option><option value="daily_drop">Queda no dia (%)</option></select></label>
                 <label>{condition === "daily_drop" ? "Queda (%)" : "Valor (R$)"}<input inputMode="decimal" value={threshold} onChange={(event) => setThreshold(event.target.value)} placeholder="0,00" required /></label>
                 <button className="primary-button" type="submit" disabled={busy}>Criar alerta</button>
-              </form>
+              </form></details>
               {alerts.length === 0 ? <p className="empty-state">Você ainda não tem alertas cadastrados.</p> : (
                 <ul className="alert-list">
                   {alerts.map((alert) => <li key={alert.id}>
@@ -1737,7 +1737,7 @@ export default function App() {
                   })()}
                   <p className="helper-text">A distribuição usa preço de referência manual quando disponível; nos demais ativos, usa o custo investido. Valores em BRL e USD são separados para não misturar moedas. Não representa cotação de mercado nem rentabilidade atual.</p>
                 </div>}
-                <form className="finance-form" onSubmit={(event) => void createInvestmentAsset(event)}>
+                <details className="management-drawer"><summary>＋ Adicionar ativo à carteira</summary><form className="finance-form" onSubmit={(event) => void createInvestmentAsset(event)}>
                   <label>Ticker ou nome<input value={investmentSymbol} onChange={(event) => { const raw = event.target.value; const query = raw.trim(); const value = query.toUpperCase(); const matchEntry = Object.entries(INVESTMENT_CATALOG).find(([ticker]) => ticker === value); setInvestmentSymbol(matchEntry ? matchEntry[0] : raw); if (matchEntry) { const match = matchEntry[1]; setInvestmentName(match.name); setInvestmentClass(match.assetClass); setInvestmentCurrency("BRL"); } }} maxLength={120} autoComplete="off" placeholder="Digite PETR4, Petrobras, MXRF11..." required /></label>{investmentSymbol.trim().length >= 2 && !Object.keys(INVESTMENT_CATALOG).includes(investmentSymbol.trim().toUpperCase()) && <ul className="investment-suggestions" aria-label="Sugestões de ativos">{Object.entries(INVESTMENT_CATALOG).filter(([ticker,item]) => { const query = investmentSymbol.trim().toLocaleLowerCase("pt-BR"); return ticker.toLocaleLowerCase("pt-BR").includes(query) || item.name.toLocaleLowerCase("pt-BR").includes(query); }).slice(0,6).map(([ticker,item]) => <li key={ticker}><button type="button" onClick={() => { setInvestmentSymbol(ticker); setInvestmentName(item.name); setInvestmentClass(item.assetClass); setInvestmentCurrency("BRL"); }}>{item.name}<small>{ticker}</small></button></li>)}</ul>}
                   <label>Nome do ativo<input value={investmentName} onChange={(event) => setInvestmentName(event.target.value)} maxLength={120} placeholder="Nome ou descrição" required /></label>
                   <label>Classe<select value={investmentClass} onChange={(event) => setInvestmentClass(event.target.value as InvestmentAssetRow["asset_class"])}><option value="stock">Ação</option><option value="fii">FII</option><option value="etf">ETF</option><option value="bdr">BDR</option><option value="fixed_income">Renda fixa</option><option value="crypto">Cripto</option></select></label>
@@ -1753,8 +1753,8 @@ export default function App() {
                     <label>Periodicidade do rendimento<select value={fixedIncomeFrequency} onChange={(event) => setFixedIncomeFrequency(event.target.value as typeof fixedIncomeFrequency)}><option value="daily">Diário (dias úteis)</option><option value="monthly">Mensal</option><option value="semiannual">Semestral</option><option value="at_maturity">No vencimento</option></select></label>
                   </>}
                   <button className="primary-button" type="submit" disabled={busy}>Adicionar ativo</button>
-                </form>
-                {investmentAssets.length > 0 && <form className="finance-form" onSubmit={(event) => void createInvestmentOperation(event)}>
+                </form></details>
+                {investmentAssets.length > 0 && <details className="management-drawer"><summary>＋ Registrar operação</summary><form className="finance-form" onSubmit={(event) => void createInvestmentOperation(event)}>
                   <label>Ativo<select value={investmentAssetId} onChange={(event) => { const id = event.target.value; setInvestmentAssetId(id); const selected = investmentAssets.find((asset) => asset.id === id); if (selected?.current_price != null) setInvestmentUnitPrice(String(selected.current_price).replace(".", ",")); }} required>{investmentAssets.map((asset) => <option key={asset.id} value={asset.id}>{asset.symbol} · {asset.name}</option>)}</select></label>
                   <label>Operação<select value={investmentOperationType} onChange={(event) => setInvestmentOperationType(event.target.value as "opening" | "buy" | "sell")}><option value="buy">Compra</option><option value="sell">Venda</option><option value="opening">Posição inicial</option></select></label>
                   <label>Quantidade<input inputMode="decimal" value={investmentQuantity} onChange={(event) => setInvestmentQuantity(event.target.value)} placeholder="Ex.: 10" required /></label>
@@ -1762,7 +1762,7 @@ export default function App() {
                   <label>Taxas ({investmentAssets.find((item) => item.id === investmentAssetId)?.currency ?? "BRL"})<input inputMode="decimal" value={investmentFees} onChange={(event) => setInvestmentFees(event.target.value)} required /></label>
                   <label>Data<input type="date" value={investmentDate} onChange={(event) => setInvestmentDate(event.target.value)} required /></label>
                   <p className="investment-total-preview" aria-live="polite">Total estimado da operação: <strong>{(() => { const q = Number(investmentQuantity.trim().replace(",", ".")); const p = Number(investmentUnitPrice.trim().replace(",", ".")); const f = Number(investmentFees.trim().replace(",", ".")); const total = q * p + (investmentOperationType === "sell" ? -f : f); return Number.isFinite(total) && q > 0 && p > 0 ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: investmentAssets.find((item) => item.id === investmentAssetId)?.currency ?? "BRL" }).format(total) : "—"; })()}</strong></p>\n                  <button className="primary-button" type="submit" disabled={busy}>Registrar operação</button>
-                </form>}
+                </form></details>}
                 {investmentAssets.length === 0 ? <p className="empty-state">Adicione seus ativos e registre posições iniciais, compras e vendas.</p> : <ul className="account-list">{investmentAssets.map((asset) => {
                   const summary = investmentSummary(asset.id);
                   const receivedCents = incomeEvents.filter((item) => item.asset_id === asset.id && item.status === "received")
@@ -1778,7 +1778,7 @@ export default function App() {
               <section className="subpanel" id="patrimonio-proventos" aria-labelledby="income-events-title">
                 <div className="transaction-heading"><strong id="income-events-title">Dividendos e proventos</strong><span>{incomeEvents.filter((item) => item.status === "received").length} recebidos</span></div>
                 {investmentAssets.length === 0 ? <p className="empty-state">Cadastre um ativo para registrar dividendos, JCP e outros proventos.</p> : <>
-                  <form className="finance-form" onSubmit={(event) => void createIncomeEvent(event)}>
+                  <details className="management-drawer"><summary>＋ Registrar provento</summary><form className="finance-form" onSubmit={(event) => void createIncomeEvent(event)}>
                     <label>Ativo<select value={incomeAssetId} onChange={(event) => setIncomeAssetId(event.target.value)} required>{investmentAssets.map((asset) => <option key={asset.id} value={asset.id}>{asset.symbol} · {asset.name}</option>)}</select></label>
                     <label>Tipo<select value={incomeEventType} onChange={(event) => setIncomeEventType(event.target.value as IncomeEventRow["event_type"])}><option value="dividend">Dividendo</option><option value="jcp">Juros sobre capital próprio</option><option value="distribution">Distribuição</option><option value="coupon">Cupom</option><option value="interest">Juros</option><option value="amortization">Amortização</option><option value="other">Outro</option></select></label>
                     <label>Valor (R$)<input inputMode="decimal" value={incomeAmount} onChange={(event) => setIncomeAmount(event.target.value)} placeholder="0,00" required /></label>
@@ -1789,7 +1789,7 @@ export default function App() {
                     {incomeStatus === "received" && !incomeSettlementReady && <p className="helper-text">A liquidação em conta será habilitada após a migration financeira ser ativada no Supabase.</p>}
                     {incomeStatus === "received" && investmentAssets.find((asset) => asset.id === incomeAssetId)?.currency === "USD" && <p className="helper-text">Ativos em USD podem ter proventos previstos, mas o crédito em conta ficará bloqueado até existir conversão cambial explícita.</p>}
                     <button className="primary-button" type="submit" disabled={busy}>Registrar provento</button>
-                  </form>
+                  </form></details>
                 </>}
                 {incomeEvents.length > 0 && <ul className="account-list">{incomeEvents.slice(0, 20).map((item) => {
                   const asset = investmentAssets.find((entry) => entry.id === item.asset_id);
@@ -1882,20 +1882,20 @@ export default function App() {
               </section>
               <section className="subpanel" id="gastos-categorias" aria-labelledby="categories-title">
                 <div className="transaction-heading"><strong id="categories-title">Categorias</strong><span>{categories.length} cadastradas</span></div>
-                <form className="finance-form" onSubmit={(event) => void createCategory(event)}>
+                <details className="management-drawer"><summary>＋ Criar categoria</summary><form className="finance-form" onSubmit={(event) => void createCategory(event)}>
                   <label>Nome da categoria<input value={categoryName} onChange={(event) => setCategoryName(event.target.value)} maxLength={80} placeholder="Ex.: Alimentação" required /></label>
                   <label>Tipo<select value={categoryKind} onChange={(event) => setCategoryKind(event.target.value as "income" | "expense")}><option value="expense">Despesa</option><option value="income">Receita</option></select></label>
                   <button className="primary-button" type="submit" disabled={busy}>Criar categoria</button>
-                </form>
+                </form></details>
                 {categories.length === 0 ? <p className="empty-state">Crie categorias para organizar seus lançamentos.</p> : <ul className="category-list">{categories.map((category) => <li key={category.id}><span>{category.kind === "income" ? "Receita" : "Despesa"}</span><strong>{category.name}</strong></li>)}</ul>}
               </section>
               <section className="subpanel" id="gastos-orcamentos" aria-labelledby="budgets-title">
                 <div className="transaction-heading"><strong id="budgets-title">Orçamentos do mês</strong><span>{new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(new Date(`${currentBudgetMonthStart}T12:00:00`))}</span></div>
-                <form className="finance-form" onSubmit={(event) => void saveBudget(event)}>
+                <details className="management-drawer"><summary>＋ Definir orçamento</summary><form className="finance-form" onSubmit={(event) => void saveBudget(event)}>
                   <label>Categoria<select value={budgetCategoryId} onChange={(event) => setBudgetCategoryId(event.target.value)} required><option value="">Selecione uma despesa</option>{categories.filter((category) => category.kind === "expense").map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
                   <label>Limite mensal (R$)<input inputMode="decimal" value={budgetLimit} onChange={(event) => setBudgetLimit(event.target.value)} placeholder="0,00" required /></label>
                   <button className="primary-button" type="submit" disabled={busy || categories.every((category) => category.kind !== "expense")}>Definir ou atualizar limite</button>
-                </form>
+                </form></details>
                 {budgets.length === 0 ? <p className="empty-state">Defina limites para acompanhar os gastos por categoria neste mês.</p> : <ul className="account-list">{budgets.map((budget) => {
                   const category = categories.find((item) => item.id === budget.category_id);
                   const spent = budgetSpend.filter((item) => item.category_id === budget.category_id).reduce((total, item) => total + decimalToCents(item.settled_amount), 0n);
@@ -1946,7 +1946,7 @@ export default function App() {
               
               <section className="subpanel" id="gastos-recorrencias" aria-labelledby="recurrences-title">
                 <div className="transaction-heading"><strong id="recurrences-title">Recorrências</strong><span>{recurrences.filter((rule) => rule.is_active).length} ativas</span></div>
-                <form className="finance-form" onSubmit={(event) => void createRecurrence(event)}>
+                <details className="management-drawer"><summary>＋ Criar recorrência</summary><form className="finance-form" onSubmit={(event) => void createRecurrence(event)}>
                   <label>Nome da regra<input value={recurrenceName} onChange={(event) => setRecurrenceName(event.target.value)} maxLength={100} placeholder="Ex.: Aluguel, salário, academia" required /></label>
                   <label>Tipo<select value={recurrenceKind} onChange={(event) => { const nextKind = event.target.value as "income" | "expense"; setRecurrenceKind(nextKind); setRecurrenceCategoryId(""); if (nextKind === "income") setRecurrenceCardId(""); }}><option value="expense">Despesa</option><option value="income">Receita</option></select></label>
                   <label>Valor (R$)<input inputMode="decimal" value={recurrenceAmount} onChange={(event) => setRecurrenceAmount(event.target.value)} placeholder="0,00" required /></label>
@@ -1961,11 +1961,11 @@ export default function App() {
                   <label>Conta<select value={recurrenceAccountId} onChange={(event) => { setRecurrenceAccountId(event.target.value); if (event.target.value) setRecurrenceCardId(""); }}><option value="">Não vinculada</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
                   <label>Cartão<select value={recurrenceCardId} onChange={(event) => { setRecurrenceCardId(event.target.value); if (event.target.value) setRecurrenceAccountId(""); }} disabled={recurrenceKind !== "expense"}><option value="">Não vincular cartão</option>{cards.map((card) => <option key={card.id} value={card.id}>{card.name} · final {card.last_four}</option>)}</select></label>
                   <button className="primary-button" type="submit" disabled={busy}>Criar recorrência</button>
-                </form>
+                </form></details>
                 {recurrences.length === 0 ? <p className="empty-state">Cadastre uma regra para acompanhar despesas e receitas periódicas.</p> : <ul className="account-list">{recurrences.map((rule) => <li key={rule.id}><strong>{rule.name} · {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(rule.amount))}</strong><span>{rule.kind === "income" ? "Receita" : "Despesa"} · {({daily:"Diária",weekly:"Semanal",biweekly:"Quinzenal",monthly:"Mensal",yearly:"Anual",interval:"Por intervalo"})[rule.frequency]}</span><small>Próxima data: {new Date(`${rule.next_occurrence_on}T12:00:00`).toLocaleDateString("pt-BR")} · {rule.is_active ? "Ativa" : "Pausada"}<button className="quiet-button" type="button" disabled={busy} onClick={() => void toggleRecurrence(rule)}>{rule.is_active ? "Pausar" : "Reativar"}</button></small></li>)}</ul>}
                 <p className="helper-text">A regra apenas programa a próxima ocorrência. A geração de lançamentos será ativada com o processamento idempotente da agenda, sem marcar valores como realizados.</p>
               </section>
-              <form className="finance-form transaction-form" id="gastos-lancamentos" onSubmit={(event) => void createTransaction(event)}>
+              <details className="management-drawer"><summary>＋ Novo lançamento</summary><form className="finance-form transaction-form" id="gastos-lancamentos" onSubmit={(event) => void createTransaction(event)}>
                 <label>Tipo de lançamento<select value={txKind} onChange={(event) => { const nextKind = event.target.value as "income" | "expense" | "transfer"; setTxKind(nextKind); setTxCategoryId(""); setTxCardId(""); setTxPaymentMethod("pix"); }}><option value="expense">Despesa</option><option value="income">Receita</option><option value="transfer">Transferência / aporte / resgate</option></select></label>
                 <label>Situação<select value={txStatus} onChange={(event) => setTxStatus(event.target.value as "paid" | "planned")}><option value="paid">Realizado</option><option value="planned">Previsto</option></select></label>
                 <label>Valor (R$)<input inputMode="decimal" value={txAmount} onChange={(event) => setTxAmount(event.target.value)} placeholder="0,00" required /></label>
@@ -1982,7 +1982,7 @@ export default function App() {
                 </>}
                 <label className="wide-field">Descrição<input value={txDescription} onChange={(event) => setTxDescription(event.target.value)} maxLength={240} placeholder="Ex.: Mercado" required /></label>
                 <button className="primary-button" type="submit" disabled={busy || (txKind === "expense" && txPaymentMethod === "credit" ? cards.length === 0 : txKind === "transfer" ? accounts.length < 2 : !accounts.some((account) => account.account_type !== "investment"))}>Salvar lançamento</button>
-              </form>
+              </form></details>
               <div className="transaction-heading"><strong>Últimos lançamentos</strong><span>Até 30 registros</span></div>
               {transactions.length === 0 ? <p className="empty-state">Seus lançamentos aparecerão aqui.</p> : <ul className="transaction-list">{transactions.map((item) => <li key={item.id}><div className="transaction-main"><div><strong>{item.description}</strong><span>{item.kind === "income" ? "Receita" : item.kind === "expense" ? "Despesa" : `Transferência · ${accounts.find((account) => account.id === item.transfer_from_account_id)?.name ?? "Origem"} → ${accounts.find((account) => account.id === item.transfer_to_account_id)?.name ?? "Destino"}`} · {item.status === "paid" ? "Realizado" : item.status === "planned" ? "Previsto" : "Cancelado"}</span><small>{new Date(item.transaction_date + "T12:00:00").toLocaleDateString("pt-BR")}</small></div><strong className={item.kind === "income" ? "income-value" : "expense-value"}>{item.kind === "income" ? "+" : item.kind === "expense" ? "−" : ""}{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(item.amount))}</strong></div><div className="transaction-row-actions">{receiptFiles.some((file) => file.transaction_id === item.id) && <button className="quiet-button" type="button" disabled={busy} onClick={() => void openReceiptFile(item.id)}>Abrir comprovante</button>}<button className="quiet-button" type="button" disabled={busy} onClick={() => beginTransactionEdit(item)}>Editar</button><button className="quiet-button danger-button" type="button" disabled={busy} onClick={() => void deleteTransaction(item)}>Excluir</button></div>{editingTransactionId === item.id && <form className="transaction-edit-form" onSubmit={(event) => { event.preventDefault(); void saveTransactionEdit(item); }}><label>Descrição<input value={editDescription} onChange={(event) => setEditDescription(event.target.value)} maxLength={240} required /></label><label>Valor (R$)<input inputMode="decimal" value={editAmount} onChange={(event) => setEditAmount(event.target.value)} required /></label><label>Data<input type="date" value={editDate} onChange={(event) => setEditDate(event.target.value)} required /></label><label>Situação<select value={editStatus} onChange={(event) => setEditStatus(event.target.value as "paid" | "planned")}><option value="paid">Realizado</option><option value="planned">Previsto</option></select></label><button className="primary-button" type="submit" disabled={busy}>Salvar alterações</button><button className="quiet-button" type="button" disabled={busy} onClick={() => setEditingTransactionId(null)}>Cancelar</button></form>}</li>)}</ul>}
             </section>
