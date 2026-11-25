@@ -2164,3 +2164,58 @@ html, body, #root { background: #090A0B; }
   #patrimonio .allocation-chart-row { grid-template-columns:94px minmax(0,1fr); gap:8px; }
   #patrimonio .allocation-donut { width:90px; height:90px; }
 }
+
+/* Correção consolidada do dock: mesma geometria no Safari e no PWA iOS.
+   Sobrescreve regras legadas conflitantes de 5 colunas e safe-area duplicada. */
+.app-shell {
+  --gv-accent: #22C55E;
+  --gv-emerald: #22C55E;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+.app-shell .brand-mark { color: #22C55E; }
+.app-frame {
+  width: min(100%, 920px);
+  margin-inline: auto;
+  padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px));
+}
+.dashboard { padding-bottom: 24px !important; }
+.bottom-nav {
+  position: fixed;
+  z-index: 50;
+  right: auto;
+  bottom: max(10px, env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  width: min(560px, calc(100% - 24px));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid #23262B;
+  border-radius: 20px;
+  background: rgb(12 14 16 / 94%);
+  box-shadow: 0 12px 36px rgb(0 0 0 / 42%);
+  transform: translateX(-50%);
+}
+.bottom-nav button {
+  min-width: 0;
+  min-height: 50px;
+  padding: 6px 3px;
+  border: 0;
+  border-radius: 13px;
+  background: transparent;
+  color: #9CA3AF;
+  font-size: 10px;
+}
+.bottom-nav button.active {
+  border: 0;
+  background: transparent;
+  color: #22C55E;
+}
+@media (max-width: 520px) {
+  .app-frame { padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px)); }
+  .bottom-nav { width: calc(100% - 24px); }
+  .bottom-nav button { min-height: 48px; font-size: 9px; }
+}
+@media (display-mode: standalone) {
+  .app-shell { padding-top: max(12px, env(safe-area-inset-top, 0px)); }
+}
