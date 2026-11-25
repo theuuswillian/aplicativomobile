@@ -1768,3 +1768,42 @@ html, body, #root { background: #090A0B; }
 @media (display-mode: standalone) {
   .bottom-nav { bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
 }
+
+
+/* Drawers recolhidos para manter as telas principais focadas */
+.management-drawer {
+  margin: 12px 0 16px;
+  padding: 0 14px;
+  border: 1px solid #23262B;
+  border-radius: 15px;
+  background: #141619;
+}
+.management-drawer > summary {
+  display: flex;
+  align-items: center;
+  min-height: 50px;
+  color: #FFFFFF;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+.management-drawer > summary::-webkit-details-marker { display: none; }
+.management-drawer > summary::after {
+  content: "+";
+  margin-left: auto;
+  color: #22C55E;
+  font-size: 20px;
+  font-weight: 500;
+}
+.management-drawer[open] > summary { border-bottom: 1px solid #23262B; }
+.management-drawer[open] > summary::after { content: "−"; }
+.management-drawer .finance-form { padding: 14px 0 4px; margin-top: 0; }
+.management-drawer .primary-button { grid-column: 1 / -1; }
+.management-drawer + .account-list,
+.management-drawer + .empty-state { margin-top: 10px; }
+@media (max-width: 520px) {
+  .management-drawer { margin: 10px 0 14px; padding: 0 12px; }
+  .management-drawer .finance-form { grid-template-columns: 1fr; }
+  .management-drawer .finance-form .wide-field { grid-column: auto; }
+}
