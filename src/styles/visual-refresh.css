@@ -1184,3 +1184,292 @@ textarea:focus-visible {
 @media (display-mode: browser), (display-mode: standalone) {
   .app-shell { padding-bottom: max(18px, env(safe-area-inset-bottom, 0px)); }
 }
+
+
+/* Correção estrutural de largura e acabamento unificado de todas as áreas.
+   Evita o limite artificial de 560px no frame: os painéis não podem ultrapassar o cabeçalho. */
+.app-shell {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.app-frame {
+  width: 100%;
+  max-width: 920px;
+  min-width: 0;
+  margin-inline: auto;
+  padding-inline: clamp(14px, 3vw, 28px);
+  box-sizing: border-box;
+}
+.app-frame > .topbar,
+.app-frame > .dashboard,
+.dashboard > .panel,
+.dashboard > .overview-grid,
+.dashboard > .overview-action {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.topbar {
+  align-self: stretch;
+  flex: 0 0 auto;
+  min-width: 0;
+  width: 100%;
+  margin-bottom: 18px;
+  padding: 10px 14px;
+}
+.brand { flex: 0 1 auto; min-width: 0; white-space: nowrap; }
+.topbar-actions { flex: 0 0 auto; min-width: 0; }
+.dashboard {
+  min-width: 0;
+  align-content: start;
+  padding-top: 24px;
+  padding-bottom: 30px;
+}
+.dashboard > .panel {
+  margin-inline: 0;
+  padding: clamp(20px, 3vw, 28px);
+  border-radius: 23px;
+}
+.panel-heading { align-items: flex-start; }
+.panel-heading > div { min-width: 0; width: 100%; }
+.panel-heading h2, .panel h2 {
+  font-size: clamp(21px, 3vw, 26px);
+  line-height: 1.16;
+  letter-spacing: -.05em;
+}
+.panel-heading p, .panel > p {
+  max-width: 68ch;
+  margin-top: 7px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.principles-label {
+  font-size: 10px;
+  letter-spacing: .17em;
+}
+.section-jump {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  gap: 8px;
+  margin: 18px 0 22px;
+  padding: 2px 1px 8px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+}
+.section-jump::-webkit-scrollbar { display: none; }
+.section-jump a {
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 8px 13px;
+  font-size: 12px;
+  scroll-snap-align: start;
+}
+.area-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0 24px;
+}
+.area-summary article {
+  min-width: 0;
+  min-height: 100px;
+  padding: 16px;
+  border-radius: 18px;
+}
+.area-summary article:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.area-summary article > span,
+.report-metrics article > span {
+  display: block;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.area-summary article > strong,
+.report-metrics article > strong {
+  display: block;
+  margin-top: 8px;
+  font-size: clamp(20px, 4vw, 26px);
+  line-height: 1.15;
+  letter-spacing: -.045em;
+  overflow-wrap: anywhere;
+}
+.area-summary article > small,
+.report-metrics article > small {
+  display: block;
+  margin-top: 5px;
+  font-size: 11px;
+  line-height: 1.45;
+}
+.finance-form,
+.radar-form {
+  gap: 14px;
+  margin-top: 22px;
+}
+.finance-form label,
+.radar-form label,
+.assistant-form label,
+.receipt-preview label {
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+.finance-form input,
+.finance-form select,
+.finance-form textarea,
+.radar-form input,
+.radar-form select,
+.assistant-form textarea,
+.assistant-form input[type="file"],
+.receipt-preview select {
+  min-height: 50px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  font-size: 14px;
+}
+.finance-form .primary-button,
+.radar-form .primary-button {
+  min-height: 51px;
+  border-radius: 15px;
+  font-size: 14px;
+}
+.transaction-form,
+.transaction-heading {
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid var(--color-line);
+}
+.transaction-heading {
+  padding-top: 0;
+  border-top: 0;
+  font-size: 14px;
+}
+.account-list li,
+.transaction-list li {
+  gap: 14px;
+  padding: 16px 0;
+}
+.account-list strong,
+.transaction-list strong { font-size: 14px; }
+.account-list span,
+.account-list small,
+.transaction-list span,
+.transaction-list small { font-size: 12px; line-height: 1.45; }
+.empty-state {
+  margin-top: 18px;
+  padding: 20px;
+  border-radius: 16px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.report-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+.report-metrics article {
+  min-width: 0;
+  padding: 17px;
+  border-radius: 18px;
+}
+.panel section + .panel,
+.dashboard > .panel + .panel { margin-top: 4px; }
+.bottom-nav {
+  right: 50%;
+  left: auto;
+  bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  width: min(760px, calc(100% - 24px));
+  transform: translateX(50%);
+  padding: 9px 9px max(9px, env(safe-area-inset-bottom, 0px));
+}
+.bottom-nav button {
+  min-height: 60px;
+  font-size: 10px;
+  line-height: 1.25;
+}
+.app-frame { padding-bottom: calc(142px + env(safe-area-inset-bottom, 0px)); }
+@media (display-mode: browser) {
+  .bottom-nav { bottom: 88px; }
+  .app-frame { padding-bottom: 190px; }
+}
+@media (display-mode: standalone) {
+  .bottom-nav { bottom: max(10px, env(safe-area-inset-bottom, 0px)); }
+  .app-frame { padding-bottom: calc(130px + env(safe-area-inset-bottom, 0px)); }
+}
+.app-shell[data-theme="light"] .area-summary article,
+.app-shell[data-theme="light"] .report-metrics article {
+  border-color: rgba(20,45,30,.1);
+  background: linear-gradient(155deg, #fff, #f4f8f5);
+}
+@media (min-width: 761px) {
+  .app-frame { max-width: 920px; }
+  .dashboard > .panel { padding: 28px; }
+  .finance-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .finance-form .wide-field { grid-column: 1 / -1; }
+  .area-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .area-summary article:last-child:nth-child(odd) { grid-column: auto; }
+}
+@media (max-width: 760px) {
+  .app-frame { padding-inline: 13px; }
+  .dashboard { padding-top: 18px; }
+  .dashboard > .panel { padding: 19px; border-radius: 21px; }
+  .panel-heading h2, .panel h2 { font-size: 22px; }
+  .panel-heading p, .panel > p { font-size: 13px; }
+  .area-summary { gap: 10px; }
+  .area-summary article { padding: 14px; min-height: 94px; }
+  .finance-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .finance-form .wide-field { grid-column: 1 / -1; }
+  .report-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bottom-nav { gap: 3px; }
+  .bottom-nav button { min-height: 58px; padding-inline: 2px; font-size: 9px; }
+}
+@media (max-width: 520px) {
+  .app-frame { padding-inline: 0; padding-bottom: 190px; }
+  .topbar {
+    width: 100%;
+    min-height: 60px;
+    margin-bottom: 12px;
+    padding: 8px 10px;
+    border-radius: 19px;
+  }
+  .brand { gap: 8px; font-size: 17px; }
+  .brand-mark { width: 38px; height: 38px; }
+  .theme-toggle { width: 40px; min-width: 40px; height: 40px; }
+  .quiet-button { min-height: 38px; padding-inline: 10px; }
+  .dashboard { padding-top: 18px; gap: 14px; }
+  .dashboard > .panel { padding: 18px; border-radius: 20px; }
+  .panel-heading h2, .panel h2 { font-size: 21px; }
+  .panel-heading p, .panel > p { font-size: 13px; line-height: 1.55; }
+  .section-jump { margin: 16px 0 19px; gap: 7px; }
+  .section-jump a { min-height: 36px; padding: 8px 11px; font-size: 11px; }
+  .area-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin: 16px 0 22px; }
+  .area-summary article { min-height: 92px; padding: 13px; border-radius: 16px; }
+  .area-summary article > span { font-size: 11px; }
+  .area-summary article > strong { font-size: 21px; }
+  .finance-form { grid-template-columns: minmax(0, 1fr); gap: 13px; }
+  .finance-form .wide-field { grid-column: auto; }
+  .finance-form label { font-size: 12px; }
+  .finance-form input, .finance-form select, .finance-form textarea { min-height: 50px; font-size: 14px; }
+  .finance-form .primary-button { width: 100%; min-height: 51px; }
+  .radar-form { grid-template-columns: minmax(0, 1fr); }
+  .radar-form .primary-button { grid-column: auto; width: 100%; }
+  .report-metrics { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .report-metrics article { padding: 15px; }
+  .transaction-heading { align-items: flex-start; flex-wrap: wrap; }
+  .account-list li, .transaction-list li { align-items: flex-start; }
+  .bottom-nav {
+    width: calc(100% - 16px);
+    bottom: 88px;
+    padding: 7px 6px;
+    border-radius: 20px;
+  }
+  .bottom-nav button { min-height: 56px; font-size: 8.5px; }
+}
+@media (display-mode: standalone) and (max-width: 520px) {
+  .bottom-nav { bottom: max(8px, env(safe-area-inset-bottom, 0px)); }
+  .app-frame { padding-bottom: calc(142px + env(safe-area-inset-bottom, 0px)); }
+}
