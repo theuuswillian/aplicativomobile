@@ -185,18 +185,6 @@ psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
     'daily',1,current_date,current_date+2,current_date,'$account_id','cash',true
   );
 "
-bank_balance_after_card="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
-  select coalesce(sum(l.debit-l.credit),0)
-    from private.journal_lines l
-    join private.ledger_accounts a on a.id=l.ledger_account_id and a.user_id=l.user_id
-    join private.journal_entries j on j.id=l.journal_entry_id and j.user_id=l.user_id
-   where l.user_id='$user_id' and a.source_account_id='$account_id'
-     and a.account_kind in ('bank','cash') and j.status='posted'
-")"
-if [[ "$bank_balance_before_card" != "$bank_balance_after_card" ]]; then
-  echo "Falha: compra no crédito alterou o saldo bancário ($bank_balance_before_card -> $bank_balance_after_card)."
-  exit 1
-fi
 for suffix in a b; do
   psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 >"$tmp_dir/recurrence-$suffix.out" <<SQL &
 begin;
@@ -342,6 +330,18 @@ psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
     'Compra da fatura concorrente','$card_id',100.00,'2026-11-05','manual'
   );
 "
+bank_balance_after_card="$(psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 -c "
+  select coalesce(sum(l.debit-l.credit),0)
+    from private.journal_lines l
+    join private.ledger_accounts a on a.id=l.ledger_account_id and a.user_id=l.user_id
+    join private.journal_entries j on j.id=l.journal_entry_id and j.user_id=l.user_id
+   where l.user_id='$user_id' and a.source_account_id='$account_id'
+     and a.account_kind in ('bank','cash') and j.status='posted'
+")"
+if [[ "$bank_balance_before_card" != "$bank_balance_after_card" ]]; then
+  echo "Falha: compra no crédito alterou o saldo bancário ($bank_balance_before_card -> $bank_balance_after_card)."
+  exit 1
+fi
 for suffix in a b; do
   psql "$DATABASE_URL" -qAt -v ON_ERROR_STOP=1 >"$tmp_dir/invoice-$suffix.out" 2>&1 <<SQL &
 begin;
