@@ -609,4 +609,4 @@ if [[ "$installment_total" != "100.01" || "$installment_first" != "33.35" || "$i
   exit 1
 fi
 
-\necho "Concorrência PostgreSQL validada: quota de IA, rate limit, Radar, metas, WhatsApp, recorrências pagamentos de fatura, ledger, firewall de investimentos, empréstimos, horas extras e parcelas foram testados."
+echo "Concorrência PostgreSQL validada: quota de IA, rate limit, Radar, metas, WhatsApp, recorrências, pagamentos de fatura, ledger, firewall de investimentos, empréstimos, horas extras e parcelas foram testados."
