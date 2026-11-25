@@ -1619,6 +1619,16 @@ export default function App() {
                 const usdTotal = financialSummary?.investment_reference_usd == null ? totals.usd : Number(financialSummary.investment_reference_usd);
                 return <><strong>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(brlTotal)}</strong><small>{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(usdTotal)} · separado da liquidez</small></>;
               })()}</article>
+              <article className="overview-month-summary">
+                <div className="overview-recent-heading"><strong>Resumo do mês</strong><button type="button" onClick={() => setActiveTab("relatorios")}>Ver detalhes <span aria-hidden="true">›</span></button></div>
+                {(() => {
+                  const monthRows = transactions.filter((item) => item.status === "paid" && item.transaction_date.startsWith(currentBudgetDate.slice(0, 7)));
+                  const income = monthRows.filter((item) => item.kind === "income").reduce((sum, item) => sum + Number(item.amount), 0);
+                  const expense = monthRows.filter((item) => item.kind === "expense").reduce((sum, item) => sum + Number(item.amount), 0);
+                  const money = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+                  return <div className="overview-month-columns"><div><span>Receitas</span><strong className="amount-income">{money(income)}</strong></div><div><span>Despesas</span><strong className="amount-expense">{money(expense)}</strong></div><div><span>Saldo</span><strong>{money(income-expense)}</strong></div></div>;
+                })()}
+              </article>
               <div className="quick-actions-grid" aria-label="Ações rápidas">
                 <button type="button" onClick={() => { setTxKind("expense"); setTxPaymentMethod("pix"); setTxAccountId(""); setTxCardId(""); setQuickEntryOpen(true); }}><CircleMinus /><span>Adicionar<br/>despesa</span></button>
                 <button type="button" onClick={() => { setTxKind("income"); setTxPaymentMethod("pix"); setTxAccountId(""); setTxCardId(""); setQuickEntryOpen(true); }}><CirclePlus /><span>Adicionar<br/>receita</span></button>
@@ -1844,6 +1854,18 @@ export default function App() {
                 <article><span>Cartões</span><strong>{cards.length}</strong><small>cadastrados</small></article>
                 <article><span>Despesas realizadas no mês</span><strong>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(transactions.filter((item) => item.kind === "expense" && item.status === "paid" && item.transaction_date.startsWith(currentBudgetDate.slice(0, 7))).reduce((sum, item) => sum + Number(item.amount), 0))}</strong><small>com base nos lançamentos carregados</small></article>
               </div>
+              <section className="expense-overview" aria-label="Resumo de despesas do mês">
+                <div className="transaction-heading"><strong>Gastos por categoria</strong><span>Despesas realizadas</span></div>
+                {(() => {
+                  const monthRows = transactions.filter((item) => item.kind === "expense" && item.status === "paid" && item.transaction_date.startsWith(currentBudgetDate.slice(0, 7)));
+                  const rows = categories.filter((category) => category.kind === "expense").map((category) => ({ id: category.id, name: category.name, amount: monthRows.filter((item) => item.category_id === category.id).reduce((sum, item) => sum + Number(item.amount), 0) })).filter((item) => item.amount > 0).sort((a,b) => b.amount-a.amount);
+                  const total = rows.reduce((sum,item) => sum+item.amount,0);
+                  const palette = ["#EF4444","#3B82F6","#22C55E","#F59E0B","#9CA3AF","#A78BFA"];
+                  let cursor = 0;
+                  const gradient = rows.map((item,index) => { const from=cursor; cursor += total > 0 ? item.amount/total*100 : 0; return palette[index%palette.length]+" "+from+"% "+cursor+"%"; }).join(", ");
+                  return total > 0 ? <div className="expense-chart-row"><div className="expense-donut" role="img" aria-label={"Total de gastos " + new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(total)} style={{background:"conic-gradient("+gradient+")"}}><span>{new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL",notation:"compact",maximumFractionDigits:1}).format(total)}<small>Total</small></span></div><ul className="expense-legend">{rows.map((item,index) => <li key={item.id}><i style={{background:palette[index%palette.length]}}/><span>{item.name}</span><strong>{Math.round(item.amount/total*100)}%</strong></li>)}</ul></div> : <p className="empty-state">As categorias aparecerão aqui quando houver despesas realizadas neste mês.</p>;
+                })()}
+              </section>
               <details className="management-drawer"><summary>＋ Adicionar conta</summary><form className="finance-form" id="gastos-contas" onSubmit={(event) => void createAccount(event)}>
                 <label>Nome da conta<input value={accountName} onChange={(event) => setAccountName(event.target.value)} maxLength={100} placeholder="Ex.: Conta principal" required /></label>
                 <label>Banco ou instituição<select value={accountInstitutionKey} onChange={(event) => setAccountInstitutionKey(event.target.value)}><option value="">Selecione o banco (opcional)</option>{BANK_CATALOG.map((bank) => <option key={bank.logoKey} value={bank.logoKey}>{bank.name}{bank.code ? ` · ${bank.code}` : ""}</option>)}</select></label>
