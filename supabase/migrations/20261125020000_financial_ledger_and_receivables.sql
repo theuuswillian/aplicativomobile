@@ -421,7 +421,7 @@ $$;
 create or replace function private.protect_posted_journal()
 returns trigger language plpgsql
 set search_path=pg_catalog,private
-as $$
+as $protect$
 declare v_status text;
 begin
   if tg_table_name='journal_entries' then
@@ -441,7 +441,7 @@ begin
   if tg_op='DELETE' then return old; end if;
   return new;
 end;
-$;
+$protect$;
 
 create constraint trigger journal_entries_balanced
 after insert or update on private.journal_entries
