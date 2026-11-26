@@ -2221,12 +2221,7 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
           </section>
         )}
 
-        {signedIn && <nav className={`bottom-nav${navHidden?" is-hidden":""}`} aria-label="Navegação principal" aria-hidden={navHidden ? "true" : "false"}>
-          <button type="button" className={activeTab === "inicio" ? "active" : ""} aria-current={activeTab === "inicio" ? "page" : undefined} onClick={() => { setNavHidden(false); setActiveTab("inicio"); }}><Home size={20} strokeWidth={2.2} /><span>Início</span></button>
-          <button type="button" className={activeTab === "gastos" ? "active" : ""} aria-current={activeTab === "gastos" ? "page" : undefined} onClick={() => { setNavHidden(false); setActiveTab("gastos"); }}><ReceiptText size={20} strokeWidth={2.2} /><span>Gastos</span></button>
-          <button type="button" className={activeTab === "patrimonio" || activeTab === "planejamento" ? "active" : ""} aria-current={activeTab === "patrimonio" ? "page" : undefined} onClick={() => { setNavHidden(false); setActiveTab("patrimonio"); }}><TrendingUp size={20} strokeWidth={2.2} /><span>Patrimônio</span></button>
-          <button type="button" className={activeTab === "conta" || activeTab === "relatorios" ? "active" : ""} aria-current={activeTab === "conta" ? "page" : undefined} onClick={() => { setNavHidden(false); setActiveTab("conta"); }}><UserRound size={20} strokeWidth={2.2} /><span>Conta</span></button>
-        </nav>}
+        {signedIn && <BottomNavigation activeTab={activeTab} hidden={navHidden} onShow={() => setNavHidden(false)} onNavigate={(tab) => setActiveTab(tab)} />}
         <footer className="app-footer"><span>GRANAVIVA</span><span>Privacidade · Clareza · Gratuito para todos</span></footer>
       </div>
     </main>
