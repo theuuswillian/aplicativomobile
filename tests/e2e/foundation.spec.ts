@@ -316,11 +316,15 @@ test("renders authenticated sections with accessible navigation in dark and ligh
       if (tab.name === "Início") await expect(page.locator(".overview-balance strong")).toContainText("123,45");
       if (tab.name === "Conta") await expect(page.locator(".account-profile-card")).toBeVisible();
       const dock = page.locator(".bottom-nav");
-      // A navegação deve permanecer visível mesmo após rolar a página.
+      // O dock recolhe na descida e reaparece ao voltar para cima.
       await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+      await expect(dock).toHaveClass(/is-hidden/);
+      await expect(dock).toBeHidden();
+      await expect(dock).toHaveAttribute("aria-hidden", "true");
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await expect(dock).not.toHaveClass(/is-hidden/);
       await expect(dock).toBeVisible();
       await expect(dock).toHaveAttribute("aria-hidden", "false");
-      await page.evaluate(() => window.scrollTo(0, 0));
       const dockBox = await dock.boundingBox();
       const viewport = page.viewportSize();
       if (!dockBox || !viewport) throw new Error("Não foi possível medir a navegação inferior.");
