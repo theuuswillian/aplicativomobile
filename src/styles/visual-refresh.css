@@ -1607,7 +1607,7 @@ textarea:focus-visible {
 }
 .account-avatar {
   display:grid; place-items:center; width:44px; height:44px; flex:0 0 44px;
-  border-radius:50%; background:#777f91; color:#fff; font-size:14px; font-weight:750;
+  border-radius:50%; background:#657086; color:#fff; font-size:14px; font-weight:750;
 }
 .account-profile-card > span:last-child { display:grid; gap:4px; min-width:0; }
 .account-profile-card strong { color:#fff; font-size:13px; }
