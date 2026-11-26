@@ -245,7 +245,7 @@ declare
 begin
   select count(*), max(balance)
     into v_count, v_balance
-    from public.get_account_balances();
+    from public.get_account_balances(date '2026-01-04');
   if v_count <> 1 or v_balance <> 90.00 then
     raise exception 'Saldo inicial + lançamento não foi calculado corretamente: count %, balance %', v_count, v_balance;
   end if;
@@ -278,15 +278,15 @@ begin
   );
 
   select balance into v_balance
-    from public.get_account_balances()
+    from public.get_account_balances(date '2026-01-04')
    where account_id = '40000000-0000-4000-8000-000000000001';
 
   if v_balance <> 95.00 then
     raise exception 'Saldo por conta não refletiu empréstimo, devolução e hora extra: esperado 95, recebido %', v_balance;
   end if;
 
-  if has_function_privilege('anon','public.get_account_balances()','EXECUTE')
-     or not has_function_privilege('authenticated','public.get_account_balances()','EXECUTE') then
+  if has_function_privilege('anon','public.get_account_balances(date '2026-01-04')','EXECUTE')
+     or not has_function_privilege('authenticated','public.get_account_balances(date '2026-01-04')','EXECUTE') then
     raise exception 'Grants incorretos para get_account_balances';
   end if;
 end
