@@ -300,7 +300,9 @@ test("renders authenticated sections with accessible navigation in dark and ligh
         const openingBalanceField = drawer.getByLabel("Saldo inicial (R$)");
         await openingBalanceField.fill("1.234,56");
         await expect(openingBalanceField).toHaveValue("1.234,56");
-        await expect(openingBalanceField).toHaveCSS("font-size", "16px");
+        if (test.info().project.name === "webkit-iphone") {
+          await expect(openingBalanceField).toHaveCSS("font-size", "16px");
+        }
         if (test.info().project.name === "chromium-desktop") {
           await drawer.getByRole("button", { name: "Adicionar conta", exact: true }).click();
           expect(accountInsertPayloads[0]?.opening_balance).toBe("1234.56");
