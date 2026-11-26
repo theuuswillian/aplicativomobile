@@ -306,6 +306,7 @@ test("renders authenticated sections with accessible navigation in dark and ligh
         if (test.info().project.name === "chromium-desktop") {
           await drawer.getByRole("button", { name: "Adicionar conta", exact: true }).click();
           expect(accountInsertPayloads[0]?.opening_balance).toBe("1234.56");
+          expect(accountInsertPayloads[0]?.is_primary).toBe(false);
           await expect(page.locator("#gastos .account-list")).toContainText("Conta Nubank de teste");
           await expect(page.locator("#gastos .account-list img.bank-logo")).toHaveAttribute("src", "/banks/nubank.svg");
         } else {
