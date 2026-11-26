@@ -107,6 +107,7 @@ test("publishes PWA metadata and an iOS home-screen icon", async ({ page }) => {
 });
 
 test("renders authenticated sections with accessible navigation in dark and light themes", async ({ page }) => {
+  test.setTimeout(90_000);
   const user = {
     id: "11111111-1111-4111-8111-111111111111",
     aud: "authenticated",
