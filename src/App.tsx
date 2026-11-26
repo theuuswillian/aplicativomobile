@@ -5,6 +5,7 @@ import { Home, ReceiptText, TrendingUp, UserRound, Target, Bell, Eye, EyeOff, Ci
 import { supabase } from "./lib/supabase";
 import { todayInBrazil } from "./lib/date";
 import { formatBrlInput, toCents } from "./lib/money";
+import { normalizeInvestmentQuantity } from "./lib/investment-input";
 import { BANK_CATALOG } from "./data/bank-catalog";
 import { clearFinancialRecordsForUser } from "./lib/secure-storage";
 import { generateOccurrences, type RecurrenceFrequency } from "./domain/recurrence";
@@ -248,6 +249,8 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
   const nextBudgetMonthStart = new Date(Date.UTC(currentBudgetYear, currentBudgetMonth, 1)).toISOString().slice(0, 10);
   const [accountName, setAccountName] = useState("");
   const accountDrawerRef = useRef<HTMLDetailsElement>(null);
+  const investmentAssetDrawerRef = useRef<HTMLDetailsElement>(null);
+  const activeUserIdRef = useRef<string | null>(null);
   const [accountInstitutionKey, setAccountInstitutionKey] = useState("");
   const [accountType, setAccountType] = useState("checking");
   const [openingBalance, setOpeningBalance] = useState("0,00");
@@ -287,12 +290,15 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
     if (!supabase) return;
     let active = true;
     void supabase.auth.getSession().then(({ data }) => {
-      if (active) { setSession(data.session); setAuthReady(true); }
+      if (active) { activeUserIdRef.current = data.session?.user.id ?? null; setSession(data.session); setAuthReady(true); }
     }).catch(() => { if (active) setAuthReady(true); });
     const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      const nextUserId = nextSession?.user.id ?? null;
+      const userChanged = activeUserIdRef.current !== nextUserId;
+      activeUserIdRef.current = nextUserId;
       setSession(nextSession);
       setNotice("");
-      if (!nextSession || event === "SIGNED_IN") {
+      if (!nextSession || (event === "SIGNED_IN" && userChanged)) {
         setProfile(null); setAlerts([]); setRadarFires([]); setAccounts([]); setCards([]); setCategories([]); setRecurrences([]); setBudgets([]); setGoals([]); setGoalContributions([]); setInvestmentAssets([]); setInvestmentOperations([]); setManualPriceInputs({}); setIncomeEvents([]); setPushSubscriptions([]); setWhatsappLink(null); setWhatsappLinkCode(""); setWhatsappSummaryEnabled(false); setIncomeAssetId(""); setIncomeAmount(""); setIncomeReferenceDate(todayInBrazil()); setIncomePaymentDate(""); setInvestmentSymbol(""); setInvestmentName(""); setInvestmentAssetId(""); setInvestmentQuantity(""); setInvestmentUnitPrice(""); setInvestmentFees("0,00"); setInvestmentDate(todayInBrazil()); setFixedIncomeProduct("CDB"); setFixedIncomeIssuer(""); setFixedIncomeIndexer("CDI"); setFixedIncomeRate(""); setFixedIncomeMaturity(""); setFixedIncomeNextYieldDate(""); setFixedIncomeStart(todayInBrazil()); setFixedIncomeFrequency("daily"); setAccountInstitutionKey(""); setGoalName(""); setGoalTarget(""); setGoalMonthly("0,00"); setGoalTargetMonth(""); setGoalContributionAmounts({}); setImportFormat("CSV"); setImportDestinationType("account"); setImportDestinationId(""); setImportFileName(""); setImportPreview([]); setBudgetSpend([]); setTransactions([]); setTxCategoryId(""); setBudgetCategoryId(""); setBudgetLimit(""); setRecurrenceCategoryId(""); setRecurrenceAccountId(""); setRecurrenceCardId(""); setRecurrenceName(""); setRecurrenceAmount(""); setRecurrenceEnd(""); setRecurrenceStart(todayInBrazil());
         setTxAccountId(""); setTxCardId(""); setTxInstallmentCount("1"); setReceiptAccountId(""); setEditingTransactionId(null);
         setAssistantAnswer(""); setAssistantQuestion(""); setAssistantConsent(false);
@@ -332,63 +338,67 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
           client.from("income_events").select("id,asset_id,event_type,reference_date,payment_date,announced_amount,received_amount,status").eq("user_id", session.user.id).order("reference_date", { ascending: false }),
           client.from("income_events").select("id,account_id,transaction_id,settlement_state").eq("user_id", session.user.id),
         ]);
-        if (account.error) throw account.error;
-        if (preferences.error) throw preferences.error;
-        if (radar.error) throw radar.error;
-        if (radarFireRows.error) throw radarFireRows.error;
-        if (pushRows.error) throw pushRows.error;
-        if (whatsappRows.error) throw whatsappRows.error;
-        if (receiptFileRows.error) throw receiptFileRows.error;
-        if (invoicePaymentRows.error) throw invoicePaymentRows.error;
-        if (accountRows.error) throw accountRows.error;
-        if (transactionRows.error) throw transactionRows.error;
-        if (cardRows.error) throw cardRows.error;
-        if (categoryRows.error) throw categoryRows.error;
-        if (recurrenceRows.error) throw recurrenceRows.error;
-        if (budgetRows.error) throw budgetRows.error;
-        if (budgetSpendRows.error) throw budgetSpendRows.error;
-        if (goalRows.error) throw goalRows.error;
-        if (goalContributionRows.error) throw goalContributionRows.error;
-        if (investmentAssetRows.error) throw investmentAssetRows.error;
-        if (investmentOperationRows.error) throw investmentOperationRows.error;
-        if (incomeEventRows.error) throw incomeEventRows.error;
         if (!active) return;
-        setProfile(account.data?.data?.profile ?? null);
-        const serverTheme = preferences.data?.data?.theme;
+        const loadFailures: string[] = [];
+        if (account.error) loadFailures.push("perfil");
+        if (preferences.error) loadFailures.push("preferências");
+        if (radar.error) loadFailures.push("Radar");
+        if (radarFireRows.error) loadFailures.push("histórico do Radar");
+        if (pushRows.error) loadFailures.push("notificações");
+        if (whatsappRows.error) loadFailures.push("WhatsApp");
+        if (receiptFileRows.error) loadFailures.push("comprovantes");
+        if (accountRows.error) loadFailures.push("contas");
+        if (transactionRows.error) loadFailures.push("lançamentos");
+        if (cardRows.error) loadFailures.push("cartões");
+        if (invoicePaymentRows.error) loadFailures.push("pagamentos de fatura");
+        if (cardInvoiceInstallmentRows.error) loadFailures.push("parcelas de cartão");
+        if (categoryRows.error) loadFailures.push("categorias");
+        if (recurrenceRows.error) loadFailures.push("recorrências");
+        if (budgetRows.error || budgetSpendRows.error) loadFailures.push("orçamentos");
+        if (goalRows.error || goalContributionRows.error) loadFailures.push("metas");
+        if (investmentAssetRows.error || investmentOperationRows.error) loadFailures.push("investimentos");
+        if (incomeEventRows.error || incomeEventSettlementRows.error) loadFailures.push("proventos");
+        if (!account.error) setProfile(account.data?.data?.profile ?? null);
+        const serverTheme = preferences.error ? null : preferences.data?.data?.theme;
         if (serverTheme === "light" || serverTheme === "dark") setTheme(serverTheme);
-        setAlerts(Array.isArray(radar.data?.data) ? radar.data.data as RadarAlert[] : []);
-        setRadarFires(Array.isArray(radarFireRows.data?.data) ? radarFireRows.data.data as RadarFireRow[] : []);
-        setAccounts((accountRows.data ?? []) as AccountRow[]);
-        setCards((cardRows.data ?? []) as CardRow[]);
-        setInvoicePayments((invoicePaymentRows.data ?? []) as CardInvoicePaymentRow[]);
-        setCardInstallments(cardInvoiceInstallmentRows.error ? [] : (cardInvoiceInstallmentRows.data ?? []) as CardInvoiceInstallmentRow[]);
-        if (cardRows.data?.[0]?.id) setInvoicePaymentCardId((current) => current || cardRows.data[0].id);
-        if (accountRows.data?.[0]?.id) setInvoicePaymentAccountId((current) => current || accountRows.data[0].id);
-        setCategories((categoryRows.data ?? []) as CategoryRow[]);
-        setRecurrences((recurrenceRows.data ?? []) as RecurrenceRow[]);
-        setBudgets((budgetRows.data ?? []) as BudgetRow[]);
-        setBudgetSpend((budgetSpendRows.data ?? []) as BudgetSpendRow[]);
-        setGoals((goalRows.data ?? []) as GoalRow[]);
-        setGoalContributions((goalContributionRows.data ?? []) as GoalContributionRow[]);
-        setInvestmentAssets((investmentAssetRows.data ?? []) as InvestmentAssetRow[]);
-        setInvestmentOperations((investmentOperationRows.data ?? []) as InvestmentOperationRow[]);
+        if (!radar.error) setAlerts(Array.isArray(radar.data?.data) ? radar.data.data as RadarAlert[] : []);
+        if (!radarFireRows.error) setRadarFires(Array.isArray(radarFireRows.data?.data) ? radarFireRows.data.data as RadarFireRow[] : []);
+        if (!accountRows.error) setAccounts((accountRows.data ?? []) as AccountRow[]);
+        if (!cardRows.error) setCards((cardRows.data ?? []) as CardRow[]);
+        if (!invoicePaymentRows.error) setInvoicePayments((invoicePaymentRows.data ?? []) as CardInvoicePaymentRow[]);
+        if (!cardInvoiceInstallmentRows.error) setCardInstallments((cardInvoiceInstallmentRows.data ?? []) as CardInvoiceInstallmentRow[]);
+        if (!cardRows.error && cardRows.data?.[0]?.id) setInvoicePaymentCardId((current) => current || cardRows.data[0].id);
+        if (!accountRows.error && accountRows.data?.[0]?.id) setInvoicePaymentAccountId((current) => current || accountRows.data[0].id);
+        if (!categoryRows.error) setCategories((categoryRows.data ?? []) as CategoryRow[]);
+        if (!recurrenceRows.error) setRecurrences((recurrenceRows.data ?? []) as RecurrenceRow[]);
+        if (!budgetRows.error) setBudgets((budgetRows.data ?? []) as BudgetRow[]);
+        if (!budgetSpendRows.error) setBudgetSpend((budgetSpendRows.data ?? []) as BudgetSpendRow[]);
+        if (!goalRows.error) setGoals((goalRows.data ?? []) as GoalRow[]);
+        if (!goalContributionRows.error) setGoalContributions((goalContributionRows.data ?? []) as GoalContributionRow[]);
+        if (!investmentAssetRows.error) setInvestmentAssets((investmentAssetRows.data ?? []) as InvestmentAssetRow[]);
+        if (!investmentOperationRows.error) setInvestmentOperations((investmentOperationRows.data ?? []) as InvestmentOperationRow[]);
         setIncomeSettlementReady(!incomeEventSettlementRows.error);
-        const settlementById = new Map((incomeEventSettlementRows.data ?? []).map((row) => [row.id, row]));
-        setIncomeEvents(((incomeEventRows.data ?? []) as Omit<IncomeEventRow, "account_id" | "transaction_id" | "settlement_state">[]).map((row) => ({
-          ...row,
-          ...(settlementById.get(row.id) ?? { account_id: null, transaction_id: null, settlement_state: "unsettled" as const }),
-        })));
-        setPushSubscriptions((pushRows.data?.data ?? []) as PushSubscriptionRow[]);
-        setWhatsappLink(whatsappRows.data?.data?.linked ? { phone: whatsappRows.data.data.phone, weekly_summary_enabled: whatsappRows.data.data.weekly_summary_enabled } : null);
-        setWhatsappSummaryEnabled(Boolean(whatsappRows.data?.data?.weekly_summary_enabled));
-        setReceiptFiles((receiptFileRows.data ?? []) as ReceiptFileRow[]);
-        if (investmentAssetRows.data?.[0]?.id) setIncomeAssetId((current) => current || investmentAssetRows.data[0].id);
-        if (investmentAssetRows.data?.[0]?.id) setInvestmentAssetId((current) => current || investmentAssetRows.data[0].id);
-        setTransactions((transactionRows.data ?? []) as TransactionRow[]);
-        const firstLiquidAccount = accountRows.data?.find((account) => account.account_type !== "investment");
+        if (!incomeEventRows.error) {
+          const settlementById = new Map((incomeEventSettlementRows.data ?? []).map((row) => [row.id, row]));
+          setIncomeEvents(((incomeEventRows.data ?? []) as Omit<IncomeEventRow, "account_id" | "transaction_id" | "settlement_state">[]).map((row) => ({
+            ...row,
+            ...(settlementById.get(row.id) ?? { account_id: null, transaction_id: null, settlement_state: "unsettled" as const }),
+          })));
+        }
+        if (!pushRows.error) setPushSubscriptions((pushRows.data?.data ?? []) as PushSubscriptionRow[]);
+        if (!whatsappRows.error) {
+          setWhatsappLink(whatsappRows.data?.data?.linked ? { phone: whatsappRows.data.data.phone, weekly_summary_enabled: whatsappRows.data.data.weekly_summary_enabled } : null);
+          setWhatsappSummaryEnabled(Boolean(whatsappRows.data?.data?.weekly_summary_enabled));
+        }
+        if (!receiptFileRows.error) setReceiptFiles((receiptFileRows.data ?? []) as ReceiptFileRow[]);
+        if (!investmentAssetRows.error && investmentAssetRows.data?.[0]?.id) setIncomeAssetId((current) => current || investmentAssetRows.data[0].id);
+        if (!investmentAssetRows.error && investmentAssetRows.data?.[0]?.id) setInvestmentAssetId((current) => current || investmentAssetRows.data[0].id);
+        if (!transactionRows.error) setTransactions((transactionRows.data ?? []) as TransactionRow[]);
+        const firstLiquidAccount = accountRows.error ? undefined : accountRows.data?.find((account) => account.account_type !== "investment");
         if (firstLiquidAccount?.id) setTxAccountId((current) => current || firstLiquidAccount.id);
         if (firstLiquidAccount?.id) setReceiptAccountId((current) => current || firstLiquidAccount.id);
         if (firstLiquidAccount?.id) setImportDestinationId((current) => current || firstLiquidAccount.id);
+        if (loadFailures.length) setNotice(`Alguns dados não carregaram: ${loadFailures.join(", ")}. Os demais continuam disponíveis; tente atualizar a tela.`);
       } catch (error) {
         if (active) setNotice(errorMessage(error));
       }
@@ -602,6 +612,9 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
     setBusy(true);
     setNotice("");
     try {
+      const { data: primaryAccount, error: primaryLookupError } = await supabase.from("accounts")
+        .select("id").eq("user_id", session.user.id).eq("is_primary", true).limit(1).maybeSingle();
+      if (primaryLookupError) throw primaryLookupError;
       const { data, error } = await supabase.from("accounts").insert({
         user_id: session.user.id,
         name: cleanName,
@@ -611,7 +624,7 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
         institution_logo_key: institution?.logoKey ?? null,
         opening_balance: amount,
         opening_balance_date: todayInBrazil(),
-        is_primary: !accounts.some((account) => account.is_primary),
+        is_primary: !primaryAccount,
       }).select("id,name,account_type,opening_balance,opening_balance_date,is_primary,institution_name,institution_code,institution_logo_key").single();
       if (error) throw error;
       if (!data?.id) throw new Error("O banco não confirmou o cadastro da conta.");
@@ -1013,18 +1026,20 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
   async function createInvestmentAsset(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!supabase || !session) return;
-    const symbolValue = investmentSymbol.trim().toUpperCase();
     const nameValue = investmentName.trim();
+    const enteredSymbol = investmentSymbol.trim().toUpperCase();
+    const symbolValue = enteredSymbol || (investmentClass === "fixed_income" ? `RF${Date.now().toString(36).toUpperCase()}` : "");
     if (!/^[A-Z0-9.]{1,32}$/.test(symbolValue) || !nameValue || nameValue.length > 120) {
-      setNotice("Informe um ticker válido e o nome do ativo.");
+      setNotice(investmentClass === "fixed_income" ? "Informe a identificação (ou deixe em branco) e o nome do título." : "Informe um ticker válido e o nome do ativo.");
       return;
     }
     const fixedRate = fixedIncomeRate.trim().replace(",", ".");
-    if (investmentClass === "fixed_income" && (!fixedIncomeProduct.trim() || !fixedIncomeStart ||
-        !/^\d{4}-\d{2}-\d{2}$/.test(fixedIncomeStart) ||
-        !/^\d{4}-\d{2}-\d{2}$/.test(fixedIncomeMaturity) || fixedIncomeMaturity <= fixedIncomeStart ||
-        !/^\d{4}-\d{2}-\d{2}$/.test(fixedIncomeNextYieldDate) ||
-        fixedIncomeNextYieldDate < fixedIncomeStart || fixedIncomeNextYieldDate > fixedIncomeMaturity ||
+    const isoDate = (value: string) => !value || /^\d{4}-\d{2}-\d{2}$/.test(value);
+    const validMaturity = !fixedIncomeMaturity || (isoDate(fixedIncomeMaturity) && fixedIncomeMaturity > fixedIncomeStart);
+    const validNextYield = !fixedIncomeNextYieldDate || (isoDate(fixedIncomeNextYieldDate) &&
+      fixedIncomeNextYieldDate >= fixedIncomeStart && (!fixedIncomeMaturity || fixedIncomeNextYieldDate <= fixedIncomeMaturity));
+    if (investmentClass === "fixed_income" && (!fixedIncomeProduct.trim() || !isoDate(fixedIncomeStart) ||
+        !validMaturity || !validNextYield ||
         !/^[0-9]{1,3}(?:[.][0-9]{1,4})?$/.test(fixedRate) || Number(fixedRate) <= 0 || Number(fixedRate) > 1000)) {
       setNotice("Confira o produto, indexador, taxa e datas da renda fixa.");
       return;
@@ -1032,8 +1047,8 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
     const metadata = investmentClass === "fixed_income" ? {
       fixed_income: {
         product: fixedIncomeProduct, issuer: fixedIncomeIssuer.trim(), indexer: fixedIncomeIndexer,
-        annual_rate_percent: fixedRate, start_date: fixedIncomeStart, maturity_date: fixedIncomeMaturity,
-        next_yield_date: fixedIncomeNextYieldDate, yield_frequency: fixedIncomeFrequency,
+        annual_rate_percent: fixedRate, start_date: fixedIncomeStart, maturity_date: fixedIncomeMaturity || null,
+        next_yield_date: fixedIncomeNextYieldDate || null, yield_frequency: fixedIncomeFrequency,
       },
     } : {};
     setBusy(true); setNotice("");
@@ -1082,14 +1097,10 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
   async function createInvestmentOperation(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!supabase || !session) return;
-    const quantityInput = investmentQuantity.trim().replace(",", ".");
-    const quantityValid = /^\\d{1,10}(?:\\.\\d{1,8})?$/.test(quantityInput);
-    const [quantityWhole = "0", quantityFraction = ""] = quantityInput.split(".");
-    const quantityAtoms = quantityValid
-      ? BigInt(quantityWhole) * 100_000_000n + BigInt(quantityFraction.padEnd(8, "0"))
-      : 0n;
+    const parsedQuantity = normalizeInvestmentQuantity(investmentQuantity);
+    const quantityAtoms = parsedQuantity?.atoms ?? 0n;
     const quantity = Number(quantityAtoms) / 100_000_000;
-    const quantityNormalized = `${quantityWhole}.${quantityFraction.padEnd(8, "0")}`;
+    const quantityNormalized = parsedQuantity?.normalized ?? "0.00000000";
     const unitPrice = normalizeBrlAmount(investmentUnitPrice);
     const fees = normalizeBrlAmount(investmentFees, true);
     const asset = investmentAssets.find((item) => item.id === investmentAssetId);
@@ -1797,8 +1808,9 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
                   })()}
                   <p className="helper-text">A distribuição usa preço de referência manual quando disponível; nos demais ativos, usa o custo investido. Valores em BRL e USD são separados para não misturar moedas. Não representa cotação de mercado nem rentabilidade atual.</p>
                 </div>}
-                <details className="management-drawer"><summary>＋ Adicionar ativo à carteira</summary><form className="finance-form" onSubmit={(event) => void createInvestmentAsset(event)}>
-                  <label>Ticker ou nome<input value={investmentSymbol} onChange={(event) => { const raw = event.target.value; const query = raw.trim(); const value = query.toUpperCase(); const matchEntry = Object.entries(INVESTMENT_CATALOG).find(([ticker]) => ticker === value); setInvestmentSymbol(matchEntry ? matchEntry[0] : raw); if (matchEntry) { const match = matchEntry[1]; setInvestmentName(match.name); setInvestmentClass(match.assetClass); setInvestmentCurrency("BRL"); } }} maxLength={120} autoComplete="off" placeholder="Digite PETR4, Petrobras, MXRF11..." required /></label>{investmentSymbol.trim().length >= 2 && !Object.keys(INVESTMENT_CATALOG).includes(investmentSymbol.trim().toUpperCase()) && <ul className="investment-suggestions" aria-label="Sugestões de ativos">{Object.entries(INVESTMENT_CATALOG).filter(([ticker,item]) => { const query = investmentSymbol.trim().toLocaleLowerCase("pt-BR"); return ticker.toLocaleLowerCase("pt-BR").includes(query) || item.name.toLocaleLowerCase("pt-BR").includes(query); }).slice(0,6).map(([ticker,item]) => <li key={ticker}><button type="button" onClick={() => { setInvestmentSymbol(ticker); setInvestmentName(item.name); setInvestmentClass(item.assetClass); setInvestmentCurrency("BRL"); }}>{item.name}<small>{ticker}</small></button></li>)}</ul>}
+                <button className="quiet-button" type="button" onClick={() => { setInvestmentClass("fixed_income"); setInvestmentCurrency("BRL"); if (investmentAssetDrawerRef.current) investmentAssetDrawerRef.current.open = true; }}>＋ Cadastrar renda fixa</button>
+                <details ref={investmentAssetDrawerRef} className="management-drawer"><summary>＋ Adicionar ativo à carteira</summary><form className="finance-form" onSubmit={(event) => void createInvestmentAsset(event)}>
+                  <label>{investmentClass === "fixed_income" ? "Identificação (opcional)" : "Ticker ou nome"}<input value={investmentSymbol} onChange={(event) => { const raw = event.target.value; const query = raw.trim(); const value = query.toUpperCase(); const matchEntry = Object.entries(INVESTMENT_CATALOG).find(([ticker]) => ticker === value); setInvestmentSymbol(matchEntry ? matchEntry[0] : raw); if (matchEntry) { const match = matchEntry[1]; setInvestmentName(match.name); setInvestmentClass(match.assetClass); setInvestmentCurrency("BRL"); } }} maxLength={120} autoComplete="off" placeholder={investmentClass === "fixed_income" ? "Ex.: CDB Banco X (opcional)" : "Digite PETR4, Petrobras, MXRF11..."} required={investmentClass !== "fixed_income"} /></label>{investmentSymbol.trim().length >= 2 && !Object.keys(INVESTMENT_CATALOG).includes(investmentSymbol.trim().toUpperCase()) && <ul className="investment-suggestions" aria-label="Sugestões de ativos">{Object.entries(INVESTMENT_CATALOG).filter(([ticker,item]) => { const query = investmentSymbol.trim().toLocaleLowerCase("pt-BR"); return ticker.toLocaleLowerCase("pt-BR").includes(query) || item.name.toLocaleLowerCase("pt-BR").includes(query); }).slice(0,6).map(([ticker,item]) => <li key={ticker}><button type="button" onClick={() => { setInvestmentSymbol(ticker); setInvestmentName(item.name); setInvestmentClass(item.assetClass); setInvestmentCurrency("BRL"); }}>{item.name}<small>{ticker}</small></button></li>)}</ul>}
                   <label>Nome do ativo<input value={investmentName} onChange={(event) => setInvestmentName(event.target.value)} maxLength={120} placeholder="Nome ou descrição" required /></label>
                   <label>Classe<select value={investmentClass} onChange={(event) => setInvestmentClass(event.target.value as InvestmentAssetRow["asset_class"])}><option value="stock">Ação</option><option value="fii">FII</option><option value="etf">ETF</option><option value="bdr">BDR</option><option value="fixed_income">Renda fixa</option><option value="crypto">Cripto</option></select></label>
                   <label>Moeda<select value={investmentCurrency} onChange={(event) => setInvestmentCurrency(event.target.value as "BRL" | "USD")}><option value="BRL">BRL</option><option value="USD">USD</option></select></label>
@@ -1808,8 +1820,8 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
                     <label>Indexador<select value={fixedIncomeIndexer} onChange={(event) => setFixedIncomeIndexer(event.target.value as typeof fixedIncomeIndexer)}><option value="CDI">CDI</option><option value="IPCA">IPCA</option><option value="SELIC">Selic</option><option value="PREFIXADO">Prefixado</option></select></label>
                     <label>Taxa anual (%)<input inputMode="decimal" value={fixedIncomeRate} onChange={(event) => setFixedIncomeRate(event.target.value)} placeholder="Ex.: 100 ou 12,5" required/></label>
                     <label>Início da aplicação<input type="date" value={fixedIncomeStart} onChange={(event) => setFixedIncomeStart(event.target.value)} required/></label>
-                    <label>Vencimento<input type="date" min={fixedIncomeStart} value={fixedIncomeMaturity} onChange={(event) => setFixedIncomeMaturity(event.target.value)} required/></label>
-                    <label>Próxima data de rendimento<input type="date" min={fixedIncomeStart} max={fixedIncomeMaturity || undefined} value={fixedIncomeNextYieldDate} onChange={(event) => setFixedIncomeNextYieldDate(event.target.value)} required/></label>
+                    <label>Vencimento (se houver)<input type="date" min={fixedIncomeStart} value={fixedIncomeMaturity} onChange={(event) => setFixedIncomeMaturity(event.target.value)}/></label>
+                    <label>Próxima data de rendimento (opcional)<input type="date" min={fixedIncomeStart} max={fixedIncomeMaturity || undefined} value={fixedIncomeNextYieldDate} onChange={(event) => setFixedIncomeNextYieldDate(event.target.value)}/></label>
                     <label>Periodicidade do rendimento<select value={fixedIncomeFrequency} onChange={(event) => setFixedIncomeFrequency(event.target.value as typeof fixedIncomeFrequency)}><option value="daily">Diário (dias úteis)</option><option value="monthly">Mensal</option><option value="semiannual">Semestral</option><option value="at_maturity">No vencimento</option></select></label>
                   </>}
                   <button className="primary-button" type="submit" disabled={busy}>Adicionar ativo</button>
@@ -1817,8 +1829,8 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
                 {investmentAssets.length > 0 && <details className="management-drawer"><summary>＋ Registrar operação</summary><form className="finance-form" onSubmit={(event) => void createInvestmentOperation(event)}>
                   <label>Ativo<select value={investmentAssetId} onChange={(event) => { const id = event.target.value; setInvestmentAssetId(id); const selected = investmentAssets.find((asset) => asset.id === id); if (selected?.current_price != null) setInvestmentUnitPrice(String(selected.current_price).replace(".", ",")); }} required>{investmentAssets.map((asset) => <option key={asset.id} value={asset.id}>{asset.symbol} · {asset.name}</option>)}</select></label>
                   <label>Operação<select value={investmentOperationType} onChange={(event) => setInvestmentOperationType(event.target.value as "opening" | "buy" | "sell")}><option value="buy">Compra</option><option value="sell">Venda</option><option value="opening">Posição inicial</option></select></label>
-                  <label>Quantidade<input inputMode="decimal" value={investmentQuantity} onChange={(event) => setInvestmentQuantity(event.target.value)} placeholder="Ex.: 10" required /></label>
-                  <label>Preço unitário ({investmentAssets.find((item) => item.id === investmentAssetId)?.currency ?? "BRL"})<input inputMode="decimal" value={investmentUnitPrice} onChange={(event) => setInvestmentUnitPrice(event.target.value)} placeholder="Informe o preço de referência" required /></label>
+                  <label>{investmentAssets.find((item) => item.id === investmentAssetId)?.asset_class === "fixed_income" ? "Quantidade de títulos/unidades" : "Quantidade de cotas"}<input inputMode="decimal" value={investmentQuantity} onChange={(event) => setInvestmentQuantity(event.target.value)} placeholder="Ex.: 10" required /></label>
+                  <label>{investmentAssets.find((item) => item.id === investmentAssetId)?.asset_class === "fixed_income" ? "Preço unitário / PU" : "Preço por cota"} ({investmentAssets.find((item) => item.id === investmentAssetId)?.currency ?? "BRL"})<input inputMode="decimal" value={investmentUnitPrice} onChange={(event) => setInvestmentUnitPrice(event.target.value)} placeholder="Informe o preço de referência" required /></label>
                   <label>Taxas ({investmentAssets.find((item) => item.id === investmentAssetId)?.currency ?? "BRL"})<input inputMode="decimal" value={investmentFees} onChange={(event) => setInvestmentFees(event.target.value)} required /></label>
                   <label>Data<input type="date" value={investmentDate} onChange={(event) => setInvestmentDate(event.target.value)} required /></label>
                   <p className="investment-total-preview" aria-live="polite">Total estimado da operação: <strong>{(() => { const q = Number(investmentQuantity.trim().replace(",", ".")); const p = Number(investmentUnitPrice.trim().replace(",", ".")); const f = Number(investmentFees.trim().replace(",", ".")); const total = q * p + (investmentOperationType === "sell" ? -f : f); return Number.isFinite(total) && q > 0 && p > 0 ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: investmentAssets.find((item) => item.id === investmentAssetId)?.currency ?? "BRL" }).format(total) : "—"; })()}</strong></p>\n                  <button className="primary-button" type="submit" disabled={busy}>Registrar operação</button>
