@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
 import { ArrowUpRight, Check, Info, Plus, Sparkles, Target, Trash2, TrendingUp } from "lucide-react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { calculatePassiveIncomeSnapshot, type IncomeAsset, type IncomeEvent, type IncomeOperation } from "../../domain/income-goals";
@@ -58,7 +59,7 @@ export function IncomeGoalsPanel({ client, userId, assets, operations, events, t
     return () => { active = false; };
   }, [client, userId]);
 
-  async function createGoal(event: React.FormEvent<HTMLFormElement>) {
+  async function createGoal(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const amount = parseAmount(target);
     const cleanName = name.trim();
@@ -94,7 +95,7 @@ export function IncomeGoalsPanel({ client, userId, assets, operations, events, t
     setBusy(false);
   }
 
-  return <section className="income-goals-panel" aria-labelledby="income-goals-title">
+  return <section id="metas-rendimentos" className="income-goals-panel" aria-labelledby="income-goals-title">
     <div className="income-goals-heading">
       <div><span className="principles-label">RENDA QUE TRABALHA POR VOCÊ</span><h3 id="income-goals-title">Metas de rendimentos</h3>
         <p>Veja quanto sua carteira pode gerar por mês e quais despesas ela já consegue cobrir.</p></div>
