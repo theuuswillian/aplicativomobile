@@ -160,6 +160,20 @@
 .app-shell[data-theme="light"] .overview-recent-heading button {
   color: #15803d;
 }
+.app-shell[data-theme="light"] .panel h3,
+.app-shell[data-theme="light"] .panel h4,
+.app-shell[data-theme="light"] .subpanel h2,
+.app-shell[data-theme="light"] .subpanel h3,
+.app-shell[data-theme="light"] .subpanel h4,
+.app-shell[data-theme="light"] .transaction-heading strong {
+  color: #17201b;
+}
+.app-shell[data-theme="light"] .finance-form label,
+.app-shell[data-theme="light"] .assistant-form label,
+.app-shell[data-theme="light"] .receipt-preview label,
+.app-shell[data-theme="light"] .radar-form label {
+  color: #59665f;
+}
 .app-shell[data-theme="light"] .panel p,
 .app-shell[data-theme="light"] .panel-heading p,
 .app-shell[data-theme="light"] .helper-text,
