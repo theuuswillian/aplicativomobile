@@ -242,6 +242,8 @@ declare
   v_balance numeric(15,2);
   v_loan_id uuid;
   v_overtime_id uuid;
+  v_public_definer boolean;
+  v_private_definer boolean;
 begin
   select count(*), max(balance)
     into v_count, v_balance
@@ -288,6 +290,20 @@ begin
   if has_function_privilege('anon','public.get_account_balances(date)','EXECUTE')
      or not has_function_privilege('authenticated','public.get_account_balances(date)','EXECUTE') then
     raise exception 'Grants incorretos para get_account_balances';
+  end if;
+  select prosecdef into v_public_definer
+    from pg_proc where oid = 'public.get_account_balances(date)'::regprocedure;
+  select prosecdef into v_private_definer
+    from pg_proc where oid = 'private.get_account_balances(date)'::regprocedure;
+  if v_public_definer is distinct from false or v_private_definer is distinct from true then
+    raise exception 'Camadas de segurança incorretas para get_account_balances';
+  end if;
+
+  if has_schema_privilege('anon','private','USAGE')
+     or not has_schema_privilege('authenticated','private','USAGE')
+     or has_function_privilege('anon','private.get_account_balances(date)','EXECUTE')
+     or not has_function_privilege('authenticated','private.get_account_balances(date)','EXECUTE') then
+    raise exception 'Privilégios incorretos para a função interna de saldos';
   end if;
 end
 $assert_account_balances$;
