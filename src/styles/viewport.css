@@ -32,3 +32,34 @@ body,
   max-width: 100%;
   min-width: 0;
 }
+
+
+/* Barra inferior inteligente: recolhe ao rolar para baixo e retorna ao subir. */
+.bottom-nav {
+  transition:
+    transform 260ms cubic-bezier(.2,.75,.25,1),
+    opacity 200ms ease,
+    visibility 0s linear 0s;
+  will-change: transform;
+}
+.bottom-nav.is-hidden {
+  transform: translate3d(0, calc(100% + 20px), 0);
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transition:
+    transform 260ms cubic-bezier(.2,.75,.25,1),
+    opacity 180ms ease,
+    visibility 0s linear 260ms;
+}
+@media (min-width: 761px) {
+  .bottom-nav.is-hidden {
+    transform: translate3d(50%, calc(100% + 20px), 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bottom-nav,
+  .bottom-nav.is-hidden {
+    transition: none;
+  }
+}
