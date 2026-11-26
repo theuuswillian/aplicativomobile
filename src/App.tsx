@@ -475,7 +475,7 @@ export default function App() {
       return;
     }
     let active = true;
-    void supabase.rpc("get_account_balances").then(({ data, error }) => {
+    void supabase.rpc("get_account_balances", { p_as_of: currentBudgetDate }).then(({ data, error }) => {
       if (!active || error || !Array.isArray(data)) return;
       if (data.length === 0 && accounts.length > 0) return;
       const next: Record<string, number> = {};
@@ -488,7 +488,7 @@ export default function App() {
       setLedgerAccountBalances(next);
     });
     return () => { active = false; };
-  }, [session, accounts, transactions, invoicePayments, investmentOperations, incomeEvents, ledgerRefreshVersion]);
+  }, [session, accounts, transactions, invoicePayments, investmentOperations, incomeEvents, ledgerRefreshVersion, currentBudgetDate]);
 
 
   async function handleAuth(event: FormEvent<HTMLFormElement>) {
