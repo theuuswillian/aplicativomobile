@@ -1,12 +1,12 @@
 import { useId } from "react";
 import {
-  ArrowDownLeft, ArrowUpRight, Eye, EyeOff, Plus, Target,
+  ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Eye, EyeOff, Plus, Target,
   ChartNoAxesColumn, WalletCards, TrendingUp,
 } from "lucide-react";
 
 export interface OverviewTransaction {
   id: string;
-  kind: "income" | "expense";
+  kind: "income" | "expense" | "transfer";
   description: string;
   transaction_date: string;
   amount: number | string;
@@ -114,9 +114,9 @@ export default function OverviewDashboard(props: OverviewDashboardProps) {
         {transactions.length === 0 ? <p className="gv-empty">Seus lançamentos aparecerão aqui.</p> : (
           <ul className="gv-transaction-list">{transactions.slice(0, 4).map((item) => (
             <li key={item.id}>
-              <span className={item.kind === "income" ? "gv-transaction-icon is-income" : "gv-transaction-icon"}>{item.kind === "income" ? <ArrowDownLeft size={18}/> : <ArrowUpRight size={18}/>}</span>
+              <span className={item.kind === "income" ? "gv-transaction-icon is-income" : item.kind === "transfer" ? "gv-transaction-icon is-transfer" : "gv-transaction-icon"}>{item.kind === "income" ? <ArrowDownLeft size={18}/> : item.kind === "transfer" ? <ArrowLeftRight size={18}/> : <ArrowUpRight size={18}/>}</span>
               <span className="gv-transaction-description"><strong>{item.description}</strong><small>{new Date(item.transaction_date + "T12:00:00").toLocaleDateString("pt-BR")}</small></span>
-              <strong className={item.kind === "income" ? "gv-income" : "gv-expense"}>{item.kind === "income" ? "+" : "−"}{brl.format(Number(item.amount))}</strong>
+              <strong className={item.kind === "income" ? "gv-income" : item.kind === "transfer" ? "" : "gv-expense"}>{item.kind === "income" ? "+" : item.kind === "transfer" ? "↔" : "−"}{brl.format(Number(item.amount))}</strong>
             </li>
           ))}</ul>
         )}
