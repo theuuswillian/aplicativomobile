@@ -219,7 +219,7 @@ test("renders authenticated sections with accessible navigation in dark and ligh
   const accountInsertPayloads: Record<string, unknown>[] = [];
   await page.route("**/rest/v1/accounts**", async (route) => {
     if (route.request().method() === "POST") {
-      accountInsertPayloads.push(route.request().postDataJSON() as Record<string, unknown>);
+      accountInsertPayloads.push(JSON.parse(route.request().postData() ?? "{}") as Record<string, unknown>);
       await route.fulfill({
         status: 201,
         headers: { "access-control-allow-origin": "*", "content-range": "0-0/1", "preference-applied": "return=representation" },
