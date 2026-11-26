@@ -1,5 +1,6 @@
 -- Exposes per-account balances from the private ledger without exposing journal tables.
 create or replace function public.get_account_balances()
+(p_as_of date)
 returns table(account_id uuid, balance numeric(15,2))
 language plpgsql
 stable
@@ -12,12 +13,15 @@ begin
   if v_user is null then
     raise exception 'Autenticação obrigatória' using errcode='42501';
   end if;
+  if p_as_of is null then
+    raise exception 'Data de referência obrigatória' using errcode='22023';
+  end if;
 
   return query
   select
     a.id,
     coalesce(
-      sum(jl.debit - jl.credit) filter (where je.status = 'posted'),
+      sum(jl.debit - jl.credit) filter (where je.status = 'posted' and je.transaction_date <= p_as_of),
       0
     )::numeric(15,2) as balance
   from public.accounts a
@@ -37,7 +41,7 @@ begin
 end;
 $$;
 
-revoke all on function public.get_account_balances() from public, anon;
+revoke all on function public.get_account_balances(date) from public, anon;
 grant execute on function public.get_account_balances() to authenticated;
 
 comment on function public.get_account_balances() is
