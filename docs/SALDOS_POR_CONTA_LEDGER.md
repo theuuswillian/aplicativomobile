@@ -6,13 +6,13 @@ Os saldos por conta devem vir do ledger privado (`private.journal_entries`, `pri
 
 ## RPC
 
-A migration `20261125030000_get_account_balances.sql` adiciona `public.get_account_balances()`:
+A migration `20261125030000_get_account_balances.sql` adiciona `public.get_account_balances(p_as_of date)`:
 
 - Retorna `account_id` e saldo contábil em BRL para as contas do usuário autenticado.
 - Soma somente lançamentos com `journal_entries.status = 'posted'`.
 - Inclui contas bancárias, dinheiro físico e caixa de investimentos.
-- Usa `SECURITY DEFINER`, `search_path` fixo e nomes totalmente qualificados para as tabelas privadas.
-- Não concede leitura direta das tabelas privadas nem acesso a `anon`.
+- A RPC pública usa `SECURITY INVOKER`; a leitura privilegiada fica em `private.get_account_balances(date)`, com `SECURITY DEFINER`, `auth.uid()` obrigatório, `search_path` fixo e tabelas privadas totalmente qualificadas.
+- Não concede leitura direta das tabelas privadas nem acesso a `anon`; somente `authenticated` recebe `USAGE` no schema privado e `EXECUTE` nessa função interna específica.
 
 ## Atualização no aplicativo
 
