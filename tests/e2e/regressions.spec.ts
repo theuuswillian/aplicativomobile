@@ -61,7 +61,10 @@ test("não quebra com valores numéricos do PostgREST e formata saldo, emprésti
   expect(errors).toEqual([]);
 });
 
-test("cria meta com mês desejado e registra pagamento de fatura", async ({ page }) => {
+test("cria meta com mês desejado e registra pagamento de fatura", async ({ page, browserName }) => {
+  // O WebKit de Linux usado no CI não implementa os seletores nativos de mês/data como o Safari do iPhone;
+  // o fluxo é validado no Chromium, e a validação de datas tem teste unitário em money-parsing.test.ts.
+  test.skip(browserName === "webkit", "input type=month/date sem suporte equivalente no WebKit de Linux");
   const posts: Array<{ table: string; body: Record<string, unknown> }> = [];
   await signIn(page, posts);
   await page.goto("/");
