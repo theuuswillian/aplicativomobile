@@ -1725,7 +1725,7 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
               onReports={() => setActiveTab("relatorios")}
               onTransactions={() => { setNavHidden(false); setActiveTab("gastos"); }}
               onManage={() => setActiveTab("gastos")}
-            />
+            />}
             <section className="panel privacy-panel" hidden={activeTab !== "conta"} id="conta" aria-labelledby="privacy-title">
               <div className="panel-heading"><div><span className="principles-label">PRIVACIDADE E CONTROLE</span><h2 id="privacy-title">Seus dados e sua conta</h2><p>Exporte uma cópia dos seus dados ou solicite a exclusão permanente da conta e dos comprovantes privados.</p></div></div>
               <div className="account-profile-card">
