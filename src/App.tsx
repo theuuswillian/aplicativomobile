@@ -297,6 +297,12 @@ export default function App() {
       }
 
       const activeElement = document.activeElement;
+      if (activeElement instanceof HTMLElement && activeElement.closest(".bottom-nav")) {
+        direction.down = 0;
+        direction.up = 0;
+        setNavigationHidden(false);
+        return;
+      }
       if (activeElement instanceof HTMLElement && activeElement.matches("input, textarea, select, [contenteditable='true']")) {
         direction.down = 0;
         direction.up = 0;
