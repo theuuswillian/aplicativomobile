@@ -1,6 +1,5 @@
 -- Exposes per-account balances from the private ledger without exposing journal tables.
-create or replace function public.get_account_balances()
-(p_as_of date)
+create or replace function public.get_account_balances(p_as_of date)
 returns table(account_id uuid, balance numeric(15,2))
 language plpgsql
 stable
