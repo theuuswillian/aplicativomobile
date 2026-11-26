@@ -1,7 +1,7 @@
 import { useId } from "react";
 import {
   ArrowDownLeft, ArrowUpRight, Eye, EyeOff, Plus, Target,
-  ChartNoAxesColumn, ReceiptText, WalletCards, TrendingUp,
+  ChartNoAxesColumn, WalletCards, TrendingUp,
 } from "lucide-react";
 
 export interface OverviewTransaction {
