@@ -28,6 +28,7 @@ function parseAmount(value: string): string | null {
   if (cents <= 0n || cents > 99999999999999n) return null;
   return `${whole}.${fraction.padEnd(2, "0")}`;
 }
+function goalIconForName(value:string):string{const n=value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();if(/aluguel|casa|moradia/.test(n))return "🏠";if(/luz|energia|eletric/.test(n))return "💡";if(/agua/.test(n))return "💧";if(/internet|telefone/.test(n))return "📱";if(/mercado|aliment/.test(n))return "🛒";if(/saude|farmac/.test(n))return "🩺";if(/viagem/.test(n))return "✈️";if(/carro|combust|transporte/.test(n))return "🚗";if(/educa|curso/.test(n))return "📚";if(/invest|renda|dividend/.test(n))return "📈";return "🎯";}
 function money(cents: number): string {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
 }
@@ -37,7 +38,6 @@ export function IncomeGoalsPanel({ client, userId, assets, operations, events, t
   const [busy, setBusy] = useState(false);
   const [schemaUnavailable, setSchemaUnavailable] = useState(false);
   const [name, setName] = useState("");
-  const [icon, setIcon] = useState("☕");
   const [target, setTarget] = useState("");
   const [notice, setNotice] = useState("");
   const snapshot = useMemo(() => calculatePassiveIncomeSnapshot({ assets, operations, events, today }), [assets, operations, events, today]);
@@ -63,9 +63,9 @@ export function IncomeGoalsPanel({ client, userId, assets, operations, events, t
     event.preventDefault();
     const amount = parseAmount(target);
     const cleanName = name.trim();
-    const cleanIcon = icon.trim() || "🎯";
-    if (!amount || !cleanName || cleanName.length > 80 || cleanIcon.length > 8) {
-      setNotice("Informe um nome, um ícone curto e um valor mensal válido.");
+    const cleanIcon = goalIconForName(cleanName);
+    if (!amount || !cleanName || cleanName.length > 80) {
+      setNotice("Informe um nome e um valor mensal válido.");
       return;
     }
     setBusy(true);
@@ -77,7 +77,7 @@ export function IncomeGoalsPanel({ client, userId, assets, operations, events, t
     if (error) setNotice("Não foi possível salvar a meta. Confira a conexão e tente novamente.");
     else {
       setGoals((current) => [...current, data as IncomeGoalRow]);
-      setName(""); setIcon("☕"); setTarget("");
+      setName(""); setTarget("");
       setNotice("Meta de rendimento criada.");
     }
     setBusy(false);
@@ -136,8 +136,8 @@ export function IncomeGoalsPanel({ client, userId, assets, operations, events, t
     <details className="income-goals-create">
       <summary><Plus size={17}/> Criar meta de rendimento</summary>
       <form className="finance-form" onSubmit={(event) => void createGoal(event)}>
+        <p className="income-goal-icon-hint">O ícone é escolhido automaticamente pelo nome da meta.</p>
         <label>Nome da conquista<input value={name} onChange={(event) => setName(event.target.value)} maxLength={80} placeholder="Ex.: Conta de luz" required/></label>
-        <label>Ícone<input value={icon} onChange={(event) => setIcon(event.target.value)} maxLength={8} placeholder="💡" required/></label>
         <label>Valor mensal para atingir (R$)<input inputMode="decimal" value={target} onChange={(event) => setTarget(event.target.value)} placeholder="Ex.: 150,00" required/></label>
         <button className="primary-button" type="submit" disabled={busy || loading || schemaUnavailable}>Salvar meta</button>
       </form>

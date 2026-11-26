@@ -48,3 +48,5 @@
 .income-goals-note svg, .income-goals-warning svg { flex-shrink:0; margin-top:1px; }
 .income-goals-disclaimer { margin:0; color:var(--color-muted); font-size:.68rem; line-height:1.5; }
 @media (max-width:480px) { .income-goals-heading { align-items:flex-start; flex-direction:column; } .income-goals-live { align-self:flex-start; } .income-goals-grid { gap:8px; } .income-goal-card { padding:11px; } .income-goal-card > b { font-size:.95rem; } }
+
+.income-goal-icon-hint{grid-column:1/-1;margin:0;color:var(--color-muted);font-size:.75rem}

@@ -75,14 +75,7 @@ body,
   }
 }
 
-/* Dock sempre visível, preso à janela e respeitando a área segura do iPhone. */
-.bottom-nav,
-.bottom-nav.is-hidden {
-  position: fixed;
-  left: 50%;
-  transform: translateX(-50%);
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
-  transition: none;
-}
+
+.bottom-nav{position:fixed;left:50%;transform:translate3d(-50%,0,0);transition:transform 260ms cubic-bezier(.2,.75,.25,1),opacity 200ms ease,visibility 0s linear 0s;will-change:transform}
+.bottom-nav.is-hidden{transform:translate3d(-50%,calc(100% + 24px),0);opacity:0;visibility:hidden;pointer-events:none;transition:transform 260ms cubic-bezier(.2,.75,.25,1),opacity 180ms ease,visibility 0s linear 260ms}
+@media(prefers-reduced-motion:reduce){.bottom-nav,.bottom-nav.is-hidden{transition:none}}

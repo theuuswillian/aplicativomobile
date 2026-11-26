@@ -2219,3 +2219,15 @@ html, body, #root { background: #090A0B; }
 @media (display-mode: standalone) {
   .app-shell { padding-top: max(12px, env(safe-area-inset-top, 0px)); }
 }
+
+.finance-management{scroll-margin-top:18px}.finance-section-heading{align-items:flex-start}.finance-section-heading>div{display:grid;gap:4px}.management-caption{display:block;color:var(--color-muted);font-size:11px;font-weight:500}.management-total{font-size:13px;font-variant-numeric:tabular-nums}
+.finance-card-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px}
+.finance-account-card,.finance-credit-card{min-width:0;display:flex;flex-direction:column;gap:7px;padding:15px;border:1px solid var(--color-line);border-radius:18px;background:linear-gradient(150deg,var(--color-surface-raised),var(--color-surface));box-shadow:var(--gv-card-shadow)}
+.finance-credit-card{background:radial-gradient(circle at 100% 0%,rgba(54,227,139,.12),transparent 48%),linear-gradient(145deg,var(--color-surface-raised),var(--color-surface))}
+.finance-card-top{display:flex;align-items:center;justify-content:space-between;gap:8px}.finance-card-icon{display:grid;place-items:center;width:36px;height:36px;border-radius:12px;background:var(--color-accent-soft);font-size:18px}
+.finance-primary-tag,.finance-muted-tag{padding:5px 8px;border-radius:999px;color:var(--color-accent);background:var(--color-accent-soft);font-size:9px;font-weight:750}.finance-muted-tag{color:var(--color-muted);background:var(--color-surface-raised)}
+.finance-account-card>strong,.finance-credit-card>strong{font-size:13px;line-height:1.3;overflow-wrap:anywhere}.finance-card-institution{color:var(--color-muted);font-size:10px}.finance-card-label{margin-top:7px;color:var(--color-muted);font-size:10px}.finance-card-balance{font-size:clamp(16px,4vw,21px);letter-spacing:-.04em;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.finance-card-actions{display:flex;gap:7px;margin-top:8px;padding-top:9px;border-top:1px solid var(--color-line)}.finance-card-actions button{flex:1;min-width:0;min-height:36px;padding:5px 7px;font-size:10px}
+.finance-limit-track{height:6px;overflow:hidden;margin-top:6px;border-radius:99px;background:var(--color-line)}.finance-limit-track span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#20c979,#71e6a5)}.finance-card-meta{display:flex;justify-content:space-between;gap:5px;color:var(--color-muted);font-size:9px}
+.management-form-actions{display:flex;gap:8px;grid-column:1/-1}.management-form-actions>*{flex:1}.category-symbol{display:grid;place-items:center;width:30px;height:30px;border-radius:10px;background:var(--color-accent-soft);font-size:16px}
+@media(max-width:420px){.finance-card-grid{grid-template-columns:1fr}.finance-account-card,.finance-credit-card{padding:14px}.finance-card-balance{font-size:20px}}@media(min-width:761px){.finance-card-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}

@@ -83,6 +83,16 @@ const INVESTMENT_CATALOG: Record<string, { name: string; assetClass: InvestmentA
 };
 
 const THEME_STORAGE_KEY = "granaviva:theme:v1";
+const DEFAULT_CATEGORIES: Array<{name:string;icon:string;kind:"income"|"expense";color:string;is_default:boolean}> = [
+ ...[["Mercado","🛒"],["Alimentação","🍽️"],["Restaurantes","🍔"],["Delivery","🛵"],["Transporte","🚗"],["Combustível","⛽"],["Moradia","🏠"],["Aluguel","🏡"],["Condomínio","🏢"],["Água","💧"],["Energia","💡"],["Internet e telefone","📱"],["Saúde","🩺"],["Farmácia","💊"],["Educação","📚"],["Pets","🐾"],["Lazer","🎟️"],["Assinaturas","📺"],["Roupas","👕"],["Beleza","💇"],["Viagem","✈️"],["Impostos","🧾"],["Seguros","🛡️"],["Presentes","🎁"],["Casa","🛋️"],["Manutenção","🧰"],["Outros","📦"]].map(([name,icon])=>({name,icon,kind:"expense" as const,color:"#64748b",is_default:true})),
+ ...[["Salário","💼"],["Freelance","🧑‍💻"],["Rendimentos","📈"],["Dividendos","💹"],["Aluguel recebido","🏠"],["Reembolso","↩️"],["Vendas","🛍️"],["Outras receitas","💰"]].map(([name,icon])=>({name,icon,kind:"income" as const,color:"#16a34a",is_default:true}))
+];
+function categoryIcon(name:string):string {
+ const n=name.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+ const rules:Array<[RegExp,string]>=[[/mercad|supermerc|hortifruti|feira/,"🛒"],[/aluguel|moradia|casa|condominio/,"🏠"],[/restaur|aliment|comida|delivery/,"🍽️"],[/transporte|uber|taxi|onibus|metro/,"🚗"],[/combust|gasolina|posto/,"⛽"],[/agua/,"💧"],[/energia|luz|eletric/,"💡"],[/internet|telefone|celular/,"📱"],[/saude|medic/,"🩺"],[/farmac|drogaria/,"💊"],[/educa|curso|livro|escola/,"📚"],[/pet|animal|veterin/,"🐾"],[/viagem/,"✈️"],[/lazer|cinema|show/,"🎟️"],[/assinatura|stream/,"📺"],[/roupa|calcad/,"👕"],[/salario|emprego/,"💼"],[/freelance|servico/,"🧑‍💻"],[/dividend|rendimento|invest/,"📈"],[/presente/,"🎁"],[/imposto|taxa/,"🧾"],[/seguro/,"🛡️"]];
+ return rules.find(([pattern])=>pattern.test(n))?.[1]??"📦";
+}
+
 
 function getInitialTheme(): Theme {
   try { return window.localStorage.getItem(THEME_STORAGE_KEY) === "light" ? "light" : "dark"; }
@@ -139,6 +149,11 @@ function normalizeBrlAmount(value: string, allowZero = false, allowNegative = fa
 
 export default function App() {
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
+  const [navHidden,setNavHidden]=useState(false);
+  const [editingAccountId,setEditingAccountId]=useState<string|null>(null);
+  const [editingCardId,setEditingCardId]=useState<string|null>(null);
+  const cardDrawerRef=useRef<HTMLDetailsElement>(null);
+  useEffect(()=>{let last=window.scrollY,tick=false;const update=()=>{const y=window.scrollY;if(y<40||y<last-6)setNavHidden(false);else if(y>last+8)setNavHidden(true);last=y;tick=false;};const onScroll=()=>{if(!tick){window.requestAnimationFrame(update);tick=true;}};window.addEventListener("scroll",onScroll,{passive:true});return()=>window.removeEventListener("scroll",onScroll);},[]);
   const [activeTab, setActiveTab] = useState<DashboardTab>("inicio");
 const [quickEntryOpen, setQuickEntryOpen] = useState(false);
   const [balancesHidden, setBalancesHidden] = useState(false);
@@ -369,7 +384,15 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
         if (!cardInvoiceInstallmentRows.error) setCardInstallments((cardInvoiceInstallmentRows.data ?? []) as CardInvoiceInstallmentRow[]);
         if (!cardRows.error && cardRows.data?.[0]?.id) setInvoicePaymentCardId((current) => current || cardRows.data[0].id);
         if (!accountRows.error && accountRows.data?.[0]?.id) setInvoicePaymentAccountId((current) => current || accountRows.data[0].id);
-        if (!categoryRows.error) setCategories((categoryRows.data ?? []) as CategoryRow[]);
+        if (!categoryRows.error) {
+          setCategories((categoryRows.data ?? []) as CategoryRow[]);
+          const defaults=DEFAULT_CATEGORIES.map((item)=>({user_id:session.user.id,...item}));
+          void client.from("categories").upsert(defaults,{onConflict:"user_id,kind,normalized_name",ignoreDuplicates:true}).then(async({error})=>{
+            if(error||!active)return;
+            const {data,error:refreshError}=await client.from("categories").select("id,name,kind,color,icon").eq("user_id",session.user.id).order("kind",{ascending:true}).order("name",{ascending:true});
+            if(!refreshError&&active&&data)setCategories(data as CategoryRow[]);
+          });
+        }
         if (!recurrenceRows.error) setRecurrences((recurrenceRows.data ?? []) as RecurrenceRow[]);
         if (!budgetRows.error) setBudgets((budgetRows.data ?? []) as BudgetRow[]);
         if (!budgetSpendRows.error) setBudgetSpend((budgetSpendRows.data ?? []) as BudgetSpendRow[]);
@@ -592,6 +615,27 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
     }
   }
 
+  function beginAccountEdit(account:AccountRow){
+    setEditingAccountId(account.id);setAccountName(account.name);setAccountInstitutionKey(account.institution_logo_key??"");setAccountType(account.account_type);setOpeningBalance(String(account.opening_balance).replace(".",","));
+    if(accountDrawerRef.current)accountDrawerRef.current.open=true;
+    document.getElementById("gastos-contas")?.scrollIntoView({behavior:"smooth",block:"center"});
+  }
+  async function archiveAccount(account:AccountRow){
+    if(!supabase||!session||!window.confirm("Excluir a conta "+account.name+" da lista? O histórico financeiro será preservado."))return;
+    setBusy(true);setNotice("");
+    try{
+      const {error}=await supabase.from("accounts").update({is_archived:true,archived_at:new Date().toISOString(),is_primary:false}).eq("id",account.id).eq("user_id",session.user.id);
+      if(error)throw error;
+      setAccounts(current=>current.filter(item=>item.id!==account.id));
+      if(account.is_primary){
+        const {data:nextAccounts,error:lookupError}=await supabase.from("accounts").select("id").eq("user_id",session.user.id).eq("is_archived",false).order("created_at",{ascending:true}).limit(1);
+        if(lookupError)throw lookupError;
+        if(nextAccounts?.[0]){const {error:primaryError}=await supabase.from("accounts").update({is_primary:true}).eq("id",nextAccounts[0].id).eq("user_id",session.user.id);if(primaryError)throw primaryError;setAccounts(current=>current.map(item=>item.id===nextAccounts[0].id?{...item,is_primary:true}:item));}
+      }
+      setNotice("Conta excluída da lista. Lançamentos e histórico foram preservados.");
+    }catch(error){setNotice(errorMessage(error));}finally{setBusy(false);}
+  }
+
   async function createAccount(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!supabase) {
@@ -612,36 +656,25 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
     setBusy(true);
     setNotice("");
     try {
-      const { data: primaryAccounts, error: primaryLookupError } = await supabase.from("accounts")
-        .select("id").eq("user_id", session.user.id).eq("is_primary", true).limit(1);
-      if (primaryLookupError) throw primaryLookupError;
-      const primaryAccount = primaryAccounts?.[0] ?? null;
-      const { data, error } = await supabase.from("accounts").insert({
-        user_id: session.user.id,
-        name: cleanName,
-        account_type: accountType,
-        institution_name: institution?.name ?? null,
-        institution_code: institution?.code || null,
-        institution_logo_key: institution?.logoKey ?? null,
-        opening_balance: amount,
-        opening_balance_date: todayInBrazil(),
-        is_primary: !primaryAccount,
-      }).select("id,name,account_type,opening_balance,opening_balance_date,is_primary,institution_name,institution_code,institution_logo_key").single();
-      if (error) throw error;
-      if (!data?.id) throw new Error("O banco não confirmou o cadastro da conta.");
-      const created = data as AccountRow;
-      setAccounts((current) => current.some((account) => account.id === created.id)
-        ? current
-        : [...current, created]);
+      let created:AccountRow;
+      if(editingAccountId){
+        const {data,error}=await supabase.from("accounts").update({name:cleanName,account_type:accountType,institution_name:institution?.name??null,institution_code:institution?.code||null,institution_logo_key:institution?.logoKey??null,opening_balance:amount}).eq("id",editingAccountId).eq("user_id",session.user.id).select("id,name,account_type,opening_balance,opening_balance_date,is_primary,institution_name,institution_code,institution_logo_key").single();
+        if(error)throw error;created=data as AccountRow;setAccounts(current=>current.map(item=>item.id===created.id?created:item));setNotice("Conta atualizada com sucesso.");
+      }else{
+        const {data:primaryAccounts,error:primaryLookupError}=await supabase.from("accounts").select("id").eq("user_id",session.user.id).eq("is_primary",true).limit(1);
+        if(primaryLookupError)throw primaryLookupError;
+        const {data,error}=await supabase.from("accounts").insert({user_id:session.user.id,name:cleanName,account_type:accountType,institution_name:institution?.name??null,institution_code:institution?.code||null,institution_logo_key:institution?.logoKey??null,opening_balance:amount,opening_balance_date:todayInBrazil(),is_primary:!(primaryAccounts?.[0])}).select("id,name,account_type,opening_balance,opening_balance_date,is_primary,institution_name,institution_code,institution_logo_key").single();
+        if(error)throw error;if(!data?.id)throw new Error("O banco não confirmou o cadastro da conta.");created=data as AccountRow;setAccounts(current=>[...current,created]);setNotice("Conta adicionada com sucesso.");
+      }
       if (created.account_type !== "investment") {
         setTxAccountId((current) => current || created.id);
         setReceiptAccountId((current) => current || created.id);
       }
+      setEditingAccountId(null);
       setAccountName("");
       setAccountInstitutionKey("");
       setOpeningBalance("0,00");
       if (accountDrawerRef.current) accountDrawerRef.current.open = false;
-      setNotice("Conta adicionada com sucesso.");
     } catch (error) {
       setNotice(`Não foi possível adicionar a conta. ${errorMessage(error)}${error && typeof error === "object" && "code" in error && typeof (error as { code?: unknown }).code === "string" ? ` (código ${(error as { code: string }).code})` : ""}`);
     } finally {
@@ -649,6 +682,11 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
     }
   }
 
+  function beginCardEdit(card:CardRow){
+    setEditingCardId(card.id);setCardName(card.name);setCardInstitution(card.institution_name);setCardLastFour(card.last_four);setCardLimit(String(card.credit_limit).replace(".",","));setCardClosingDay(String(card.closing_day));setCardDueDay(String(card.due_day));
+    if(cardDrawerRef.current)cardDrawerRef.current.open=true;
+    document.getElementById("gastos-cartoes")?.scrollIntoView({behavior:"smooth",block:"center"});
+  }
   async function createCard(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!supabase || !session) return;
@@ -663,14 +701,14 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
     }
     setBusy(true); setNotice("");
     try {
-      const { data, error } = await supabase.from("cards").insert({
-        user_id: session.user.id, name: cardName.trim(), institution_name: cardInstitution.trim(),
-        last_four: cardLastFour, credit_limit: limit, closing_day: closing, due_day: due,
-      }).select("id,name,institution_name,last_four,brand,credit_limit,closing_day,due_day,is_archived").single();
-      if (error) throw error;
-      setCards((current) => [...current, data as CardRow]);
-      setCardName(""); setCardInstitution(""); setCardLastFour(""); setCardLimit("0,00");
-      setNotice("Cartão cadastrado.");
+      if(editingCardId){
+        const {data,error}=await supabase.from("cards").update({name:cardName.trim(),institution_name:cardInstitution.trim(),last_four:cardLastFour,credit_limit:limit,closing_day:closing,due_day:due}).eq("id",editingCardId).eq("user_id",session.user.id).select("id,name,institution_name,last_four,brand,credit_limit,closing_day,due_day,is_archived").single();
+        if(error)throw error;setCards(current=>current.map(item=>item.id===editingCardId?data as CardRow:item));setNotice("Cartão atualizado.");
+      }else{
+        const {data,error}=await supabase.from("cards").insert({user_id:session.user.id,name:cardName.trim(),institution_name:cardInstitution.trim(),last_four:cardLastFour,credit_limit:limit,closing_day:closing,due_day:due}).select("id,name,institution_name,last_four,brand,credit_limit,closing_day,due_day,is_archived").single();
+        if(error)throw error;setCards(current=>[...current,data as CardRow]);setNotice("Cartão cadastrado.");
+      }
+      setEditingCardId(null);setCardName(""); setCardInstitution(""); setCardLastFour(""); setCardLimit("0,00");if(cardDrawerRef.current)cardDrawerRef.current.open=false;
     } catch (error) { setNotice(errorMessage(error)); }
     finally { setBusy(false); }
   }
@@ -694,7 +732,7 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
     setBusy(true); setNotice("");
     try {
       const { data, error } = await supabase.from("categories").insert({
-        user_id: session.user.id, name: categoryName.trim(), kind: categoryKind,
+        user_id: session.user.id, name: categoryName.trim(), kind: categoryKind, icon: categoryIcon(categoryName.trim()),
       }).select("id,name,kind,color,icon").single();
       if (error) throw error;
       setCategories((current) => [...current, data as CategoryRow].sort((a,b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name, "pt-BR")));
@@ -1620,7 +1658,7 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
             <span className="brand-mark" aria-hidden="true"><ChartNoAxesColumn size={22} strokeWidth={2.8} /></span>
             <span>Grana<span className="brand-accent">Viva</span></span>
           </a>
-          {signedIn && <button className="notification-button" type="button" aria-label={`Radar e notificações: ${alerts.length} alertas`} onClick={() => setActiveTab("patrimonio")}><Bell size={21} strokeWidth={2} />{enabledAlerts > 0 && <span className="notification-dot" />}</button>}
+          {signedIn && <button className="notification-button" type="button" aria-label={`Radar e notificações: ${alerts.length} alertas`} onClick={() => { setNavHidden(false); setActiveTab("patrimonio"); }}><Bell size={21} strokeWidth={2} />{enabledAlerts > 0 && <span className="notification-dot" />}</button>}
         </header>
         {signedIn && quickEntryOpen && <div className="quick-entry-backdrop" role="presentation" onClick={() => setQuickEntryOpen(false)}>
           <section className="quick-entry-modal" role="dialog" aria-modal="true" aria-labelledby="quick-entry-title" onClick={(event) => event.stopPropagation()}>
@@ -1717,7 +1755,7 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
                 <button type="button" onClick={() => setActiveTab("relatorios")}><ChartNoAxesColumn /><span>Relatórios</span></button>
               </div>
               <article className="overview-recent">
-                <div className="overview-recent-heading"><strong>Últimos lançamentos</strong><button type="button" onClick={() => setActiveTab("gastos")}>Ver gastos <span aria-hidden="true">›</span></button></div>
+                <div className="overview-recent-heading"><strong>Últimos lançamentos</strong><button type="button" onClick={() => { setNavHidden(false); setActiveTab("gastos"); }}>Ver gastos <span aria-hidden="true">›</span></button></div>
                 {transactions.length === 0 ? <p className="empty-state">Seus lançamentos aparecerão aqui.</p> : <ul className="recent-list">{transactions.slice(0, 4).map((item) => <li key={item.id}><span className={item.kind === "income" ? "recent-icon income" : "recent-icon"}>{item.kind === "income" ? "↗" : "↘"}</span><span className="recent-description"><strong>{item.description}</strong><small>{new Date(item.transaction_date + "T12:00:00").toLocaleDateString("pt-BR")}</small></span><strong className={item.kind === "income" ? "amount-income" : "amount-expense"}>{item.kind === "income" ? "+" : "−"}{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(item.amount))}</strong></li>)}</ul>}
               </article>
               <article className="overview-flow">
@@ -1957,27 +1995,39 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
                   return total > 0 ? <div className="expense-chart-row"><div className="expense-donut" role="img" aria-label={"Total de gastos " + new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(total)} style={{background:"conic-gradient("+gradient+")"}}><span>{new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL",notation:"compact",maximumFractionDigits:1}).format(total)}<small>Total</small></span></div><ul className="expense-legend">{rows.map((item,index) => <li key={item.id}><i style={{background:palette[index%palette.length]}}/><span>{item.name}</span><strong>{Math.round(item.amount/total*100)}%</strong></li>)}</ul></div> : <p className="empty-state">As categorias aparecerão aqui quando houver despesas realizadas neste mês.</p>;
                 })()}
               </section>
-              <details ref={accountDrawerRef} className="management-drawer"><summary>＋ Adicionar conta bancária</summary><form className="finance-form" id="gastos-contas" onSubmit={(event) => void createAccount(event)}>
-                <label>Nome da conta<input value={accountName} onChange={(event) => setAccountName(event.target.value)} maxLength={100} placeholder="Ex.: Conta principal" required /></label>
-                <label>Banco ou instituição<select value={accountInstitutionKey} onChange={(event) => setAccountInstitutionKey(event.target.value)}><option value="">Selecione o banco (opcional)</option>{BANK_CATALOG.map((bank) => <option key={bank.logoKey} value={bank.logoKey}>{bank.name}{bank.code ? ` · ${bank.code}` : ""}</option>)}</select></label>
-                {accountInstitutionKey && (() => { const bank = BANK_CATALOG.find((item) => item.logoKey === accountInstitutionKey); return bank ? <div className="bank-selected"><img className="bank-logo" src={bank.logoPath} alt="" aria-hidden="true"/><strong>{bank.name}</strong><small>{bank.code ? `Código ${bank.code}` : "Instituição digital"}</small></div> : null; })()}
-                <label>Tipo<select value={accountType} onChange={(event) => setAccountType(event.target.value)}><option value="checking">Conta corrente</option><option value="savings">Poupança</option><option value="cash">Dinheiro</option><option value="investment">Investimentos</option><option value="other">Outra</option></select></label>
-                <label>Saldo inicial (R$)<input inputMode="decimal" value={openingBalance} onChange={(event) => setOpeningBalance(formatBrlInput(event.target.value))} placeholder="0,00" required /></label>
-                <button className="primary-button" type="submit" disabled={busy}>{busy ? "Salvando conta…" : "Adicionar conta"}</button>
-              </form></details>
-              {accounts.length > 0 ? <ul className="account-list">{accounts.map((account) => <li key={account.id}><strong>{account.name}{account.is_primary ? " · Principal" : ""}</strong><span className="account-institution">{account.institution_logo_key && BANK_CATALOG.some((bank) => bank.logoKey === account.institution_logo_key) ? <img className="bank-logo bank-logo-small" src={BANK_CATALOG.find((bank) => bank.logoKey === account.institution_logo_key)!.logoPath} alt="" aria-hidden="true"/> : null}{account.institution_name || account.account_type}</span><small>Saldo atual: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(accountBalances[account.id] ?? Number(account.opening_balance))} · Saldo inicial: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(account.opening_balance))}</small></li>)}</ul> : <p className="empty-state">Cadastre sua primeira conta para começar.</p>}
-              <section className="subpanel" id="gastos-cartoes" aria-labelledby="cards-title">
-                <div className="transaction-heading"><strong id="cards-title">Cartões</strong><span>{cards.length} ativos</span></div>
-                <details className="management-drawer"><summary>＋ Adicionar cartão</summary><form className="finance-form" onSubmit={(event) => void createCard(event)}>
-                  <label>Nome do cartão<input value={cardName} onChange={(event) => setCardName(event.target.value)} maxLength={100} placeholder="Ex.: Cartão principal" required /></label>
-                  <label>Instituição<input value={cardInstitution} onChange={(event) => setCardInstitution(event.target.value)} maxLength={120} placeholder="Banco ou instituição" required /></label>
-                  <label>Últimos 4 dígitos<input inputMode="numeric" autoComplete="off" value={cardLastFour} onChange={(event) => setCardLastFour(event.target.value.replace(/\D/g, "").slice(0, 4))} pattern="[0-9]{4}" maxLength={4} required /></label>
-                  <label>Limite (R$)<input inputMode="decimal" value={cardLimit} onChange={(event) => setCardLimit(formatBrlInput(event.target.value))} required /></label>
-                  <label>Fechamento<input type="number" min="1" max="31" value={cardClosingDay} onChange={(event) => setCardClosingDay(event.target.value)} required /></label>
-                  <label>Vencimento<input type="number" min="1" max="31" value={cardDueDay} onChange={(event) => setCardDueDay(event.target.value)} required /></label>
-                  <button className="primary-button" type="submit" disabled={busy}>Adicionar cartão</button>
-                </form></details>
-                {cards.length === 0 ? <p className="empty-state">Nenhum cartão cadastrado.</p> : <ul className="account-list card-list">{cards.map((card) => <li className="card-list-item" key={card.id}><strong>{card.name} · final {card.last_four}</strong><span>{card.institution_name}</span><small><span>Limite total: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(card.credit_limit))}</span><span>Utilizado: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cardCommittedAmounts[card.id] ?? 0)}</span><span>Disponível: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(card.credit_limit) - (cardCommittedAmounts[card.id] ?? 0))}</span><span>Fecha dia {card.closing_day} · Vence dia {card.due_day}</span><button className="quiet-button danger-button" type="button" disabled={busy} onClick={() => void archiveCard(card)}>Arquivar</button></small></li>)}</ul>}
+              
+<section className="subpanel finance-management" id="gastos-contas" aria-labelledby="accounts-title">
+ <div className="transaction-heading finance-section-heading"><div><strong id="accounts-title">Minhas contas</strong><span className="management-caption">{accounts.length} contas ativas</span></div><strong className="management-total">{balancesHidden?"••••••":new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(accounts.reduce((sum,item)=>sum+(accountBalances[item.id]??Number(item.opening_balance)),0))}</strong></div>
+ <details ref={accountDrawerRef} className="management-drawer"><summary>{editingAccountId?"✎ Editar conta":"＋ Adicionar conta"}</summary><form className="finance-form" onSubmit={(event)=>void createAccount(event)}>
+  <label>Nome da conta<input value={accountName} onChange={(event)=>setAccountName(event.target.value)} maxLength={100} placeholder="Ex.: Conta principal" required/></label>
+  <label>Banco ou instituição<select value={accountInstitutionKey} onChange={(event)=>setAccountInstitutionKey(event.target.value)}><option value="">Selecione o banco (opcional)</option>{BANK_CATALOG.map((bank)=><option key={bank.logoKey} value={bank.logoKey}>{bank.name}{bank.code?" · "+bank.code:""}</option>)}</select></label>
+  {accountInstitutionKey&&(()=>{const bank=BANK_CATALOG.find((item)=>item.logoKey===accountInstitutionKey);return bank?<div className="bank-selected"><img className="bank-logo" src={bank.logoPath} alt="" aria-hidden="true"/><strong>{bank.name}</strong></div>:null;})()}
+  <label>Tipo<select value={accountType} onChange={(event)=>setAccountType(event.target.value)}><option value="checking">Conta corrente</option><option value="savings">Poupança</option><option value="cash">Dinheiro</option><option value="investment">Investimentos</option><option value="other">Outra</option></select></label>
+  <label>Saldo inicial (R$)<input inputMode="decimal" value={openingBalance} onChange={(event)=>setOpeningBalance(formatBrlInput(event.target.value))} placeholder="0,00" required/></label>
+  <div className="management-form-actions"><button className="primary-button" type="submit" disabled={busy}>{busy?"Salvando…":editingAccountId?"Salvar alterações":"Adicionar conta"}</button>{editingAccountId&&<button className="quiet-button" type="button" onClick={()=>{setEditingAccountId(null);setAccountName("");setAccountInstitutionKey("");setOpeningBalance("0,00");if(accountDrawerRef.current)accountDrawerRef.current.open=false;}}>Cancelar</button>}</div>
+ </form></details>
+ {accounts.length===0?<p className="empty-state">Cadastre sua primeira conta para começar.</p>:<div className="finance-card-grid">{accounts.map((account)=>{const bank=BANK_CATALOG.find((item)=>item.logoKey===account.institution_logo_key);return <article className="finance-account-card" key={account.id}>
+  <div className="finance-card-top"><span className="finance-card-icon">🏦</span><span className={account.is_primary?"finance-primary-tag":"finance-muted-tag"}>{account.is_primary?"Principal":account.account_type==="savings"?"Poupança":account.account_type==="cash"?"Dinheiro":account.account_type==="investment"?"Investimentos":"Conta"}</span></div>
+  <strong>{account.name}</strong><small className="finance-card-institution">{bank?.name||account.institution_name||"Instituição não informada"}</small><span className="finance-card-label">Saldo atual</span>
+  <b className="finance-card-balance">{balancesHidden?"••••••":new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(accountBalances[account.id]??Number(account.opening_balance))}</b>
+  <div className="finance-card-actions"><button className="quiet-button" type="button" disabled={busy} onClick={()=>beginAccountEdit(account)}>Editar</button><button className="quiet-button danger-button" type="button" disabled={busy} onClick={()=>void archiveAccount(account)}>Excluir</button></div>
+ </article>;})}</div>}
+</section>
+
+<section className="subpanel finance-management" id="gastos-cartoes" aria-labelledby="cards-title">
+ <div className="transaction-heading finance-section-heading"><div><strong id="cards-title">Meus cartões</strong><span className="management-caption">{cards.length} cartões ativos</span></div><strong className="management-total">{new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(cards.reduce((sum,item)=>sum+Number(item.credit_limit),0))} em limites</strong></div>
+ <details ref={cardDrawerRef} className="management-drawer"><summary>{editingCardId?"✎ Editar cartão":"＋ Adicionar cartão"}</summary><form className="finance-form" onSubmit={(event)=>void createCard(event)}>
+  <label>Nome do cartão<input value={cardName} onChange={(event)=>setCardName(event.target.value)} maxLength={100} placeholder="Ex.: Cartão principal" required/></label><label>Instituição<input value={cardInstitution} onChange={(event)=>setCardInstitution(event.target.value)} maxLength={120} placeholder="Banco ou instituição" required/></label>
+  <label>Últimos 4 dígitos<input inputMode="numeric" autoComplete="off" value={cardLastFour} onChange={(event)=>setCardLastFour(event.target.value.replace(/\D/g,"").slice(0,4))} pattern="[0-9]{4}" maxLength={4} required/></label>
+  <label>Limite (R$)<input inputMode="decimal" value={cardLimit} onChange={(event)=>setCardLimit(formatBrlInput(event.target.value))} required/></label><label>Fechamento<input type="number" min="1" max="31" value={cardClosingDay} onChange={(event)=>setCardClosingDay(event.target.value)} required/></label><label>Vencimento<input type="number" min="1" max="31" value={cardDueDay} onChange={(event)=>setCardDueDay(event.target.value)} required/></label>
+  <div className="management-form-actions"><button className="primary-button" type="submit" disabled={busy}>{busy?"Salvando…":editingCardId?"Salvar alterações":"Adicionar cartão"}</button>{editingCardId&&<button className="quiet-button" type="button" onClick={()=>{setEditingCardId(null);setCardName("");setCardInstitution("");setCardLastFour("");setCardLimit("0,00");setCardClosingDay("10");setCardDueDay("20");if(cardDrawerRef.current)cardDrawerRef.current.open=false;}}>Cancelar</button>}</div>
+ </form></details>
+ {cards.length===0?<p className="empty-state">Nenhum cartão cadastrado.</p>:<div className="finance-card-grid">{cards.map((card)=>{const used=cardCommittedAmounts[card.id]??0,total=Number(card.credit_limit),available=Math.max(0,total-used);return <article className="finance-credit-card" key={card.id}>
+  <div className="finance-card-top"><span className="finance-card-icon">💳</span><span className="finance-muted-tag">{card.brand||"Crédito"}</span></div><strong>{card.name}</strong><small className="finance-card-institution">{card.institution_name} · final {card.last_four}</small>
+  <span className="finance-card-label">Limite disponível</span><b className="finance-card-balance">{new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(available)}</b>
+  <div className="finance-limit-track"><span style={{width:(total>0?Math.min(100,used/total*100):0)+"%"}}/></div><div className="finance-card-meta"><span>Usado {new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(used)}</span><span>Total {new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(total)}</span></div><small className="finance-card-institution">Fecha dia {card.closing_day} · Vence dia {card.due_day}</small>
+  <div className="finance-card-actions"><button className="quiet-button" type="button" disabled={busy} onClick={()=>beginCardEdit(card)}>Editar</button><button className="quiet-button danger-button" type="button" disabled={busy} onClick={()=>void archiveCard(card)}>Excluir</button></div>
+ </article>;})}</div>}
                 <div className="transaction-heading"><strong>Pagamento de fatura</strong><span>Pagamentos totais ou parciais</span></div>
                 <details className="management-drawer"><summary>＋ Registrar pagamento de fatura</summary><form className="finance-form" onSubmit={(event) => void registerInvoicePayment(event)}>
                   <label>Cartão<select value={invoicePaymentCardId} onChange={(event) => setInvoicePaymentCardId(event.target.value)} required><option value="">Selecione</option>{cards.map((card) => <option key={card.id} value={card.id}>{card.name} · final {card.last_four}</option>)}</select></label>
@@ -2001,12 +2051,12 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
                   <label>Tipo<select value={categoryKind} onChange={(event) => setCategoryKind(event.target.value as "income" | "expense")}><option value="expense">Despesa</option><option value="income">Receita</option></select></label>
                   <button className="primary-button" type="submit" disabled={busy}>Criar categoria</button>
                 </form></details>
-                {categories.length === 0 ? <p className="empty-state">Crie categorias para organizar seus lançamentos.</p> : <ul className="category-list">{categories.map((category) => <li key={category.id}><span>{category.kind === "income" ? "Receita" : "Despesa"}</span><strong>{category.name}</strong></li>)}</ul>}
+                {categories.length === 0 ? <p className="empty-state">Crie categorias para organizar seus lançamentos.</p> : <ul className="category-list">{categories.map((category) => <li key={category.id}><span className="category-symbol" aria-hidden="true">{category.icon||categoryIcon(category.name)}</span><span>{category.kind === "income" ? "Receita" : "Despesa"}</span><strong>{category.name}</strong></li>)}</ul>}
               </section>
               <section className="subpanel" id="gastos-orcamentos" aria-labelledby="budgets-title">
                 <div className="transaction-heading"><strong id="budgets-title">Orçamentos do mês</strong><span>{new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(new Date(`${currentBudgetMonthStart}T12:00:00`))}</span></div>
                 <details className="management-drawer"><summary>＋ Definir orçamento</summary><form className="finance-form" onSubmit={(event) => void saveBudget(event)}>
-                  <label>Categoria<select value={budgetCategoryId} onChange={(event) => setBudgetCategoryId(event.target.value)} required><option value="">Selecione uma despesa</option>{categories.filter((category) => category.kind === "expense").map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
+                  <label>Categoria<select value={budgetCategoryId} onChange={(event) => setBudgetCategoryId(event.target.value)} required><option value="">Selecione uma despesa</option>{categories.filter((category) => category.kind === "expense").map((category) => <option key={category.id} value={category.id}>{category.icon||categoryIcon(category.name)} {category.name}</option>)}</select></label>
                   <label>Limite mensal (R$)<input inputMode="decimal" value={budgetLimit} onChange={(event) => setBudgetLimit(formatBrlInput(event.target.value))} placeholder="0,00" required /></label>
                   <button className="primary-button" type="submit" disabled={busy || categories.every((category) => category.kind !== "expense")}>Definir ou atualizar limite</button>
                 </form></details>
@@ -2071,7 +2121,7 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
                   {recurrenceFrequency === "yearly" && <label>Mês<select value={recurrenceMonth} onChange={(event) => setRecurrenceMonth(event.target.value)}>{["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"].map((month,index) => <option key={month} value={index+1}>{month}</option>)}</select></label>}
                   <label>Começa em<input type="date" value={recurrenceStart} onChange={(event) => setRecurrenceStart(event.target.value)} required /></label>
                   <label>Termina em (opcional)<input type="date" min={recurrenceStart} value={recurrenceEnd} onChange={(event) => setRecurrenceEnd(event.target.value)} /></label>
-                  <label>Categoria<select value={recurrenceCategoryId} onChange={(event) => setRecurrenceCategoryId(event.target.value)}><option value="">Sem categoria</option>{categories.filter((category) => category.kind === recurrenceKind).map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
+                  <label>Categoria<select value={recurrenceCategoryId} onChange={(event) => setRecurrenceCategoryId(event.target.value)}><option value="">Sem categoria</option>{categories.filter((category) => category.kind === recurrenceKind).map((category) => <option key={category.id} value={category.id}>{category.icon||categoryIcon(category.name)} {category.name}</option>)}</select></label>
                   <label>Conta<select value={recurrenceAccountId} onChange={(event) => { setRecurrenceAccountId(event.target.value); if (event.target.value) setRecurrenceCardId(""); }}><option value="">Não vinculada</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
                   <label>Cartão<select value={recurrenceCardId} onChange={(event) => { setRecurrenceCardId(event.target.value); if (event.target.value) setRecurrenceAccountId(""); }} disabled={recurrenceKind !== "expense"}><option value="">Não vincular cartão</option>{cards.map((card) => <option key={card.id} value={card.id}>{card.name} · final {card.last_four}</option>)}</select></label>
                   <button className="primary-button" type="submit" disabled={busy}>Criar recorrência</button>
@@ -2092,7 +2142,7 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
                   {!(txKind === "expense" && txPaymentMethod === "credit") && <label>Conta<select value={txAccountId} onChange={(event) => setTxAccountId(event.target.value)}><option value="">Selecione a conta</option>{accounts.filter((account) => account.account_type !== "investment" && (txKind !== "expense" || (txPaymentMethod === "cash" ? account.account_type === "cash" : account.account_type !== "cash"))).map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>}
                   {txKind === "expense" && txPaymentMethod === "credit" && <label>Cartão de crédito<select value={txCardId} onChange={(event) => setTxCardId(event.target.value)} required><option value="">Selecione o cartão</option>{cards.map((card) => <option key={card.id} value={card.id}>{card.name} · final {card.last_four}</option>)}</select></label>}
                   {txKind === "expense" && txPaymentMethod === "credit" && txCardId && <label>Parcelamento<select value={txInstallmentCount} onChange={(event) => setTxInstallmentCount(event.target.value)}>{Array.from({ length: 48 }, (_, index) => index + 1).map((count) => <option key={count} value={count}>{count === 1 ? "À vista" : `${count}x`}</option>)}</select></label>}
-                  <label>Categoria<select value={txCategoryId} onChange={(event) => setTxCategoryId(event.target.value)}><option value="">Sem categoria</option>{categories.filter((category) => category.kind === txKind).map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
+                  <label>Categoria<select value={txCategoryId} onChange={(event) => setTxCategoryId(event.target.value)}><option value="">Sem categoria</option>{categories.filter((category) => category.kind === txKind).map((category) => <option key={category.id} value={category.id}>{category.icon||categoryIcon(category.name)} {category.name}</option>)}</select></label>
                 </>}
                 <label className="wide-field">Descrição<input value={txDescription} onChange={(event) => setTxDescription(event.target.value)} maxLength={240} placeholder="Ex.: Mercado" required /></label>
                 <button className="primary-button" type="submit" disabled={busy || (txKind === "expense" && txPaymentMethod === "credit" ? cards.length === 0 : txKind === "transfer" ? accounts.length < 2 : !accounts.some((account) => account.account_type !== "investment"))}>Salvar lançamento</button>
@@ -2159,11 +2209,11 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
           </section>
         )}
 
-        {signedIn && <nav className="bottom-nav" aria-label="Navegação principal" aria-hidden="false">
-          <button type="button" className={activeTab === "inicio" ? "active" : ""} aria-current={activeTab === "inicio" ? "page" : undefined} onClick={() => setActiveTab("inicio")}><Home size={20} strokeWidth={2.2} /><span>Início</span></button>
-          <button type="button" className={activeTab === "gastos" ? "active" : ""} aria-current={activeTab === "gastos" ? "page" : undefined} onClick={() => setActiveTab("gastos")}><ReceiptText size={20} strokeWidth={2.2} /><span>Gastos</span></button>
-          <button type="button" className={activeTab === "patrimonio" || activeTab === "planejamento" ? "active" : ""} aria-current={activeTab === "patrimonio" ? "page" : undefined} onClick={() => setActiveTab("patrimonio")}><TrendingUp size={20} strokeWidth={2.2} /><span>Patrimônio</span></button>
-          <button type="button" className={activeTab === "conta" || activeTab === "relatorios" ? "active" : ""} aria-current={activeTab === "conta" ? "page" : undefined} onClick={() => setActiveTab("conta")}><UserRound size={20} strokeWidth={2.2} /><span>Conta</span></button>
+        {signedIn && <nav className={`bottom-nav${navHidden?" is-hidden":""}`} aria-label="Navegação principal" aria-hidden={navHidden ? "true" : "false"}>
+          <button type="button" className={activeTab === "inicio" ? "active" : ""} aria-current={activeTab === "inicio" ? "page" : undefined} onClick={() => { setNavHidden(false); setActiveTab("inicio"); }}><Home size={20} strokeWidth={2.2} /><span>Início</span></button>
+          <button type="button" className={activeTab === "gastos" ? "active" : ""} aria-current={activeTab === "gastos" ? "page" : undefined} onClick={() => { setNavHidden(false); setActiveTab("gastos"); }}><ReceiptText size={20} strokeWidth={2.2} /><span>Gastos</span></button>
+          <button type="button" className={activeTab === "patrimonio" || activeTab === "planejamento" ? "active" : ""} aria-current={activeTab === "patrimonio" ? "page" : undefined} onClick={() => { setNavHidden(false); setActiveTab("patrimonio"); }}><TrendingUp size={20} strokeWidth={2.2} /><span>Patrimônio</span></button>
+          <button type="button" className={activeTab === "conta" || activeTab === "relatorios" ? "active" : ""} aria-current={activeTab === "conta" ? "page" : undefined} onClick={() => { setNavHidden(false); setActiveTab("conta"); }}><UserRound size={20} strokeWidth={2.2} /><span>Conta</span></button>
         </nav>}
         <footer className="app-footer"><span>GRANAVIVA</span><span>Privacidade · Clareza · Gratuito para todos</span></footer>
       </div>
