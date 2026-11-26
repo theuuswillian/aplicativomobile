@@ -1,0 +1,65 @@
+/* Ajuste de viewport: o layout acompanha a largura real do dispositivo
+   no Safari e no modo standalone, sem bloquear o zoom manual por acessibilidade. */
+html {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body,
+#root {
+  width: 100%;
+  max-width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.app-shell {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: clip;
+}
+
+.app-frame {
+  box-sizing: border-box;
+  width: min(100%, 920px);
+  max-width: 100%;
+  min-width: 0;
+}
+
+
+/* Barra inferior inteligente: recolhe ao rolar para baixo e retorna ao subir. */
+.bottom-nav {
+  transition:
+    transform 260ms cubic-bezier(.2,.75,.25,1),
+    opacity 200ms ease,
+    visibility 0s linear 0s;
+  will-change: transform;
+}
+.bottom-nav.is-hidden {
+  transform: translate3d(0, calc(100% + 20px), 0);
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transition:
+    transform 260ms cubic-bezier(.2,.75,.25,1),
+    opacity 180ms ease,
+    visibility 0s linear 260ms;
+}
+@media (min-width: 761px) {
+  .bottom-nav.is-hidden {
+    transform: translate3d(50%, calc(100% + 20px), 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bottom-nav,
+  .bottom-nav.is-hidden {
+    transition: none;
+  }
+}
