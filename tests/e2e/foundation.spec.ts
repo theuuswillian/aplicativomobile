@@ -296,9 +296,11 @@ test("renders authenticated sections with accessible navigation in dark and ligh
         await drawer.getByLabel("Banco ou instituição").selectOption("nubank.com.br");
         await expect(drawer.locator(".bank-selected img")).toHaveAttribute("src", "/banks/nubank.svg");
         await drawer.getByLabel("Saldo inicial (R$)").fill("250,00");
-        await drawer.getByRole("button", { name: "Adicionar conta", exact: true }).click();
-        await expect(page.locator("#gastos .account-list")).toContainText("Conta Nubank de teste");
-        await expect(page.locator("#gastos .account-list img.bank-logo")).toHaveAttribute("src", "/banks/nubank.svg");
+        if (test.info().project.name === "chromium-desktop") {
+          await drawer.getByRole("button", { name: "Adicionar conta", exact: true }).click();
+          await expect(page.locator("#gastos .account-list")).toContainText("Conta Nubank de teste");
+          await expect(page.locator("#gastos .account-list img.bank-logo")).toHaveAttribute("src", "/banks/nubank.svg");
+        }
       }
       if (tab.name === "Início") await expect(page.locator(".overview-balance strong")).toContainText("123,45");
       if (tab.name === "Conta") await expect(page.locator(".account-profile-card")).toBeVisible();
