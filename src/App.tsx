@@ -12,6 +12,7 @@ import { calculateInvestmentSummary, normalizeManualReferencePrice, type Investm
 import { parseCsvStatement, parseOfxStatement, planImportBatch, type ImportRow } from "./domain/imports";
 import { calculateAccountBalance, calculateCardCommittedLimitCents, calculateInvoice, type InvoicePayment, type LedgerEntry } from "./domain/finance";
 import { ReceivablesPanel } from "./features/receivables/ReceivablesPanel";
+import { IncomeGoalsPanel } from "./features/income-goals/IncomeGoalsPanel";
 type PushSubscriptionRow = { id: string; endpoint: string; user_agent: string | null };
 type WhatsappLinkState = { phone: string; weekly_summary_enabled: boolean };
 type RadarFireRow = { alert_key: string; fired_at: string; observed_price: string; source: string | null; quote_observed_at: string | null };
@@ -1723,6 +1724,14 @@ export default function App() {
             </section>
             <section className="panel" id="patrimonio" hidden={activeTab !== "patrimonio"} aria-labelledby="radar-title">
               <div className="panel-heading"><div><span className="principles-label">ACOMPANHAMENTO DE ATIVOS</span><h2 id="radar-title">Patrimônio e investimentos</h2><p>Acompanhe sua carteira, a distribuição dos ativos, os proventos e os alertas de preço em um só lugar.</p></div></div>
+              {signedIn && supabase && session && <IncomeGoalsPanel
+                client={supabase}
+                userId={session.user.id}
+                assets={investmentAssets}
+                operations={investmentOperations}
+                events={incomeEvents}
+                today={todayInBrazil()}
+              />}
               <nav className="section-jump" aria-label="Atalhos do patrimônio">
                 <a href="#patrimonio-radar">Radar</a><a href="#patrimonio-investimentos">Carteira</a><a href="#patrimonio-proventos">Proventos</a>
               </nav>
