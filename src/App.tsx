@@ -5,7 +5,7 @@ import { Home, ReceiptText, TrendingUp, UserRound, Target, Bell, Eye, EyeOff, Ci
 import { supabase } from "./lib/supabase";
 import { todayInBrazil } from "./lib/date";
 import { toCents } from "./lib/money";
-import { BANK_CATALOG, bankLogoStyle } from "./data/bank-catalog";
+import { BANK_CATALOG } from "./data/bank-catalog";
 import { clearFinancialRecordsForUser } from "./lib/secure-storage";
 import { generateOccurrences, type RecurrenceFrequency } from "./domain/recurrence";
 import { calculateInvestmentSummary, normalizeManualReferencePrice, type InvestmentOperation } from "./domain/investments";
@@ -89,6 +89,10 @@ function getInitialTheme(): Theme {
 
 function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
+  if (error && typeof error === "object" && "message" in error &&
+      typeof (error as { message?: unknown }).message === "string") {
+    return (error as { message: string }).message;
+  }
   return "Não foi possível concluir a operação.";
 }
 
@@ -240,6 +244,7 @@ export default function App() {
   const currentBudgetMonthStart = `${currentBudgetYear}-${String(currentBudgetMonth).padStart(2, "0")}-01`;
   const nextBudgetMonthStart = new Date(Date.UTC(currentBudgetYear, currentBudgetMonth, 1)).toISOString().slice(0, 10);
   const [accountName, setAccountName] = useState("");
+  const [accountDrawerOpen, setAccountDrawerOpen] = useState(false);
   const [accountInstitutionKey, setAccountInstitutionKey] = useState("");
   const [accountType, setAccountType] = useState("checking");
   const [openingBalance, setOpeningBalance] = useState("0,00");
@@ -576,22 +581,41 @@ export default function App() {
 
   async function createAccount(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!supabase || !session) return;
+    if (!supabase) {
+      setNotice("O GranaViva está sem conexão com o serviço financeiro. Recarregue a página e tente novamente.");
+      return;
+    }
+    if (!session?.user?.id) {
+      setNotice("Sua sessão expirou. Entre novamente para cadastrar uma conta.");
+      return;
+    }
+    const cleanName = accountName.trim();
     const amount = normalizeBrlAmount(openingBalance, true, true);
-    if (!amount || !accountName.trim()) { setNotice("Confira o nome e o saldo inicial da conta."); return; }
-    setBusy(true); setNotice("");
+    if (!cleanName || cleanName.length > 100 || !amount) {
+      setNotice("Informe um nome válido e confira o saldo inicial da conta.");
+      return;
+    }
+    const institution = BANK_CATALOG.find((bank) => bank.logoKey === accountInstitutionKey);
+    setBusy(true);
+    setNotice("");
     try {
       const { data, error } = await supabase.from("accounts").insert({
-        user_id: session.user.id, name: accountName.trim(), account_type: accountType,
-        institution_name: BANK_CATALOG.find((bank) => bank.logoKey === accountInstitutionKey)?.name ?? null,
-        institution_code: BANK_CATALOG.find((bank) => bank.logoKey === accountInstitutionKey)?.code || null,
-        institution_logo_key: accountInstitutionKey || null,
-        opening_balance: amount, opening_balance_date: todayInBrazil(),
-        is_primary: accounts.length === 0,
+        user_id: session.user.id,
+        name: cleanName,
+        account_type: accountType,
+        institution_name: institution?.name ?? null,
+        institution_code: institution?.code || null,
+        institution_logo_key: institution?.logoKey ?? null,
+        opening_balance: amount,
+        opening_balance_date: todayInBrazil(),
+        is_primary: !accounts.some((account) => account.is_primary),
       }).select("id,name,account_type,opening_balance,opening_balance_date,is_primary,institution_name,institution_code,institution_logo_key").single();
       if (error) throw error;
+      if (!data?.id) throw new Error("O banco não confirmou o cadastro da conta.");
       const created = data as AccountRow;
-      setAccounts((current) => [...current, created]);
+      setAccounts((current) => current.some((account) => account.id === created.id)
+        ? current
+        : [...current, created]);
       if (created.account_type !== "investment") {
         setTxAccountId((current) => current || created.id);
         setReceiptAccountId((current) => current || created.id);
@@ -599,9 +623,13 @@ export default function App() {
       setAccountName("");
       setAccountInstitutionKey("");
       setOpeningBalance("0,00");
-      setNotice("Conta criada.");
-    } catch (error) { setNotice(errorMessage(error)); }
-    finally { setBusy(false); }
+      setAccountDrawerOpen(false);
+      setNotice("Conta adicionada com sucesso.");
+    } catch (error) {
+      setNotice(`Não foi possível adicionar a conta. ${errorMessage(error)}`);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function createCard(event: FormEvent<HTMLFormElement>) {
@@ -1905,15 +1933,15 @@ export default function App() {
                   return total > 0 ? <div className="expense-chart-row"><div className="expense-donut" role="img" aria-label={"Total de gastos " + new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(total)} style={{background:"conic-gradient("+gradient+")"}}><span>{new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL",notation:"compact",maximumFractionDigits:1}).format(total)}<small>Total</small></span></div><ul className="expense-legend">{rows.map((item,index) => <li key={item.id}><i style={{background:palette[index%palette.length]}}/><span>{item.name}</span><strong>{Math.round(item.amount/total*100)}%</strong></li>)}</ul></div> : <p className="empty-state">As categorias aparecerão aqui quando houver despesas realizadas neste mês.</p>;
                 })()}
               </section>
-              <details className="management-drawer"><summary>＋ Adicionar conta</summary><form className="finance-form" id="gastos-contas" onSubmit={(event) => void createAccount(event)}>
+              <details className="management-drawer" open={accountDrawerOpen} onToggle={(event) => setAccountDrawerOpen(event.currentTarget.open)}><summary>＋ Adicionar conta bancária</summary><form className="finance-form" id="gastos-contas" onSubmit={(event) => void createAccount(event)}>
                 <label>Nome da conta<input value={accountName} onChange={(event) => setAccountName(event.target.value)} maxLength={100} placeholder="Ex.: Conta principal" required /></label>
                 <label>Banco ou instituição<select value={accountInstitutionKey} onChange={(event) => setAccountInstitutionKey(event.target.value)}><option value="">Selecione o banco (opcional)</option>{BANK_CATALOG.map((bank) => <option key={bank.logoKey} value={bank.logoKey}>{bank.name}{bank.code ? ` · ${bank.code}` : ""}</option>)}</select></label>
-                {accountInstitutionKey && (() => { const bank = BANK_CATALOG.find((item) => item.logoKey === accountInstitutionKey); return bank ? <div className="bank-selected"><span className="bank-logo-sprite" style={bankLogoStyle(bank.logoIndex)} aria-hidden="true"/><strong>{bank.name}</strong><small>{bank.code ? `Código ${bank.code}` : "Instituição digital"}</small></div> : null; })()}
+                {accountInstitutionKey && (() => { const bank = BANK_CATALOG.find((item) => item.logoKey === accountInstitutionKey); return bank ? <div className="bank-selected"><img className="bank-logo" src={bank.logoPath} alt="" aria-hidden="true"/><strong>{bank.name}</strong><small>{bank.code ? `Código ${bank.code}` : "Instituição digital"}</small></div> : null; })()}
                 <label>Tipo<select value={accountType} onChange={(event) => setAccountType(event.target.value)}><option value="checking">Conta corrente</option><option value="savings">Poupança</option><option value="cash">Dinheiro</option><option value="investment">Investimentos</option><option value="other">Outra</option></select></label>
                 <label>Saldo inicial (R$)<input inputMode="decimal" value={openingBalance} onChange={(event) => setOpeningBalance(event.target.value)} placeholder="0,00" required /></label>
-                <button className="primary-button" type="submit" disabled={busy}>Adicionar conta</button>
+                <button className="primary-button" type="submit" disabled={busy}>{busy ? "Salvando conta…" : "Adicionar conta"}</button>
               </form></details>
-              {accounts.length > 0 ? <ul className="account-list">{accounts.map((account) => <li key={account.id}><strong>{account.name}{account.is_primary ? " · Principal" : ""}</strong><span className="account-institution">{account.institution_logo_key && BANK_CATALOG.some((bank) => bank.logoKey === account.institution_logo_key) ? <span className="bank-logo-sprite bank-logo-small" style={bankLogoStyle(BANK_CATALOG.find((bank) => bank.logoKey === account.institution_logo_key)!.logoIndex)} aria-hidden="true"/> : null}{account.institution_name || account.account_type}</span><small>Saldo atual: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(accountBalances[account.id] ?? Number(account.opening_balance))} · Saldo inicial: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(account.opening_balance))}</small></li>)}</ul> : <p className="empty-state">Cadastre sua primeira conta para começar.</p>}
+              {accounts.length > 0 ? <ul className="account-list">{accounts.map((account) => <li key={account.id}><strong>{account.name}{account.is_primary ? " · Principal" : ""}</strong><span className="account-institution">{account.institution_logo_key && BANK_CATALOG.some((bank) => bank.logoKey === account.institution_logo_key) ? <img className="bank-logo bank-logo-small" src={BANK_CATALOG.find((bank) => bank.logoKey === account.institution_logo_key)!.logoPath} alt="" aria-hidden="true"/> : null}{account.institution_name || account.account_type}</span><small>Saldo atual: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(accountBalances[account.id] ?? Number(account.opening_balance))} · Saldo inicial: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(account.opening_balance))}</small></li>)}</ul> : <p className="empty-state">Cadastre sua primeira conta para começar.</p>}
               <section className="subpanel" id="gastos-cartoes" aria-labelledby="cards-title">
                 <div className="transaction-heading"><strong id="cards-title">Cartões</strong><span>{cards.length} ativos</span></div>
                 <details className="management-drawer"><summary>＋ Adicionar cartão</summary><form className="finance-form" onSubmit={(event) => void createCard(event)}>
