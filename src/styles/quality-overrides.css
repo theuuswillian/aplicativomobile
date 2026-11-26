@@ -74,7 +74,7 @@
 @media (max-width: 390px) {
   .bottom-nav { width: calc(100% - 20px); gap: 2px; padding-inline: 5px; }
   .bottom-nav button { min-height: 50px; }
-  .bottom-nav button span { font-size: 9px; }
+  .bottom-nav button span { font-size: 10px; }
 }
 
 /* Tema claro: substitui as cores escuras que haviam sido fixadas em
