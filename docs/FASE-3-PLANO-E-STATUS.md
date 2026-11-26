@@ -470,3 +470,43 @@ O CI verde valida o código e as migrações em ambiente local; não comprova ch
 ### Observação de CI após o lote visual
 - A execução `45611112041` iniciou no commit de código `cc22c69fa7f5a8bf900e0681f700e40013b7f9e4`, mas foi cancelada após novo commit na mesma branch: lint, políticas, segredos, TypeScript e testes unitários haviam concluído com sucesso; build, browser, SQL e integração local foram cancelados/interrompidos antes da conclusão. Não considerar a CI verde.
 - A atualização documental seguinte gerou um novo commit `93f588a4b8b51229d776ac36dc2df42496c7899b`; a execução associada ao push ainda não está exposta pela consulta de runs PR disponível. Confirmar o resultado no painel Actions antes de aceitar o lote.
+
+
+## Consolidação de continuidade — auditoria GitHub em 25/11/2026
+
+Esta seção substitui qualquer status anterior deste documento que contradiga os estados atuais das Pull Requests no GitHub. Os estados abaixo foram consultados diretamente no repositório.
+
+### Estado das branches e Pull Requests
+- [x] PR #2 — Fase 3 Backend: mesclada em `fase-2-fundacao` (não em `main`).
+- [x] PR #3 — auditoria visual/responsividade: mesclada em `fase-2-fundacao`.
+- [x] PR #4 — temas, navegação e datas: mesclada em `fase-2-fundacao`.
+- [x] PR #5 — saldos por conta via ledger: mesclada em `fase-2-fundacao`.
+- [x] PR #6 — ajuste automático de viewport/Safari/PWA: mesclada em `fase-2-fundacao`, commit `013e584a510ea3350d957f16f4ad0e36aa03badb`.
+- [x] PR #7 — metas de rendimentos/renda passiva: mesclada em `fase-2-fundacao`, commit `bda1c808de21853b185f257c4a2e0c891a5fa02a`.
+- [ ] PR #8 — cadastro de contas e logos bancários: continua aberta. O CI do head `9786d6680c640166c5b51dba812cf6a001e4f8ef` passou (run `45739536537`), mas após os merges #6 e #7 a PR passou a reportar `mergeable=false`; precisa de reconciliação de conflitos antes de mesclar.
+- [ ] PR #1 — fundação técnica: continua aberta em draft, direcionada a `main`; não deve ser mesclada sem resolver a divergência entre `main` e `fase-2-fundacao` e concluir o aceite manual do iPhone.
+
+### Validação automatizada confirmada
+- [x] O commit da Fase 3 `a6f27d1504db330d55290c56371e2bd6c7bc7d94` possui a execução GitHub Actions `45720023060` concluída com sucesso nos jobs validate, SQL/PostgreSQL 17, Edge Runtime e integração local Supabase; o job lockfile foi skipped pelo filtro esperado.
+- [x] PR #6: CI verde no head consultado antes do merge.
+- [x] PR #7: CI verde no head consultado antes do merge.
+- [x] PR #8: CI verde no head consultado; merge bloqueado por estado de mergeability após atualizações da branch base.
+
+### Bloqueios de publicação que continuam reais
+- [ ] A branch `main` não contém ainda a consolidação da Fase 2/3. A PR #1 segue draft e não mergeable; não afirmar que o produto já está publicado a partir de `main`.
+- [ ] PR #8 precisa ser reconciliada e validada novamente.
+- [ ] Edge Functions ainda não estão implantadas no Supabase remoto; secrets OpenAI, Meta, VAPID e secrets internos dos workers ainda dependem de configuração segura.
+- [ ] Workers continuam desativados. Não definir `WORKERS_ENABLED=true` nem executar manualmente.
+- [ ] Brapi permanece desativada para exibição pública até confirmação escrita de licença. Preço manual continua sem alimentar o Radar.
+- [ ] O Preview Vercel deve ser refeito para o HEAD consolidado. Um deployment anterior em estado READY não comprova o HEAD atual; os comentários de quota/free deployment limit também não autorizam upgrade pago.
+- [ ] Teste manual final no Safari e no app instalado na Tela de Início do iPhone continua necessário.
+- [ ] Nenhuma alteração foi feita em Production, nem houve envio real pela Meta, Push ou OpenAI nesta auditoria.
+
+### Ordem de fechamento
+1. Resolver PR #8 preservando os commits já mesclados de #6 e #7; executar CI integral novamente.
+2. Consolidar a branch de entrega e alinhar a documentação/README da branch ativa.
+3. Resolver a divergência histórica da PR #1 e preparar uma única PR de consolidação para `main`; não forçar merge nem sobrescrever histórico.
+4. Publicar Preview do commit exato validado e testar os fluxos funcionais.
+5. Publicar Edge Functions em etapas após confirmar secrets e destino Supabase; testar endpoints sem habilitar workers.
+6. Habilitar workers somente após teste remoto controlado e autorização explícita; manter cotações automáticas desativadas.
+7. Fazer aceite manual Safari/PWA e registrar evidências antes de qualquer promoção para Production.
