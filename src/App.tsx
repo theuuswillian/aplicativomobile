@@ -708,7 +708,7 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
         const {data,error}=await supabase.from("cards").insert({user_id:session.user.id,name:cardName.trim(),institution_name:cardInstitution.trim(),last_four:cardLastFour,credit_limit:limit,closing_day:closing,due_day:due}).select("id,name,institution_name,last_four,brand,credit_limit,closing_day,due_day,is_archived").single();
         if(error)throw error;setCards(current=>[...current,data as CardRow]);setNotice("Cartão cadastrado.");
       }
-      setEditingCardId(null);setCardName(""); setCardInstitution(""); setCardLastFour(""); setCardLimit("0,00");
+      setEditingCardId(null);setCardName(""); setCardInstitution(""); setCardLastFour(""); setCardLimit("0,00");if(cardDrawerRef.current)cardDrawerRef.current.open=false;
     } catch (error) { setNotice(errorMessage(error)); }
     finally { setBusy(false); }
   }
@@ -2020,7 +2020,7 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
   <label>Nome do cartão<input value={cardName} onChange={(event)=>setCardName(event.target.value)} maxLength={100} placeholder="Ex.: Cartão principal" required/></label><label>Instituição<input value={cardInstitution} onChange={(event)=>setCardInstitution(event.target.value)} maxLength={120} placeholder="Banco ou instituição" required/></label>
   <label>Últimos 4 dígitos<input inputMode="numeric" autoComplete="off" value={cardLastFour} onChange={(event)=>setCardLastFour(event.target.value.replace(/\D/g,"").slice(0,4))} pattern="[0-9]{4}" maxLength={4} required/></label>
   <label>Limite (R$)<input inputMode="decimal" value={cardLimit} onChange={(event)=>setCardLimit(formatBrlInput(event.target.value))} required/></label><label>Fechamento<input type="number" min="1" max="31" value={cardClosingDay} onChange={(event)=>setCardClosingDay(event.target.value)} required/></label><label>Vencimento<input type="number" min="1" max="31" value={cardDueDay} onChange={(event)=>setCardDueDay(event.target.value)} required/></label>
-  <div className="management-form-actions"><button className="primary-button" type="submit" disabled={busy}>{busy?"Salvando…":editingCardId?"Salvar alterações":"Adicionar cartão"}</button>{editingCardId&&<button className="quiet-button" type="button" onClick={()=>{setEditingCardId(null);if(cardDrawerRef.current)cardDrawerRef.current.open=false;}}>Cancelar</button>}</div>
+  <div className="management-form-actions"><button className="primary-button" type="submit" disabled={busy}>{busy?"Salvando…":editingCardId?"Salvar alterações":"Adicionar cartão"}</button>{editingCardId&&<button className="quiet-button" type="button" onClick={()=>{setEditingCardId(null);setCardName("");setCardInstitution("");setCardLastFour("");setCardLimit("0,00");setCardClosingDay("10");setCardDueDay("20");if(cardDrawerRef.current)cardDrawerRef.current.open=false;}}>Cancelar</button>}</div>
  </form></details>
  {cards.length===0?<p className="empty-state">Nenhum cartão cadastrado.</p>:<div className="finance-card-grid">{cards.map((card)=>{const used=cardCommittedAmounts[card.id]??0,total=Number(card.credit_limit),available=Math.max(0,total-used);return <article className="finance-credit-card" key={card.id}>
   <div className="finance-card-top"><span className="finance-card-icon">💳</span><span className="finance-muted-tag">{card.brand||"Crédito"}</span></div><strong>{card.name}</strong><small className="finance-card-institution">{card.institution_name} · final {card.last_four}</small>
