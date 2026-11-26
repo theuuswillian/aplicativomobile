@@ -29,6 +29,7 @@ type Props = {
   userId: string;
   accounts: readonly AccountOption[];
   onNotice: (message: string) => void;
+  onLedgerChange: () => void;
 };
 
 function normalizeAmount(value: string): string | null {
@@ -54,7 +55,7 @@ function key(): string {
   return globalThis.crypto.randomUUID();
 }
 
-export function ReceivablesPanel({ client, userId, accounts, onNotice }: Props) {
+export function ReceivablesPanel({ client, userId, accounts, onNotice, onLedgerChange }: Props) {
   const liquidAccounts = useMemo(
     () => accounts.filter((account) => account.account_type !== "investment"),
     [accounts]
@@ -104,7 +105,8 @@ export function ReceivablesPanel({ client, userId, accounts, onNotice }: Props) 
     setRepayments((repaymentResult.data ?? []) as RepaymentRow[]);
     setOvertime((overtimeResult.data ?? []) as OvertimeRow[]);
     setReady(true);
-  }, [client, userId]);
+    onLedgerChange();
+  }, [client, userId, onLedgerChange]);
 
   useEffect(() => { void load(); }, [load]);
 

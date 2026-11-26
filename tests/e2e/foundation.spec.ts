@@ -159,6 +159,35 @@ test("renders authenticated sections with accessible navigation in dark and ligh
       await route.fulfill({ status: 200, headers: corsHeaders, contentType: "application/json", body: JSON.stringify({ receivables_brl: 0, overtime_forecast_brl: 0 }) });
       return;
     }
+    if (url.pathname === "/rest/v1/accounts") {
+      await route.fulfill({
+        status: 200,
+        headers: { ...corsHeaders, "content-range": "0-0/1" },
+        contentType: "application/json",
+        body: JSON.stringify([{
+          id: "40000000-0000-4000-8000-000000000001",
+          user_id: user.id,
+          name: "Conta principal",
+          account_type: "checking",
+          opening_balance: "0.00",
+          opening_balance_date: "2026-01-01",
+          is_primary: true,
+          institution_name: null,
+          institution_code: null,
+          institution_logo_key: null,
+        }]),
+      });
+      return;
+    }
+    if (url.pathname === "/rest/v1/rpc/get_account_balances") {
+      await route.fulfill({
+        status: 200,
+        headers: corsHeaders,
+        contentType: "application/json",
+        body: JSON.stringify([{ account_id: "40000000-0000-4000-8000-000000000001", balance: "123.45" }]),
+      });
+      return;
+    }
     if (url.pathname.startsWith("/rest/v1/")) {
       await route.fulfill({ status: 200, headers: { ...corsHeaders, "content-range": "0-0/0" }, contentType: "application/json", body: "[]" });
       return;
@@ -199,6 +228,7 @@ test("renders authenticated sections with accessible navigation in dark and ligh
     for (const tab of tabs) {
       await page.getByRole("button", { name: tab.name, exact: true }).click();
       await expect(page.locator(tab.selector)).toBeVisible();
+      if (tab.name === "Início") await expect(page.locator(".overview-balance strong")).toContainText("123,45");
       if (tab.name === "Conta") await expect(page.locator(".account-profile-card")).toBeVisible();
       const dock = page.locator(".bottom-nav");
       const dockBox = await dock.boundingBox();
