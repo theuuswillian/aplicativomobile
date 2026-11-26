@@ -216,9 +216,10 @@ test("renders authenticated sections with accessible navigation in dark and ligh
     await route.fulfill({ status: 200, headers: corsHeaders, contentType: "application/json", body: JSON.stringify({}) });
   });
 
+  let accountInsertPayload: Record<string, unknown> | null = null;
   await page.route("**/rest/v1/accounts**", async (route) => {
     if (route.request().method() === "POST") {
-      expect(route.request().postDataJSON().opening_balance).toBe("1234.56");
+      accountInsertPayload = route.request().postDataJSON() as Record<string, unknown>;
       await route.fulfill({
         status: 201,
         headers: { "access-control-allow-origin": "*", "content-range": "0-0/1", "preference-applied": "return=representation" },
@@ -298,6 +299,7 @@ test("renders authenticated sections with accessible navigation in dark and ligh
         await expect(drawer.locator(".bank-selected img")).toHaveAttribute("src", "/banks/nubank.svg");
         await drawer.getByLabel("Saldo inicial (R$)").fill("1.234,56");
         await drawer.getByRole("button", { name: "Adicionar conta", exact: true }).click();
+        expect(accountInsertPayload?.opening_balance).toBe("1234.56");
         await expect(page.locator("#gastos .account-list")).toContainText("Conta Nubank de teste");
         await expect(page.locator("#gastos .account-list img.bank-logo")).toHaveAttribute("src", "/banks/nubank.svg");
       }
