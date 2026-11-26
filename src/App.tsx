@@ -612,9 +612,10 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
     setBusy(true);
     setNotice("");
     try {
-      const { data: primaryAccount, error: primaryLookupError } = await supabase.from("accounts")
-        .select("id").eq("user_id", session.user.id).eq("is_primary", true).limit(1).maybeSingle();
+      const { data: primaryAccounts, error: primaryLookupError } = await supabase.from("accounts")
+        .select("id").eq("user_id", session.user.id).eq("is_primary", true).limit(1);
       if (primaryLookupError) throw primaryLookupError;
+      const primaryAccount = primaryAccounts?.[0] ?? null;
       const { data, error } = await supabase.from("accounts").insert({
         user_id: session.user.id,
         name: cleanName,
