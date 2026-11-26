@@ -2411,3 +2411,29 @@ html, body, #root { background: #090A0B; }
   .fixed-income-card,.fixed-income-progress span { animation:none; }
   .fixed-income-progress span { transition:none; }
 }
+
+.fixed-income-learning {
+  border:1px solid var(--color-line); border-radius:16px;
+  background:color-mix(in srgb,var(--color-surface-raised) 88%,transparent);
+  padding:0 13px;
+}
+.fixed-income-learning summary {
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  min-height:44px; color:var(--color-text); cursor:pointer;
+  font-size:11px; font-weight:800; list-style:none;
+}
+.fixed-income-learning summary::-webkit-details-marker { display:none; }
+.fixed-income-learning summary::after { content:"＋"; color:var(--color-accent); font-size:16px; }
+.fixed-income-learning[open] summary::after { content:"−"; }
+.fixed-income-learning > p { margin:0 0 12px; color:var(--color-muted); font-size:10px; line-height:1.55; }
+.fixed-income-learning-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin:0 0 12px; }
+.fixed-income-learning-grid div {
+  display:grid; align-content:start; gap:5px; padding:10px 9px;
+  border:1px solid var(--color-line); border-radius:12px;
+  background:var(--color-surface);
+}
+.fixed-income-learning-grid strong { color:var(--color-accent); font-size:10px; }
+.fixed-income-learning-grid span { color:var(--color-muted); font-size:9px; line-height:1.45; }
+@media (max-width:420px) {
+  .fixed-income-learning-grid { grid-template-columns:1fr; }
+}
