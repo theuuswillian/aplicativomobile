@@ -470,3 +470,15 @@ O CI verde valida o código e as migrações em ambiente local; não comprova ch
 ### Observação de CI após o lote visual
 - A execução `45611112041` iniciou no commit de código `cc22c69fa7f5a8bf900e0681f700e40013b7f9e4`, mas foi cancelada após novo commit na mesma branch: lint, políticas, segredos, TypeScript e testes unitários haviam concluído com sucesso; build, browser, SQL e integração local foram cancelados/interrompidos antes da conclusão. Não considerar a CI verde.
 - A atualização documental seguinte gerou um novo commit `93f588a4b8b51229d776ac36dc2df42496c7899b`; a execução associada ao push ainda não está exposta pela consulta de runs PR disponível. Confirmar o resultado no painel Actions antes de aceitar o lote.
+
+
+## Atualização após integração das PRs #6–#8 — 25/11/2026
+
+- [x] PR #6 — viewport/Safari/PWA — mesclada em `fase-2-fundacao`.
+- [x] PR #7 — metas de rendimentos — mesclada em `fase-2-fundacao`.
+- [x] PR #8 — cadastro de contas e logos bancários locais — mesclada em `fase-2-fundacao`, commit `123fe754db88124e976816fc09ae3dc560a9f9dc`.
+- [x] PR #9 foi fechada como duplicata após a PR #8 original ficar mergeable e ser mesclada; não contém mudanças pendentes.
+- [x] Preview Vercel do commit `123fe754db88124e976816fc09ae3dc560a9f9dc` concluído com estado `READY`: `https://granaviva-ri31u83iw-grana6.vercel.app`.
+- [ ] CI integral no commit de merge consolidado ainda precisa ser confirmado; CI verde dos heads das PRs não substitui o teste combinado pós-merge.
+- [ ] PR #1 segue draft e não mergeable contra `main`: divergência de 199 commits à frente e 1 atrás; o commit exclusivo de `main` adiciona/atualiza `scripts/test-edge-local.ts`. Resolver a integração histórica sem force-push e sem apagar testes.
+- [ ] Teste manual do Preview no Safari e no PWA do iPhone permanece como aceite final.
