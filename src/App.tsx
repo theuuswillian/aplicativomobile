@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { Home, ReceiptText, TrendingUp, UserRound, Target, Bell, Eye, EyeOff, CircleMinus, CirclePlus, ChartNoAxesColumn } from "lucide-react";
@@ -132,6 +132,8 @@ function normalizeBrlAmount(value: string, allowZero = false, allowNegative = fa
 export default function App() {
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const [activeTab, setActiveTab] = useState<DashboardTab>("inicio");
+  const [navigationHidden, setNavigationHidden] = useState(false);
+  const scrollDirectionRef = useRef({ lastY: 0, down: 0, up: 0 });
   const [quickEntryOpen, setQuickEntryOpen] = useState(false);
   const [balancesHidden, setBalancesHidden] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
@@ -274,6 +276,72 @@ export default function App() {
   useEffect(() => {
     try { window.localStorage.setItem(THEME_STORAGE_KEY, theme); } catch { /* sessão continua funcional */ }
   }, [theme]);
+
+  // Navegação inferior inteligente: recolhe ao descer e reaparece ao subir.
+  // Limiares evitam oscilações em pequenos movimentos e mantêm a barra acessível
+  // quando o usuário interage com campos ou navega pelo teclado.
+  useEffect(() => {
+    const direction = scrollDirectionRef.current;
+    direction.lastY = Math.max(0, window.scrollY || document.documentElement.scrollTop || 0);
+
+    const handleScroll = () => {
+      const currentY = Math.max(0, window.scrollY || document.documentElement.scrollTop || 0);
+      const delta = currentY - direction.lastY;
+      direction.lastY = currentY;
+
+      if (currentY <= 24) {
+        direction.down = 0;
+        direction.up = 0;
+        setNavigationHidden(false);
+        return;
+      }
+
+      const activeElement = document.activeElement;
+      if (activeElement instanceof HTMLElement && activeElement.matches("input, textarea, select, [contenteditable='true']")) {
+        direction.down = 0;
+        direction.up = 0;
+        setNavigationHidden(false);
+        return;
+      }
+
+      if (Math.abs(delta) < 2) return;
+      if (delta > 0) {
+        direction.down += delta;
+        direction.up = 0;
+        if (direction.down >= 32) {
+          setNavigationHidden(true);
+          direction.down = 0;
+        }
+      } else {
+        direction.up += Math.abs(delta);
+        direction.down = 0;
+        if (direction.up >= 14) {
+          setNavigationHidden(false);
+          direction.up = 0;
+        }
+      }
+    };
+
+    const handleFocusIn = (event: FocusEvent) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest(".bottom-nav, input, textarea, select, [contenteditable='true']")) {
+        setNavigationHidden(false);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    document.addEventListener("focusin", handleFocusIn);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      document.removeEventListener("focusin", handleFocusIn);
+    };
+  }, []);
+
+  useEffect(() => {
+    setNavigationHidden(false);
+    scrollDirectionRef.current.down = 0;
+    scrollDirectionRef.current.up = 0;
+  }, [activeTab]);
 
   useEffect(() => {
     if (!supabase) return;
@@ -2107,7 +2175,7 @@ export default function App() {
           </section>
         )}
 
-        {signedIn && <nav className="bottom-nav" aria-label="Navegação principal">
+        {signedIn && <nav className={`bottom-nav${navigationHidden ? " is-hidden" : ""}`} aria-label="Navegação principal" aria-hidden={navigationHidden}>
           <button type="button" className={activeTab === "inicio" ? "active" : ""} aria-current={activeTab === "inicio" ? "page" : undefined} onClick={() => setActiveTab("inicio")}><Home size={20} strokeWidth={2.2} /><span>Início</span></button>
           <button type="button" className={activeTab === "gastos" ? "active" : ""} aria-current={activeTab === "gastos" ? "page" : undefined} onClick={() => setActiveTab("gastos")}><ReceiptText size={20} strokeWidth={2.2} /><span>Gastos</span></button>
           <button type="button" className={activeTab === "patrimonio" || activeTab === "planejamento" ? "active" : ""} aria-current={activeTab === "patrimonio" ? "page" : undefined} onClick={() => setActiveTab("patrimonio")}><TrendingUp size={20} strokeWidth={2.2} /><span>Patrimônio</span></button>
