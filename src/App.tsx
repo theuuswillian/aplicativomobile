@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { Home, ReceiptText, TrendingUp, UserRound, Target, Bell, Eye, EyeOff, CircleMinus, CirclePlus, ChartNoAxesColumn } from "lucide-react";
 import { supabase } from "./lib/supabase";
+import { todayInBrazil } from "./lib/date";
 import { BANK_CATALOG, bankLogoStyle } from "./data/bank-catalog";
 import { clearFinancialRecordsForUser } from "./lib/secure-storage";
 import { generateOccurrences, type RecurrenceFrequency } from "./domain/recurrence";
@@ -87,12 +88,6 @@ function getInitialTheme(): Theme {
 function errorMessage(error: unknown): string {
   if (error instanceof Error) return error.message;
   return "Não foi possível concluir a operação.";
-}
-
-function todayInBrazil(): string {
-  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
-  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  return `${values.year}-${values.month}-${values.day}`;
 }
 
 function decimalToCents(value: string | number): bigint {
@@ -428,9 +423,9 @@ export default function App() {
       Math.round(Number(account.opening_balance) * 100),
       account.id,
       ledgerEntries.filter((entry) => entry.date >= account.opening_balance_date),
-      todayInBrazil()
+      currentBudgetDate
     ) / 100,
-  ])), [accounts, ledgerEntries]);
+  ])), [accounts, ledgerEntries, currentBudgetDate]);
   const paymentsByCardInvoice = useMemo(() => {
     const grouped = new Map<string, InvoicePayment[]>();
     for (const payment of invoicePayments) {
@@ -446,8 +441,8 @@ export default function App() {
     for (const [key, rows] of paymentsByCardInvoice) {
       if (key.startsWith(`${card.id}:`)) payments.set(key.slice(card.id.length + 1), rows);
     }
-    return [card.id, calculateCardCommittedLimitCents(card.id, card.closing_day, card.due_day, cardInvoiceEntries, payments, todayInBrazil()) / 100];
-  })), [cards, cardInvoiceEntries, paymentsByCardInvoice]);
+    return [card.id, calculateCardCommittedLimitCents(card.id, card.closing_day, card.due_day, cardInvoiceEntries, payments, currentBudgetDate) / 100];
+  })), [cards, cardInvoiceEntries, paymentsByCardInvoice, currentBudgetDate]);
   const enabledAlerts = useMemo(() => alerts.filter((alert) => alert.is_enabled).length, [alerts]);
   useEffect(() => {
     if (!supabase || !session?.user) {
@@ -464,7 +459,7 @@ export default function App() {
       setFinancialSummary(data as { receivables_brl?: number; overtime_forecast_brl?: number });
     });
     return () => { active = false; };
-  }, [session]);
+  }, [session, transactions, investmentAssets, investmentOperations]);
 
 
   async function handleAuth(event: FormEvent<HTMLFormElement>) {
