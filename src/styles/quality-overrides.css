@@ -157,8 +157,16 @@
 .app-shell[data-theme="light"] .report-category-list li strong {
   color: #17201b;
 }
+.app-shell[data-theme="light"] {
+  --gv-muted: #59665f;
+}
 .app-shell[data-theme="light"] .overview-recent-heading button {
   color: #15803d;
+}
+.app-shell[data-theme="light"] .account-signout-button {
+  color: #b91c1c;
+  border-color: #fecaca;
+  background: #fff7f7;
 }
 .app-shell[data-theme="light"] .panel h3,
 .app-shell[data-theme="light"] .panel h4,
