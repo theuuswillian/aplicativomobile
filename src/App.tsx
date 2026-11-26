@@ -1708,77 +1708,24 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
         ) : (
           <section className="dashboard" aria-labelledby="dashboard-title">
             {activeTab === "inicio" && <div className="dashboard-heading dashboard-heading-compact" id="inicio"><h1 id="dashboard-title" className="sr-only">Visão geral</h1></div>}
-            {activeTab === "inicio" && <section className="overview-grid" aria-label="Resumo financeiro">
-              <article className="overview-balance">
-                <div className="overview-label"><span>Saldo disponível</span><button className="balance-visibility-toggle icon-visibility" type="button" aria-label={balancesHidden ? "Mostrar saldos" : "Ocultar saldos"} aria-pressed={balancesHidden} onClick={() => setBalancesHidden((hidden) => !hidden)}>{balancesHidden ? <EyeOff size={18} /> : <Eye size={18} />}</button></div>
-                <strong>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(accounts.filter((account) => account.account_type !== "investment").reduce((sum, account) => sum + (accountBalances[account.id] ?? 0), 0))}</strong>
-                <small>{accounts.filter((account) => account.account_type !== "investment").length} contas bancárias e dinheiro físico</small>
-                {(() => {
-                  const reference = new Date(currentBudgetDate + "T12:00:00");
-                  const points = Array.from({ length: 6 }, (_, index) => {
-                    const date = new Date(reference.getFullYear(), reference.getMonth() - (5-index), 1, 12);
-                    const key = String(date.getFullYear()) + "-" + String(date.getMonth()+1).padStart(2,"0");
-                    const rows = transactions.filter((item) => item.status === "paid" && item.transaction_date.startsWith(key));
-                    return rows.filter((item) => item.kind === "income").reduce((sum,item)=>sum+Number(item.amount),0) - rows.filter((item) => item.kind === "expense").reduce((sum,item)=>sum+Number(item.amount),0);
-                  });
-                  const max = Math.max(1,...points.map((value)=>Math.abs(value)));
-                  const coords = points.map((value,index)=>({x:8+index*56,y:46-(value/max*27)}));
-                  const path = coords.map((point,index)=>(index===0?"M":"L")+point.x+" "+point.y).join(" ");
-                  const area = path+" L "+coords[coords.length-1].x+" 54 L "+coords[0].x+" 54 Z";
-                  return <svg className="overview-balance-chart" viewBox="0 0 296 58" preserveAspectRatio="none" role="img" aria-label="Evolução do fluxo líquido nos últimos seis meses"><defs><linearGradient id="balance-area-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#22C55E" stopOpacity=".34"/><stop offset="100%" stopColor="#22C55E" stopOpacity="0"/></linearGradient></defs><path d={area} fill="url(#balance-area-fill)"/><path d={path} fill="none" stroke="#22C55E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>;
-                })()}
-              </article>
-              
-              <article className="overview-stat"><span>Patrimônio investido</span>{(() => {
-                const totals = investmentAssets.reduce((sum, asset) => {
-                  const summary = investmentSummary(asset.id);
-                  const currentPrice = asset.current_price == null ? null : Number(asset.current_price);
-                  const amount = summary.quantity > 0 ? (currentPrice != null && currentPrice > 0 ? currentPrice * summary.quantity : Number(summary.costBasisCents) / 100) : 0;
-                  if (asset.currency === "USD") sum.usd += amount; else sum.brl += amount;
-                  return sum;
-                }, { brl: 0, usd: 0 });
-                const brlTotal = financialSummary?.investment_reference_brl == null ? totals.brl : Number(financialSummary.investment_reference_brl);
-                const usdTotal = financialSummary?.investment_reference_usd == null ? totals.usd : Number(financialSummary.investment_reference_usd);
-                return <><strong>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(brlTotal)}</strong><small>{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(usdTotal)} · separado da liquidez</small></>;
-              })()}</article>
-              <article className="overview-month-summary">
-                <div className="overview-recent-heading"><strong>Resumo do mês</strong><button type="button" onClick={() => setActiveTab("relatorios")}>Ver detalhes <span aria-hidden="true">›</span></button></div>
-                {(() => {
-                  const monthRows = transactions.filter((item) => item.status === "paid" && item.transaction_date.startsWith(currentBudgetDate.slice(0, 7)));
-                  const income = monthRows.filter((item) => item.kind === "income").reduce((sum, item) => sum + Number(item.amount), 0);
-                  const expense = monthRows.filter((item) => item.kind === "expense").reduce((sum, item) => sum + Number(item.amount), 0);
-                  const money = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
-                  return <div className="overview-month-columns"><div><span>Receitas</span><strong className="amount-income">{money(income)}</strong></div><div><span>Despesas</span><strong className="amount-expense">{money(expense)}</strong></div><div><span>Saldo</span><strong>{money(income-expense)}</strong></div></div>;
-                })()}
-              </article>
-              <div className="quick-actions-grid" aria-label="Ações rápidas">
-                <button type="button" onClick={() => { setTxKind("expense"); setTxPaymentMethod("pix"); setTxAccountId(""); setTxCardId(""); setQuickEntryOpen(true); }}><CircleMinus /><span>Adicionar<br/>despesa</span></button>
-                <button type="button" onClick={() => { setTxKind("income"); setTxPaymentMethod("pix"); setTxAccountId(""); setTxCardId(""); setQuickEntryOpen(true); }}><CirclePlus /><span>Adicionar<br/>receita</span></button>
-                <button type="button" onClick={() => setActiveTab("planejamento")}><Target /><span>Metas</span></button>
-                <button type="button" onClick={() => setActiveTab("relatorios")}><ChartNoAxesColumn /><span>Relatórios</span></button>
-              </div>
-              <article className="overview-recent">
-                <div className="overview-recent-heading"><strong>Últimos lançamentos</strong><button type="button" onClick={() => { setNavHidden(false); setActiveTab("gastos"); }}>Ver gastos <span aria-hidden="true">›</span></button></div>
-                {transactions.length === 0 ? <p className="empty-state">Seus lançamentos aparecerão aqui.</p> : <ul className="recent-list">{transactions.slice(0, 4).map((item) => <li key={item.id}><span className={item.kind === "income" ? "recent-icon income" : "recent-icon"}>{item.kind === "income" ? "↗" : "↘"}</span><span className="recent-description"><strong>{item.description}</strong><small>{new Date(item.transaction_date + "T12:00:00").toLocaleDateString("pt-BR")}</small></span><strong className={item.kind === "income" ? "amount-income" : "amount-expense"}>{item.kind === "income" ? "+" : "−"}{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(item.amount))}</strong></li>)}</ul>}
-              </article>
-              <article className="overview-flow">
-                <div className="overview-recent-heading"><strong>Fluxo dos últimos 6 meses</strong><span>Valores realizados</span></div>
-                {(() => {
-                  const reference = new Date(currentBudgetDate + "T12:00:00");
-                  const months = Array.from({ length: 6 }, (_, index) => {
-                    const date = new Date(reference.getFullYear(), reference.getMonth() - (5 - index), 1, 12);
-                    const key = String(date.getFullYear()) + "-" + String(date.getMonth() + 1).padStart(2, "0");
-                    const rows = transactions.filter((item) => item.status === "paid" && item.transaction_date.startsWith(key));
-                    return { key, label: new Intl.DateTimeFormat("pt-BR", { month: "short" }).format(date).replace(".", ""), income: rows.filter((item) => item.kind === "income").reduce((sum, item) => sum + Number(item.amount), 0), expense: rows.filter((item) => item.kind === "expense").reduce((sum, item) => sum + Number(item.amount), 0) };
-                  });
-                  const max = Math.max(1, ...months.flatMap((month) => [month.income, month.expense]));
-                  return <div className="cashflow-chart">{months.map((month) => <div className="cashflow-month" key={month.key}><div className="cashflow-bars"><span className="cashflow-income" style={{ height: Math.max(3, month.income / max * 100) + "%" }} title={"Receitas: " + month.income.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} /><span className="cashflow-expense" style={{ height: Math.max(3, month.expense / max * 100) + "%" }} title={"Despesas: " + month.expense.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} /></div><small>{month.label}</small></div>)}</div>;
-                })()}
-                <div className="cashflow-legend"><span><i className="cashflow-income" /> Receitas</span><span><i className="cashflow-expense" /> Despesas</span></div>
-                <p className="helper-text">Considera apenas lançamentos realizados disponíveis no histórico carregado. Meses sem registros aparecem sem movimento.</p>
-              </article>
-              <button className="overview-action" type="button" onClick={() => setActiveTab("gastos")}><span aria-hidden="true">＋</span> Organizar contas e cartões</button>
-            </section>}
+            {activeTab === "inicio" && <OverviewDashboard
+              balance={accounts.filter((account) => account.account_type !== "investment").reduce((sum, account) => sum + (accountBalances[account.id] ?? 0), 0)}
+              accountCount={accounts.filter((account) => account.account_type !== "investment").length}
+              balancesHidden={balancesHidden}
+              onToggleBalances={() => setBalancesHidden((hidden) => !hidden)}
+              investedBrl={financialSummary?.investment_reference_brl == null ? investmentAssets.reduce((sum, asset) => { if (asset.currency === "USD") return sum; const summary = investmentSummary(asset.id); const price = asset.current_price == null ? null : Number(asset.current_price); return sum + (summary.quantity > 0 ? (price != null && price > 0 ? price * summary.quantity : Number(summary.costBasisCents) / 100) : 0); }, 0) : Number(financialSummary.investment_reference_brl)}
+              investedUsd={financialSummary?.investment_reference_usd == null ? investmentAssets.reduce((sum, asset) => { if (asset.currency !== "USD") return sum; const summary = investmentSummary(asset.id); const price = asset.current_price == null ? null : Number(asset.current_price); return sum + (summary.quantity > 0 ? (price != null && price > 0 ? price * summary.quantity : Number(summary.costBasisCents) / 100) : 0); }, 0) : Number(financialSummary.investment_reference_usd)}
+              income={transactions.filter((item) => item.status === "paid" && item.transaction_date.startsWith(currentBudgetDate.slice(0, 7)) && item.kind === "income").reduce((sum, item) => sum + Number(item.amount), 0)}
+              expense={transactions.filter((item) => item.status === "paid" && item.transaction_date.startsWith(currentBudgetDate.slice(0, 7)) && item.kind === "expense").reduce((sum, item) => sum + Number(item.amount), 0)}
+              transactions={transactions.slice(0, 4)}
+              cashflow={Array.from({ length: 6 }, (_, index) => { const reference = new Date(currentBudgetDate + "T12:00:00"); const date = new Date(reference.getFullYear(), reference.getMonth() - (5 - index), 1, 12); const key = String(date.getFullYear()) + "-" + String(date.getMonth() + 1).padStart(2, "0"); const rows = transactions.filter((item) => item.status === "paid" && item.transaction_date.startsWith(key)); return { key, label: new Intl.DateTimeFormat("pt-BR", { month: "short" }).format(date).replace(".", ""), income: rows.filter((item) => item.kind === "income").reduce((sum, item) => sum + Number(item.amount), 0), expense: rows.filter((item) => item.kind === "expense").reduce((sum, item) => sum + Number(item.amount), 0) }; })}
+              onAddExpense={() => { setTxKind("expense"); setTxPaymentMethod("pix"); setTxAccountId(""); setTxCardId(""); setQuickEntryOpen(true); }}
+              onAddIncome={() => { setTxKind("income"); setTxPaymentMethod("pix"); setTxAccountId(""); setTxCardId(""); setQuickEntryOpen(true); }}
+              onGoals={() => setActiveTab("planejamento")}
+              onReports={() => setActiveTab("relatorios")}
+              onTransactions={() => { setNavHidden(false); setActiveTab("gastos"); }}
+              onManage={() => setActiveTab("gastos")}
+            />
             <section className="panel privacy-panel" hidden={activeTab !== "conta"} id="conta" aria-labelledby="privacy-title">
               <div className="panel-heading"><div><span className="principles-label">PRIVACIDADE E CONTROLE</span><h2 id="privacy-title">Seus dados e sua conta</h2><p>Exporte uma cópia dos seus dados ou solicite a exclusão permanente da conta e dos comprovantes privados.</p></div></div>
               <div className="account-profile-card">
