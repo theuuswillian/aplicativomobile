@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { Home, ReceiptText, TrendingUp, UserRound, Target, Bell, Eye, EyeOff, CircleMinus, CirclePlus, ChartNoAxesColumn } from "lucide-react";
@@ -244,7 +244,7 @@ export default function App() {
   const currentBudgetMonthStart = `${currentBudgetYear}-${String(currentBudgetMonth).padStart(2, "0")}-01`;
   const nextBudgetMonthStart = new Date(Date.UTC(currentBudgetYear, currentBudgetMonth, 1)).toISOString().slice(0, 10);
   const [accountName, setAccountName] = useState("");
-  const [accountDrawerOpen, setAccountDrawerOpen] = useState(false);
+  const accountDrawerRef = useRef<HTMLDetailsElement>(null);
   const [accountInstitutionKey, setAccountInstitutionKey] = useState("");
   const [accountType, setAccountType] = useState("checking");
   const [openingBalance, setOpeningBalance] = useState("0,00");
@@ -623,7 +623,7 @@ export default function App() {
       setAccountName("");
       setAccountInstitutionKey("");
       setOpeningBalance("0,00");
-      setAccountDrawerOpen(false);
+      if (accountDrawerRef.current) accountDrawerRef.current.open = false;
       setNotice("Conta adicionada com sucesso.");
     } catch (error) {
       setNotice(`Não foi possível adicionar a conta. ${errorMessage(error)}`);
@@ -1933,7 +1933,7 @@ export default function App() {
                   return total > 0 ? <div className="expense-chart-row"><div className="expense-donut" role="img" aria-label={"Total de gastos " + new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(total)} style={{background:"conic-gradient("+gradient+")"}}><span>{new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL",notation:"compact",maximumFractionDigits:1}).format(total)}<small>Total</small></span></div><ul className="expense-legend">{rows.map((item,index) => <li key={item.id}><i style={{background:palette[index%palette.length]}}/><span>{item.name}</span><strong>{Math.round(item.amount/total*100)}%</strong></li>)}</ul></div> : <p className="empty-state">As categorias aparecerão aqui quando houver despesas realizadas neste mês.</p>;
                 })()}
               </section>
-              <details className="management-drawer" open={accountDrawerOpen} onToggle={(event) => setAccountDrawerOpen(event.currentTarget.open)}><summary>＋ Adicionar conta bancária</summary><form className="finance-form" id="gastos-contas" onSubmit={(event) => void createAccount(event)}>
+              <details ref={accountDrawerRef} className="management-drawer"><summary>＋ Adicionar conta bancária</summary><form className="finance-form" id="gastos-contas" onSubmit={(event) => void createAccount(event)}>
                 <label>Nome da conta<input value={accountName} onChange={(event) => setAccountName(event.target.value)} maxLength={100} placeholder="Ex.: Conta principal" required /></label>
                 <label>Banco ou instituição<select value={accountInstitutionKey} onChange={(event) => setAccountInstitutionKey(event.target.value)}><option value="">Selecione o banco (opcional)</option>{BANK_CATALOG.map((bank) => <option key={bank.logoKey} value={bank.logoKey}>{bank.name}{bank.code ? ` · ${bank.code}` : ""}</option>)}</select></label>
                 {accountInstitutionKey && (() => { const bank = BANK_CATALOG.find((item) => item.logoKey === accountInstitutionKey); return bank ? <div className="bank-selected"><img className="bank-logo" src={bank.logoPath} alt="" aria-hidden="true"/><strong>{bank.name}</strong><small>{bank.code ? `Código ${bank.code}` : "Instituição digital"}</small></div> : null; })()}
