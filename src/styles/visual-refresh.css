@@ -2231,3 +2231,183 @@ html, body, #root { background: #090A0B; }
 .finance-limit-track{height:6px;overflow:hidden;margin-top:6px;border-radius:99px;background:var(--color-line)}.finance-limit-track span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#20c979,#71e6a5)}.finance-card-meta{display:flex;justify-content:space-between;gap:5px;color:var(--color-muted);font-size:9px}
 .management-form-actions{display:flex;gap:8px;grid-column:1/-1}.management-form-actions>*{flex:1}.category-symbol{display:grid;place-items:center;width:30px;height:30px;border-radius:10px;background:var(--color-accent-soft);font-size:16px}
 @media(max-width:420px){.finance-card-grid{grid-template-columns:1fr}.finance-account-card,.finance-credit-card{padding:14px}.finance-card-balance{font-size:20px}}@media(min-width:761px){.finance-card-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+
+/* Renda fixa — painel de carteira com hierarquia visual e progresso de prazo. */
+.fixed-income-hub {
+  position: relative;
+  display: grid;
+  gap: 18px;
+  margin: 18px 0 22px;
+  padding: 20px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-line) 72%, transparent);
+  border-radius: 26px;
+  background:
+    radial-gradient(ellipse 75% 38% at 100% 0%, rgba(54,227,139,.16), transparent 72%),
+    linear-gradient(145deg, color-mix(in srgb, var(--color-surface-raised) 96%, #0b2418), var(--color-surface));
+  box-shadow: 0 18px 48px rgba(0,0,0,.13);
+}
+.fixed-income-heading {
+  display:flex; align-items:flex-start; justify-content:space-between; gap:14px;
+}
+.fixed-income-eyebrow {
+  display:block; margin-bottom:8px; color:var(--color-accent);
+  font-size:10px; font-weight:850; letter-spacing:.15em;
+}
+.fixed-income-heading h3 {
+  margin:0; font-size:clamp(22px,5vw,29px); line-height:1.08;
+  letter-spacing:-.055em; font-weight:820;
+}
+.fixed-income-heading p {
+  max-width:480px; margin:9px 0 0; color:var(--color-muted);
+  font-size:12px; line-height:1.55;
+}
+.fixed-income-orbit {
+  display:grid; place-items:center; flex:0 0 46px; height:46px;
+  border:1px solid rgba(54,227,139,.28); border-radius:16px;
+  color:#39df8b; background:rgba(54,227,139,.10);
+  font-size:24px; box-shadow:0 0 28px rgba(54,227,139,.12);
+}
+.fixed-income-overview {
+  display:grid; grid-template-columns:1.1fr .9fr; gap:12px;
+  padding:16px; border:1px solid rgba(54,227,139,.17);
+  border-radius:20px; background:linear-gradient(120deg,rgba(54,227,139,.10),rgba(54,227,139,.025));
+}
+.fixed-income-total { display:grid; align-content:center; gap:5px; min-width:0; }
+.fixed-income-total span,.fixed-income-overview-stats span {
+  color:var(--color-muted); font-size:11px; font-weight:650;
+}
+.fixed-income-total strong {
+  color:var(--color-text); font-size:clamp(22px,5vw,30px);
+  font-weight:850; letter-spacing:-.055em; font-variant-numeric:tabular-nums;
+}
+.fixed-income-total small { color:var(--color-muted); font-size:10px; }
+.fixed-income-overview-stats { display:grid; gap:10px; align-content:center; }
+.fixed-income-overview-stats div { display:grid; gap:3px; }
+.fixed-income-overview-stats strong { font-size:15px; font-weight:800; font-variant-numeric:tabular-nums; }
+.fixed-income-list-heading {
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+}
+.fixed-income-list-heading > div { display:grid; gap:3px; }
+.fixed-income-list-heading strong { font-size:15px; letter-spacing:-.02em; }
+.fixed-income-list-heading span { color:var(--color-muted); font-size:10px; }
+.fixed-income-list-heading button,.fixed-income-empty button {
+  min-height:38px; padding:0 13px; border:1px solid rgba(54,227,139,.3);
+  border-radius:12px; color:var(--color-accent); background:rgba(54,227,139,.09);
+  font-size:11px; font-weight:800;
+}
+.fixed-income-cards { display:grid; gap:13px; }
+.fixed-income-card {
+  position:relative; display:grid; gap:14px; min-width:0;
+  padding:16px; border:1px solid var(--color-line); border-radius:20px;
+  background:linear-gradient(150deg,var(--color-surface-raised),color-mix(in srgb,var(--color-surface) 92%,#153524));
+  box-shadow:0 10px 28px rgba(0,0,0,.09);
+  animation:fixed-income-enter .48s cubic-bezier(.2,.8,.2,1) both;
+}
+.fixed-income-card:nth-child(2) { animation-delay:70ms; }
+.fixed-income-card:nth-child(3) { animation-delay:140ms; }
+.fixed-income-card-top { display:flex; align-items:center; gap:10px; min-width:0; }
+.fixed-income-product-icon {
+  display:grid; place-items:center; flex:0 0 42px; height:42px;
+  border-radius:14px; color:#38df8b; background:rgba(54,227,139,.12);
+  font-size:21px;
+}
+.fixed-income-title-group { display:grid; gap:3px; flex:1; min-width:0; }
+.fixed-income-title-group strong {
+  overflow:hidden; color:var(--color-text); font-size:14px;
+  font-weight:820; text-overflow:ellipsis; white-space:nowrap;
+}
+.fixed-income-title-group span { color:var(--color-muted); font-size:10px; }
+.fixed-income-status {
+  flex:0 0 auto; padding:6px 8px; border-radius:999px;
+  color:var(--color-accent); background:rgba(54,227,139,.10);
+  font-size:9px; font-weight:800;
+}
+.fixed-income-rate {
+  display:grid; gap:3px; padding:12px 14px;
+  border-radius:15px; background:linear-gradient(100deg,rgba(54,227,139,.12),rgba(54,227,139,.025));
+}
+.fixed-income-rate strong { color:var(--color-accent); font-size:20px; font-weight:850; letter-spacing:-.04em; }
+.fixed-income-rate span { color:var(--color-muted); font-size:10px; }
+.fixed-income-metrics { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+.fixed-income-metrics div { display:grid; gap:5px; min-width:0; }
+.fixed-income-metrics span { color:var(--color-muted); font-size:9px; line-height:1.3; }
+.fixed-income-metrics strong { overflow-wrap:anywhere; color:var(--color-text); font-size:12px; font-weight:800; font-variant-numeric:tabular-nums; }
+.fixed-income-timeline { display:grid; gap:8px; padding:12px; border-radius:15px; background:color-mix(in srgb,var(--color-surface) 84%,transparent); }
+.fixed-income-timeline-label,.fixed-income-dates { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+.fixed-income-timeline-label span,.fixed-income-dates span { color:var(--color-muted); font-size:10px; }
+.fixed-income-timeline-label strong,.fixed-income-dates strong { color:var(--color-text); font-size:10px; font-weight:800; text-align:right; }
+.fixed-income-progress {
+  height:9px; overflow:hidden; border-radius:999px;
+  background:color-mix(in srgb,var(--color-line) 70%,transparent);
+}
+.fixed-income-progress span {
+  display:block; height:100%; border-radius:inherit;
+  background:linear-gradient(90deg,#16a765,#52efa0);
+  box-shadow:0 0 16px rgba(54,227,139,.42);
+  transition:width 1s cubic-bezier(.2,.8,.2,1);
+  animation:fixed-income-progress-glow 2.8s ease-in-out infinite alternate;
+}
+.fixed-income-dates { align-items:flex-start; }
+.fixed-income-tags { display:flex; flex-wrap:wrap; gap:7px; }
+.fixed-income-tags span {
+  padding:6px 9px; border:1px solid var(--color-line); border-radius:999px;
+  color:var(--color-muted); background:color-mix(in srgb,var(--color-surface) 80%,transparent);
+  font-size:9px; font-weight:700;
+}
+.fixed-income-details {
+  border-top:1px solid var(--color-line); padding-top:10px;
+}
+.fixed-income-details summary {
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  min-height:34px; color:var(--color-text); cursor:pointer;
+  font-size:11px; font-weight:800; list-style:none;
+}
+.fixed-income-details summary::-webkit-details-marker { display:none; }
+.fixed-income-details summary::after { content:"＋"; color:var(--color-accent); font-size:16px; }
+.fixed-income-details[open] summary::after { content:"−"; }
+.fixed-income-detail-grid {
+  display:grid; grid-template-columns:1fr 1fr; gap:11px;
+  padding:12px 0;
+}
+.fixed-income-detail-grid div { display:grid; gap:4px; min-width:0; }
+.fixed-income-detail-grid .wide { grid-column:1/-1; }
+.fixed-income-detail-grid span { color:var(--color-muted); font-size:9px; }
+.fixed-income-detail-grid strong { color:var(--color-text); font-size:10px; line-height:1.45; }
+.fixed-income-note,.fixed-income-footnote {
+  margin:4px 0 10px; color:var(--color-muted); font-size:10px; line-height:1.55;
+}
+.fixed-income-reference-form { display:grid; gap:9px; padding:12px; border-radius:14px; background:var(--color-surface); }
+.fixed-income-reference-form label { display:grid; gap:6px; color:var(--color-muted); font-size:10px; font-weight:700; }
+.fixed-income-reference-form input {
+  width:100%; min-height:43px; padding:0 12px; border:1px solid var(--color-line);
+  border-radius:11px; color:var(--color-text); background:var(--color-surface-raised);
+}
+.fixed-income-reference-form button {
+  min-height:40px; border:0; border-radius:11px;
+  color:#06150c; background:linear-gradient(100deg,#35df88,#8af0b6);
+  font-size:11px; font-weight:850;
+}
+.fixed-income-empty {
+  display:grid; justify-items:center; gap:9px; padding:24px 18px;
+  border:1px dashed color-mix(in srgb,var(--color-accent) 35%,var(--color-line));
+  border-radius:18px; text-align:center;
+}
+.fixed-income-empty > span { color:var(--color-accent); font-size:27px; }
+.fixed-income-empty strong { font-size:14px; }
+.fixed-income-empty p { max-width:300px; margin:0; color:var(--color-muted); font-size:11px; line-height:1.5; }
+@keyframes fixed-income-enter { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+@keyframes fixed-income-progress-glow { from { filter:saturate(.9); } to { filter:saturate(1.25) brightness(1.08); } }
+@media (max-width:420px) {
+  .fixed-income-hub { padding:15px; border-radius:22px; gap:15px; }
+  .fixed-income-overview { grid-template-columns:1fr; }
+  .fixed-income-overview-stats { grid-template-columns:1fr 1fr; }
+  .fixed-income-card { padding:13px; }
+  .fixed-income-status { max-width:100px; white-space:normal; text-align:center; }
+  .fixed-income-metrics strong { font-size:11px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .fixed-income-card,.fixed-income-progress span { animation:none; }
+  .fixed-income-progress span { transition:none; }
+}
