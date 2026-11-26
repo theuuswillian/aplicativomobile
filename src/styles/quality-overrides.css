@@ -57,7 +57,7 @@
   transform: translateX(-50%);
   gap: 4px;
   padding: 8px;
-  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+  padding-bottom: 8px;
 }
 .bottom-nav button {
   min-width: 0;
@@ -269,21 +269,21 @@
   .app-shell { min-height: 100dvh; }
 }
 .app-frame {
-  padding-bottom: calc(116px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(85px + env(safe-area-inset-bottom, 0px));
 }
-.dashboard { padding-bottom: 24px; }
+.dashboard { padding-bottom: 8px; }
 .bottom-nav {
   bottom: max(8px, env(safe-area-inset-bottom, 0px));
 }
 @media (display-mode: standalone) {
   .app-shell {
     padding-top: max(14px, env(safe-area-inset-top, 0px));
-    padding-bottom: max(14px, env(safe-area-inset-bottom, 0px));
+    padding-bottom: 8px;
   }
   .bottom-nav { bottom: max(10px, env(safe-area-inset-bottom, 0px)); }
 }
 @media (max-width: 520px) {
-  .app-frame { padding-bottom: calc(124px + env(safe-area-inset-bottom, 0px)); }
+  .app-frame { padding-bottom: calc(85px + env(safe-area-inset-bottom, 0px)); }
   .dashboard > .panel { padding: 17px; }
 }
 
