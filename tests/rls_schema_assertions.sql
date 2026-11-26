@@ -294,15 +294,15 @@ begin
   select prosecdef into v_public_definer
     from pg_proc where oid = 'public.get_account_balances(date)'::regprocedure;
   select prosecdef into v_private_definer
-    from pg_proc where oid = 'private.get_account_balances(date)'::regprocedure;
+    from pg_proc where oid = 'private_api.get_account_balances(date)'::regprocedure;
   if v_public_definer is distinct from false or v_private_definer is distinct from true then
     raise exception 'Camadas de segurança incorretas para get_account_balances';
   end if;
 
-  if has_schema_privilege('anon','private','USAGE')
-     or not has_schema_privilege('authenticated','private','USAGE')
-     or has_function_privilege('anon','private.get_account_balances(date)','EXECUTE')
-     or not has_function_privilege('authenticated','private.get_account_balances(date)','EXECUTE') then
+  if has_schema_privilege('anon','private_api','USAGE')
+     or not has_schema_privilege('authenticated','private_api','USAGE')
+     or has_function_privilege('anon','private_api.get_account_balances(date)','EXECUTE')
+     or not has_function_privilege('authenticated','private_api.get_account_balances(date)','EXECUTE') then
     raise exception 'Privilégios incorretos para a função interna de saldos';
   end if;
 end
