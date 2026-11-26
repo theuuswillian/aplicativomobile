@@ -285,8 +285,8 @@ begin
     raise exception 'Saldo por conta não refletiu empréstimo, devolução e hora extra: esperado 95, recebido %', v_balance;
   end if;
 
-  if has_function_privilege('anon','public.get_account_balances(date '2026-01-04')','EXECUTE')
-     or not has_function_privilege('authenticated','public.get_account_balances(date '2026-01-04')','EXECUTE') then
+  if has_function_privilege('anon','public.get_account_balances(date)','EXECUTE')
+     or not has_function_privilege('authenticated','public.get_account_balances(date)','EXECUTE') then
     raise exception 'Grants incorretos para get_account_balances';
   end if;
 end
