@@ -41,7 +41,7 @@ end;
 $$;
 
 revoke all on function public.get_account_balances(date) from public, anon;
-grant execute on function public.get_account_balances() to authenticated;
+grant execute on function public.get_account_balances(date) to authenticated;
 
-comment on function public.get_account_balances() is
+comment on function public.get_account_balances(date) is
   'Retorna o saldo contábil por conta do usuário autenticado, sem expor as tabelas privadas do ledger.';
