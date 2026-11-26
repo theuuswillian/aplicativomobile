@@ -308,7 +308,7 @@ test("renders authenticated sections with accessible navigation in dark and ligh
           await expect.poll(() => accountInsertPayloads.length).toBeGreaterThan(0);
           expect(accountInsertPayloads[0]?.opening_balance).toBe("1234.56");
           expect(accountInsertPayloads[0]?.is_primary).toBe(false);
-          const createdAccountCard = page.locator("#gastos .finance-account-card").filter({ hasText: "Conta Nubank de teste" });.first()
+          const createdAccountCard = page.locator("#gastos .finance-account-card").filter({ hasText: "Conta Nubank de teste" }).first();
           await expect(createdAccountCard).toBeVisible();
           await expect(createdAccountCard).toContainText("Nubank");
         } else {
