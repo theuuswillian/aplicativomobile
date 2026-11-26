@@ -218,6 +218,7 @@ test("renders authenticated sections with accessible navigation in dark and ligh
 
   await page.route("**/rest/v1/accounts**", async (route) => {
     if (route.request().method() === "POST") {
+      expect(route.request().postDataJSON().opening_balance).toBe("1234.56");
       await route.fulfill({
         status: 201,
         headers: { "access-control-allow-origin": "*", "content-range": "0-0/1", "preference-applied": "return=representation" },
@@ -295,7 +296,7 @@ test("renders authenticated sections with accessible navigation in dark and ligh
         await drawer.getByLabel("Nome da conta").fill("Conta Nubank de teste");
         await drawer.getByLabel("Banco ou instituição").selectOption("nubank.com.br");
         await expect(drawer.locator(".bank-selected img")).toHaveAttribute("src", "/banks/nubank.svg");
-        await drawer.getByLabel("Saldo inicial (R$)").fill("250,00");
+        await drawer.getByLabel("Saldo inicial (R$)").fill("1.234,56");
         if (test.info().project.name === "chromium-desktop") {
           await drawer.getByRole("button", { name: "Adicionar conta", exact: true }).click();
           await expect(page.locator("#gastos .account-list")).toContainText("Conta Nubank de teste");
