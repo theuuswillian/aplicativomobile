@@ -216,6 +216,12 @@ test("renders authenticated sections with accessible navigation in dark and ligh
       expect(touchTargets).toHaveLength(4);
       expect(touchTargets.every((target) => target.width >= 44 && target.height >= 44)).toBe(true);
       await expect(page.getByRole("button", { name: tab.name, exact: true })).toHaveAttribute("aria-current", "page");
+      const activeNavButton = dock.locator("button.active");
+      await expect(activeNavButton).toHaveCount(1);
+      await expect(activeNavButton).toHaveAttribute("aria-current", "page");
+      await expect(activeNavButton).toContainText(tab.name);
+      const dockPaddingBottom = await dock.evaluate((element) => getComputedStyle(element).paddingBottom);
+      expect(Number.parseFloat(dockPaddingBottom)).toBeLessThanOrEqual(8);
       const dimensions = await page.evaluate(() => ({
         viewport: document.documentElement.clientWidth,
         content: document.documentElement.scrollWidth,
