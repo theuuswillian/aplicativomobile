@@ -187,3 +187,12 @@ Cotações automáticas permanecem desativadas independentemente do cron até au
 - [ ] Status Vercel do commit continua falhando por limite de quota de Preview (não é falha do CI GitHub e não valida deployment do HEAD).
 - [ ] Secrets de serviço ainda precisam ser configurados diretamente no Supabase/GitHub conforme este checklist; não há leitura dos valores pelo conector.
 - Nenhuma função publicada, nenhum worker ativado e nenhuma alteração em Production.
+
+
+## Integração das PRs e Preview consolidado — 25/11/2026
+
+- PRs #6, #7 e #8 mescladas em `fase-2-fundacao`; PR #8 adiciona logos SVG locais, catálogo e fluxo de cadastro de contas atualizado.
+- Preview do Vercel criado para o commit `123fe754db88124e976816fc09ae3dc560a9f9dc` e confirmado em estado `READY`: `https://granaviva-ri31u83iw-grana6.vercel.app`.
+- O Preview usa as variáveis públicas Supabase já cadastradas para a branch `fase-2-fundacao`. Production permanece sem alterações nesta etapa.
+- Supabase remoto permanece com 17 migrations e 16 Edge Functions ACTIVE. A migration de metas de renda passiva da PR #7 ainda não aparece no histórico remoto e precisa ser avaliada/aplicada somente após revisão e autorização específica.
+- CI combinado pós-merge, secrets e fluxos reais de provedores externos continuam pendentes de validação. Não ativar workers nem Brapi.
