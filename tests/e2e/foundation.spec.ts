@@ -216,8 +216,10 @@ test("renders authenticated sections with accessible navigation in dark and ligh
     await route.fulfill({ status: 200, headers: corsHeaders, contentType: "application/json", body: JSON.stringify({}) });
   });
 
+  const accountInsertPayloads: Record<string, unknown>[] = [];
   await page.route("**/rest/v1/accounts**", async (route) => {
     if (route.request().method() === "POST") {
+      accountInsertPayloads.push(JSON.parse(route.request().postData() ?? "{}") as Record<string, unknown>);
       await route.fulfill({
         status: 201,
         headers: { "access-control-allow-origin": "*", "content-range": "0-0/1", "preference-applied": "return=representation" },
@@ -295,9 +297,15 @@ test("renders authenticated sections with accessible navigation in dark and ligh
         await drawer.getByLabel("Nome da conta").fill("Conta Nubank de teste");
         await drawer.getByLabel("Banco ou instituição").selectOption("nubank.com.br");
         await expect(drawer.locator(".bank-selected img")).toHaveAttribute("src", "/banks/nubank.svg");
-        await drawer.getByLabel("Saldo inicial (R$)").fill("250,00");
+        const openingBalanceField = drawer.getByLabel("Saldo inicial (R$)");
+        await openingBalanceField.fill("1.234,56");
+        await expect(openingBalanceField).toHaveValue("1.234,56");
+        if (test.info().project.name === "webkit-iphone") {
+          await expect(openingBalanceField).toHaveCSS("font-size", "16px");
+        }
         if (test.info().project.name === "chromium-desktop") {
           await drawer.getByRole("button", { name: "Adicionar conta", exact: true }).click();
+          expect(accountInsertPayloads[0]?.opening_balance).toBe("1234.56");
           await expect(page.locator("#gastos .account-list")).toContainText("Conta Nubank de teste");
           await expect(page.locator("#gastos .account-list img.bank-logo")).toHaveAttribute("src", "/banks/nubank.svg");
         } else {
@@ -307,10 +315,11 @@ test("renders authenticated sections with accessible navigation in dark and ligh
       if (tab.name === "Início") await expect(page.locator(".overview-balance strong")).toContainText("123,45");
       if (tab.name === "Conta") await expect(page.locator(".account-profile-card")).toBeVisible();
       const dock = page.locator(".bottom-nav");
-      // The dock intentionally hides while scrolling down; return to the top before
-      // asserting its visible/accessibility state and viewport bounds.
-      await page.evaluate(() => window.scrollTo(0, 0));
+      // A navegação deve permanecer visível mesmo após rolar a página.
+      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+      await expect(dock).toBeVisible();
       await expect(dock).toHaveAttribute("aria-hidden", "false");
+      await page.evaluate(() => window.scrollTo(0, 0));
       const dockBox = await dock.boundingBox();
       const viewport = page.viewportSize();
       if (!dockBox || !viewport) throw new Error("Não foi possível medir a navegação inferior.");
