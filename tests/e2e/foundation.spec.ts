@@ -300,6 +300,8 @@ test("renders authenticated sections with accessible navigation in dark and ligh
           await drawer.getByRole("button", { name: "Adicionar conta", exact: true }).click();
           await expect(page.locator("#gastos .account-list")).toContainText("Conta Nubank de teste");
           await expect(page.locator("#gastos .account-list img.bank-logo")).toHaveAttribute("src", "/banks/nubank.svg");
+        } else {
+          await drawer.locator("summary").click();
         }
       }
       if (tab.name === "Início") await expect(page.locator(".overview-balance strong")).toContainText("123,45");
