@@ -307,8 +307,9 @@ test("renders authenticated sections with accessible navigation in dark and ligh
           await drawer.getByRole("button", { name: "Adicionar conta", exact: true }).click();
           expect(accountInsertPayloads[0]?.opening_balance).toBe("1234.56");
           expect(accountInsertPayloads[0]?.is_primary).toBe(false);
-          await expect(page.locator("#gastos .account-list")).toContainText("Conta Nubank de teste");
-          await expect(page.locator("#gastos .account-list img.bank-logo")).toHaveAttribute("src", "/banks/nubank.svg");
+          const createdAccountCard = page.locator("#gastos .finance-account-card").filter({ hasText: "Conta Nubank de teste" });
+          await expect(createdAccountCard).toBeVisible();
+          await expect(createdAccountCard).toContainText("Nubank");
         } else {
           await drawer.locator("summary").click();
         }
@@ -325,6 +326,11 @@ test("renders authenticated sections with accessible navigation in dark and ligh
       await expect(dock).not.toHaveClass(/is-hidden/);
       await expect(dock).toBeVisible();
       await expect(dock).toHaveAttribute("aria-hidden", "false");
+      await page.waitForFunction(() => {
+        const element = document.querySelector(".bottom-nav");
+        if (!element) return false;
+        return element.getBoundingClientRect().bottom <= window.innerHeight + 1;
+      });
       const dockBox = await dock.boundingBox();
       const viewport = page.viewportSize();
       if (!dockBox || !viewport) throw new Error("Não foi possível medir a navegação inferior.");
