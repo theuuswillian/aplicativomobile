@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { Home, ReceiptText, TrendingUp, UserRound, Target, Bell, Eye, EyeOff, CircleMinus, CirclePlus, ChartNoAxesColumn } from "lucide-react";
+import { Bell, ChartNoAxesColumn } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import { todayInBrazil } from "./lib/date";
 import { formatBrlInput, toCents } from "./lib/money";
