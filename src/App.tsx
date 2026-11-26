@@ -220,6 +220,8 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
   const [fixedIncomeNextYieldDate, setFixedIncomeNextYieldDate] = useState("");
   const [fixedIncomeStart, setFixedIncomeStart] = useState(todayInBrazil);
   const [fixedIncomeFrequency, setFixedIncomeFrequency] = useState<"daily" | "monthly" | "semiannual" | "at_maturity">("daily");
+  const [fixedIncomeLiquidity, setFixedIncomeLiquidity] = useState<"daily" | "at_maturity" | "grace_period" | "unknown">("unknown");
+  const [fixedIncomeGraceDays, setFixedIncomeGraceDays] = useState("");
   const [goalName, setGoalName] = useState("");
   const [goalTarget, setGoalTarget] = useState("");
   const [goalMonthly, setGoalMonthly] = useState("0,00");
@@ -1088,6 +1090,7 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
         product: fixedIncomeProduct, issuer: fixedIncomeIssuer.trim(), indexer: fixedIncomeIndexer,
         annual_rate_percent: fixedRate, start_date: fixedIncomeStart, maturity_date: fixedIncomeMaturity || null,
         next_yield_date: fixedIncomeNextYieldDate || null, yield_frequency: fixedIncomeFrequency,
+        liquidity: fixedIncomeLiquidity, grace_period_days: fixedIncomeLiquidity === "grace_period" ? Number(fixedIncomeGraceDays) || null : null,
       },
     } : {};
     setBusy(true); setNotice("");
@@ -1101,7 +1104,7 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
       setInvestmentAssets((current) => [...current, created].sort((a,b) => a.symbol.localeCompare(b.symbol)));
       setInvestmentAssetId(created.id);
       setInvestmentSymbol(""); setInvestmentName("");
-      setFixedIncomeIssuer(""); setFixedIncomeRate(""); setFixedIncomeMaturity("");
+      setFixedIncomeIssuer(""); setFixedIncomeRate(""); setFixedIncomeMaturity(""); setFixedIncomeLiquidity("unknown"); setFixedIncomeGraceDays("");
       setFixedIncomeNextYieldDate(""); setFixedIncomeStart(todayInBrazil());
       setNotice("Ativo adicionado à carteira. A cotação ainda não está conectada.");
     } catch (error) { setNotice(errorMessage(error)); }
@@ -1921,6 +1924,8 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
                     <label>Vencimento (se houver)<input type="date" min={fixedIncomeStart} value={fixedIncomeMaturity} onChange={(event) => setFixedIncomeMaturity(event.target.value)}/></label>
                     <label>Próxima data de rendimento (opcional)<input type="date" min={fixedIncomeStart} max={fixedIncomeMaturity || undefined} value={fixedIncomeNextYieldDate} onChange={(event) => setFixedIncomeNextYieldDate(event.target.value)}/></label>
                     <label>Periodicidade do rendimento<select value={fixedIncomeFrequency} onChange={(event) => setFixedIncomeFrequency(event.target.value as typeof fixedIncomeFrequency)}><option value="daily">Diário (dias úteis)</option><option value="monthly">Mensal</option><option value="semiannual">Semestral</option><option value="at_maturity">No vencimento</option></select></label>
+                    <label>Liquidez<select value={fixedIncomeLiquidity} onChange={(event) => setFixedIncomeLiquidity(event.target.value as typeof fixedIncomeLiquidity)}><option value="unknown">Não informada</option><option value="daily">Diária</option><option value="at_maturity">Somente no vencimento</option><option value="grace_period">Após carência</option></select></label>
+                    {fixedIncomeLiquidity === "grace_period" && <label>Carência (dias)<input inputMode="numeric" value={fixedIncomeGraceDays} onChange={(event) => setFixedIncomeGraceDays(event.target.value.replace(/[^0-9]/g, "").slice(0, 5))} placeholder="Ex.: 90" /></label>}
                   </>}
                   <button className="primary-button" type="submit" disabled={busy}>Adicionar ativo</button>
                 </form></details>
