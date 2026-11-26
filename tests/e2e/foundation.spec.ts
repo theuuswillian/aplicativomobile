@@ -216,6 +216,46 @@ test("renders authenticated sections with accessible navigation in dark and ligh
     await route.fulfill({ status: 200, headers: corsHeaders, contentType: "application/json", body: JSON.stringify({}) });
   });
 
+  await page.route("**/rest/v1/accounts**", async (route) => {
+    if (route.request().method() === "POST") {
+      await route.fulfill({
+        status: 201,
+        headers: { "access-control-allow-origin": "*", "content-range": "0-0/1", "preference-applied": "return=representation" },
+        contentType: "application/vnd.pgrst.object+json",
+        body: JSON.stringify({
+          id: "40000000-0000-4000-8000-000000000002",
+          user_id: user.id,
+          name: "Conta Nubank de teste",
+          account_type: "checking",
+          opening_balance: "250.00",
+          opening_balance_date: "2026-01-01",
+          is_primary: false,
+          institution_name: "Nubank",
+          institution_code: "260",
+          institution_logo_key: "nubank.com.br",
+        }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      headers: { "access-control-allow-origin": "*", "content-range": "0-0/1" },
+      contentType: "application/json",
+      body: JSON.stringify([{
+        id: "40000000-0000-4000-8000-000000000001",
+        user_id: user.id,
+        name: "Conta principal",
+        account_type: "checking",
+        opening_balance: "0.00",
+        opening_balance_date: "2026-01-01",
+        is_primary: true,
+        institution_name: null,
+        institution_code: null,
+        institution_logo_key: null,
+      }]),
+    });
+  });
+
   await page.addInitScript(({ sessionUser, token }) => {
     localStorage.setItem("sb-test-auth-token", JSON.stringify({
       access_token: token,
