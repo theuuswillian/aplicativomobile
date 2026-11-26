@@ -1,5 +1,3 @@
-import type { CSSProperties } from "react";
-
 /**
  * Logos vetoriais individuais, locais e versionados no app.
  * As marcas bancárias foram obtidas do diretório público Open Finance Brasil
@@ -41,9 +39,3 @@ export const BANK_CATALOG = [
 
 export type BankCatalogEntry = (typeof BANK_CATALOG)[number];
 
-export function bankLogoStyle(): CSSProperties {
-  return {
-    objectFit: "contain",
-    display: "block",
-  };
-}
