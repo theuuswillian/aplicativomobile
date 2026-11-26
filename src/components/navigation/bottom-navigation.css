@@ -1,0 +1,5 @@
+/* Dock React-aware: acompanha a viewport visual do Safari sem cobrir conteúdo. */
+.app-shell .gv-bottom-nav{transition:transform 260ms cubic-bezier(.2,.75,.25,1),opacity 200ms ease,visibility 0s linear 0s;will-change:transform}
+.app-shell .gv-bottom-nav.is-hidden{transform:translate3d(-50%,calc(100% + 20px),0);opacity:0;visibility:hidden;pointer-events:none}
+@media(max-width:760px){.app-shell .gv-bottom-nav{width:calc(100% - 24px);max-width:560px;padding:7px 8px;border-radius:19px}.app-shell .gv-bottom-nav button{min-height:52px}}
+@media(prefers-reduced-motion:reduce){.app-shell .gv-bottom-nav,.app-shell .gv-bottom-nav.is-hidden{transition:none}}
