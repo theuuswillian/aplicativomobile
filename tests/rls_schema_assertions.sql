@@ -236,6 +236,62 @@ end
 $assert_market_data_private$;
 select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000001',true);
 
+do $assert_account_balances$
+declare
+  v_count integer;
+  v_balance numeric(15,2);
+  v_loan_id uuid;
+  v_overtime_id uuid;
+begin
+  select count(*), max(balance)
+    into v_count, v_balance
+    from public.get_account_balances();
+  if v_count <> 1 or v_balance <> 90.00 then
+    raise exception 'Saldo inicial + lançamento não foi calculado corretamente: count %, balance %', v_count, v_balance;
+  end if;
+
+  select id into v_loan_id
+    from public.create_receivable_loan(
+      'Pessoa fixture', 20.00, date '2026-01-02', null,
+      '40000000-0000-4000-8000-000000000001', null, 'sql-loan-0001'
+    );
+
+  perform public.register_receivable_repayment(
+    v_loan_id,
+    '40000000-0000-4000-8000-000000000001',
+    5.00,
+    date '2026-01-03',
+    'sql-repay-0001'
+  );
+
+  select id into v_overtime_id
+    from public.record_overtime_entry(
+      date '2026-01-02', 2.00, 10.00, 0.00,
+      'Hora extra fixture', 'sql-overtime-01'
+    );
+
+  perform public.convert_overtime_to_receipt(
+    array[v_overtime_id],
+    '40000000-0000-4000-8000-000000000001',
+    date '2026-01-04',
+    'sql-overtime-batch-01'
+  );
+
+  select balance into v_balance
+    from public.get_account_balances()
+   where account_id = '40000000-0000-4000-8000-000000000001';
+
+  if v_balance <> 95.00 then
+    raise exception 'Saldo por conta não refletiu empréstimo, devolução e hora extra: esperado 95, recebido %', v_balance;
+  end if;
+
+  if has_function_privilege('anon','public.get_account_balances()','EXECUTE')
+     or not has_function_privilege('authenticated','public.get_account_balances()','EXECUTE') then
+    raise exception 'Grants incorretos para get_account_balances';
+  end if;
+end
+$assert_account_balances$;
+
 do $$
 declare v_count integer;
 begin
