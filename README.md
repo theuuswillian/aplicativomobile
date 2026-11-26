@@ -16,19 +16,21 @@ Aplicativo gratuito de gestão financeira pessoal, investimentos e automações.
 - Segredos exclusivamente no backend.
 - Operações concorrentes e webhooks idempotentes.
 - Cotações automáticas B3 desativadas até licença escrita adequada; preços manuais são referências e não alimentam o Radar.
-- Nenhuma alteração de produção, ativação de workers ou envio externo real sem validação e autorização específicas.
+- Não ativar workers nem realizar envios externos reais sem validação controlada.
 
 ## Estado real do projeto — 25/11/2026
 
-- A branch de trabalho do backend é `fase-3-backend`; a PR #2 foi mesclada em `fase-2-fundacao`, não em `main`.
-- As PRs #3, #4, #5, #6 e #7 também foram mescladas em `fase-2-fundacao`.
-- A PR #8 (cadastro de contas e logos bancários) continua aberta e precisa de reconciliação após os merges recentes.
-- A PR #1 permanece draft e a branch `main` ainda não recebeu a consolidação da Fase 2/3.
-- O CI da Fase 3 no commit `a6f27d1504db330d55290c56371e2bd6c7bc7d94` passou nos jobs validate, SQL/PostgreSQL 17, Edge Runtime e integração Supabase local.
-- A aprovação do CI não significa publicação remota: Edge Functions e workers ainda não foram ativados; secrets externos ainda dependem de configuração segura.
-- O projeto Supabase brasileiro e a configuração de Vercel devem ser conferidos nos painéis antes de qualquer deploy. Production permanece preservada.
+- Branch de trabalho do backend: `fase-3-backend`.
+- PR #2 foi mesclada em `fase-2-fundacao`, não em `main`. PRs #3–#7 também foram mescladas em `fase-2-fundacao`; PR #8 continua aberta e precisa de reconciliação.
+- PR #1 continua draft; a branch `main` ainda não recebeu a consolidação da Fase 2/3.
+- Supabase Brasil (`dvddqexnvllrxogbwmdf`) está `ACTIVE_HEALTHY`, PostgreSQL 17, com 17 migrations registradas.
+- Supabase informa 16 Edge Functions em estado `ACTIVE` (versão 3). Isso confirma publicação das funções, mas não comprova secrets válidos nem testes end-to-end com provedores externos.
+- GitHub Actions no commit `a6f27d1504db330d55290c56371e2bd6c7bc7d94`: validate, SQL/PostgreSQL 17, Edge Runtime e integração local Supabase passaram; lockfile foi skipped pelo filtro esperado.
+- Vercel tem Preview `READY` no commit `df182b4fa841eb7455f451237e840f3a7ef0b466`. As duas variáveis públicas Supabase foram cadastradas especificamente para Preview da branch `fase-3-backend`; é necessário gerar novo Preview para consumir essas variáveis no build.
+- Workers, credenciais externas e testes reais de OpenAI/Meta/Push ainda precisam de confirmação operacional. Production não foi alterada.
+- Cotações automáticas continuam bloqueadas por licença; preço manual é a alternativa ativa e não aciona o Radar.
 
-Consulte [docs/FASE-3-PLANO-E-STATUS.md](docs/FASE-3-PLANO-E-STATUS.md) para o registro de execução e pendências verificadas. Consulte [docs/CONFIGURACAO-REMOTA-FASE-3.md](docs/CONFIGURACAO-REMOTA-FASE-3.md) para os gates de implantação.
+Consulte [docs/FASE-3-PLANO-E-STATUS.md](docs/FASE-3-PLANO-E-STATUS.md) e [docs/CONFIGURACAO-REMOTA-FASE-3.md](docs/CONFIGURACAO-REMOTA-FASE-3.md) para o registro detalhado.
 
 ## Desenvolvimento
 
