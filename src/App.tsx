@@ -1843,7 +1843,7 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
                       const frequency = ({daily:"Diário (dias úteis)",monthly:"Mensal",semiannual:"Semestral",at_maturity:"No vencimento"} as Record<string,string>)[String(metadata.yield_frequency ?? "")] ?? "Não informado";
                       const rateLabel = indexer === "CDI" ? rate + "% do CDI" : indexer === "SELIC" ? rate + "% da Selic" : indexer === "IPCA" ? "IPCA + " + rate + "% a.a." : indexer === "PREFIXADO" ? rate + "% a.a. prefixado" : "Taxa não informada";
                       const productKey = product.toLocaleUpperCase("pt-BR");
-                      const taxLabel = ["LCI","LCA","CRI","CRA"].includes(productKey) ? "Isenção de IR para pessoa física, conforme regras do produto" : ["CDB","LC","TESOURO SELIC","TESOURO IPCA+","TESOURO PREFIXADO"].includes(productKey) ? "IR regressivo sobre o rendimento; IOF pode incidir antes de 30 dias" : "Tributação depende das características do título";
+                      const taxLabel = ["LCI","LCA","CRI","CRA","POUPANÇA"].includes(productKey) ? "Isenção de IR para pessoa física, conforme regras do produto" : ["CDB","LC","TESOURO SELIC","TESOURO IPCA+","TESOURO PREFIXADO"].includes(productKey) ? "IR regressivo sobre o rendimento; IOF pode incidir antes de 30 dias" : "Tributação depende das características do título";
                       const fgcEligible = ["CDB","LCI","LCA","LC","POUPANÇA"].includes(productKey);
                       const hasPosition = summary.quantity > 0;
                       const progressValue = maturity && daysLeft !== null && daysLeft < 0 ? 100 : progress;
