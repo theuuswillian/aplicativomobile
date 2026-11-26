@@ -54,7 +54,7 @@ body,
 }
 @media (min-width: 761px) {
   .bottom-nav.is-hidden {
-    transform: translate3d(50%, calc(100% + 20px), 0);
+    transform: translate3d(-50%, calc(100% + 20px), 0);
   }
 }
 @media (prefers-reduced-motion: reduce) {
