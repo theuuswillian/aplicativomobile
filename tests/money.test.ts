@@ -32,5 +32,6 @@ describe("Brazilian real input formatting", () => {
     expect(formatBrlInput("1234")).toBe("12,34");
     expect(formatBrlInput("123456")).toBe("1.234,56");
     expect(formatBrlInput("")).toBe("");
+    expect(formatBrlInput("-123456")).toBe("-1.234,56");
   });
 });
