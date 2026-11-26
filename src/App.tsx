@@ -1733,7 +1733,7 @@ export default function App() {
                 today={todayInBrazil()}
               />}
               <nav className="section-jump" aria-label="Atalhos do patrimônio">
-                <a href="#patrimonio-radar">Radar</a><a href="#patrimonio-investimentos">Carteira</a><a href="#patrimonio-proventos">Proventos</a>
+                <a href="#metas-rendimentos">Metas de renda</a><a href="#patrimonio-radar">Radar</a><a href="#patrimonio-investimentos">Carteira</a><a href="#patrimonio-proventos">Proventos</a>
               </nav>
               <section className="subpanel" id="patrimonio-investimentos" aria-labelledby="investments-title">
                 <div className="transaction-heading"><strong id="investments-title">Carteira de investimentos</strong><span>{investmentAssets.length} ativos</span></div>
