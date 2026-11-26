@@ -510,3 +510,22 @@ Esta seção substitui qualquer status anterior deste documento que contradiga o
 5. Publicar Edge Functions em etapas após confirmar secrets e destino Supabase; testar endpoints sem habilitar workers.
 6. Habilitar workers somente após teste remoto controlado e autorização explícita; manter cotações automáticas desativadas.
 7. Fazer aceite manual Safari/PWA e registrar evidências antes de qualquer promoção para Production.
+
+
+## Verificação operacional direta — Supabase e Vercel — 25/11/2026
+
+A verificação dos painéis remotos corrigiu os estados antigos registrados acima. A documentação anterior que dizia que nenhuma Edge Function estava publicada e que o Supabase tinha apenas 13 migrations estava desatualizada.
+
+- [x] Supabase Brasil `dvddqexnvllrxogbwmdf`: estado `ACTIVE_HEALTHY`, região `sa-east-1`, PostgreSQL 17.12.
+- [x] 17 migrations remotas registradas, incluindo `card_invoice_payments`, `financial_ledger_and_receivables` e `get_account_balances_from_private_ledger`.
+- [x] 16 Edge Functions remotas em estado `ACTIVE`, versão 3: `assistente`, `excluir-conta`, `exportar-dados`, `ler-comprovante`, `minha-conta`, `minhas-preferencias`, `push-inscricoes`, `push-worker`, `radar-alertas`, `radar-worker`, `recurrence-worker`, `quote-feed-worker`, `whatsapp-meta-send`, `whatsapp-vincular`, `whatsapp-webhook` e `whatsapp-worker`.
+- [x] Vercel Preview existente `granaviva-lq4ln39mk-grana6.vercel.app`, estado `READY`, commit `df182b4fa841eb7455f451237e840f3a7ef0b466`. Esse deployment antecede os últimos commits de documentação e a configuração de ambiente recém-aplicada; não o tratar como validação do HEAD atual.
+- [x] Cadastradas no Vercel as variáveis públicas `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` especificamente para Preview da branch `fase-3-backend`. Nenhum segredo foi colocado no frontend e Production não foi alterada.
+- [ ] Criar e testar novo Preview do commit consolidado para confirmar que as variáveis são aplicadas no build.
+- [ ] Confirmar presença e validade dos secrets de Edge Functions diretamente no Supabase; o conector não permite ler seus valores. A existência de funções ACTIVE não comprova autenticação end-to-end nem configuração correta dos provedores.
+- [ ] Confirmar o estado da variável GitHub `WORKERS_ENABLED` e dos secrets de workers sem revelar seus valores; manter desligados até teste controlado.
+- [ ] Testar autenticação e fluxos financeiros remotos com usuário de teste; validar IA, comprovantes, Push e WhatsApp somente com credenciais próprias e consentimento explícito.
+- [ ] A migration `20261126010000_income_goals.sql` da PR #7 não aparece entre as 17 migrations remotas consultadas; a funcionalidade de metas de renda passiva não deve ser considerada aplicada no Supabase.
+- [ ] As PRs #6 e #7 foram mescladas na branch `fase-2-fundacao`, não na branch `fase-3-backend`; a consolidação entre essas linhas continua necessária antes de uma versão final única.
+
+Nenhuma migration foi aplicada nesta verificação, nenhuma Edge Function foi redeployada, nenhum worker foi ativado e nenhum envio externo foi realizado.
