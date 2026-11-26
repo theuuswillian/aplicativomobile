@@ -160,8 +160,15 @@ test("renders authenticated sections with accessible navigation in dark and ligh
       return;
     }
     if (url.pathname === "/rest/v1/accounts" && request.method() === "POST") {
-      const created = { ...request.postDataJSON(), id: "40000000-0000-4000-8000-000000000002", opening_balance_date: "2026-01-01", is_primary: false };
-      await route.fulfill({ status: 201, headers: corsHeaders, contentType: "application/json", body: JSON.stringify(created) });
+      const body = request.postDataJSON();
+      const account = Array.isArray(body) ? body[0] : body;
+      const created = { ...account, id: "40000000-0000-4000-8000-000000000002", opening_balance_date: "2026-01-01", is_primary: false };
+      await route.fulfill({
+        status: 201,
+        headers: { ...corsHeaders, "content-range": "0-0/1", "preference-applied": "return=representation" },
+        contentType: "application/vnd.pgrst.object+json",
+        body: JSON.stringify(created),
+      });
       return;
     }
     if (url.pathname === "/rest/v1/accounts") {
