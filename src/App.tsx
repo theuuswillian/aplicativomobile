@@ -84,8 +84,8 @@ const INVESTMENT_CATALOG: Record<string, { name: string; assetClass: InvestmentA
 
 const THEME_STORAGE_KEY = "granaviva:theme:v1";
 const DEFAULT_CATEGORIES: Array<{name:string;icon:string;kind:"income"|"expense";color:string;is_default:boolean}> = [
- ...[["Mercado","🛒"],["Alimentação","🍽️"],["Restaurantes","🍔"],["Delivery","🛵"],["Transporte","🚗"],["Combustível","⛽"],["Moradia","🏠"],["Aluguel","🏡"],["Condomínio","🏢"],["Água","💧"],["Energia","💡"],["Internet e telefone","📱"],["Saúde","🩺"],["Farmácia","💊"],["Educação","📚"],["Pets","🐾"],["Lazer","🎟️"],["Assinaturas","📺"],["Roupas","👕"],["Beleza","💇"],["Viagem","✈️"],["Impostos","🧾"],["Seguros","🛡️"],["Presentes","🎁"],["Casa","🛋️"],["Manutenção","🧰"],["Outros","📦"]].map(([name,icon])=>({name,icon,kind:"expense",color:"#64748b",is_default:true})),
- ...[["Salário","💼"],["Freelance","🧑‍💻"],["Rendimentos","📈"],["Dividendos","💹"],["Aluguel recebido","🏠"],["Reembolso","↩️"],["Vendas","🛍️"],["Outras receitas","💰"]].map(([name,icon])=>({name,icon,kind:"income",color:"#16a34a",is_default:true}))
+ ...[["Mercado","🛒"],["Alimentação","🍽️"],["Restaurantes","🍔"],["Delivery","🛵"],["Transporte","🚗"],["Combustível","⛽"],["Moradia","🏠"],["Aluguel","🏡"],["Condomínio","🏢"],["Água","💧"],["Energia","💡"],["Internet e telefone","📱"],["Saúde","🩺"],["Farmácia","💊"],["Educação","📚"],["Pets","🐾"],["Lazer","🎟️"],["Assinaturas","📺"],["Roupas","👕"],["Beleza","💇"],["Viagem","✈️"],["Impostos","🧾"],["Seguros","🛡️"],["Presentes","🎁"],["Casa","🛋️"],["Manutenção","🧰"],["Outros","📦"]].map(([name,icon])=>({name,icon,kind:"expense" as const,color:"#64748b",is_default:true})),
+ ...[["Salário","💼"],["Freelance","🧑‍💻"],["Rendimentos","📈"],["Dividendos","💹"],["Aluguel recebido","🏠"],["Reembolso","↩️"],["Vendas","🛍️"],["Outras receitas","💰"]].map(([name,icon])=>({name,icon,kind:"income" as const,color:"#16a34a",is_default:true}))
 ];
 function categoryIcon(name:string):string {
  const n=name.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
