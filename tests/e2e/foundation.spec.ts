@@ -221,7 +221,7 @@ test("renders authenticated sections with accessible navigation in dark and ligh
       await route.fulfill({
         status: 201,
         headers: { "access-control-allow-origin": "*", "content-range": "0-0/1", "preference-applied": "return=representation" },
-        contentType: "application/vnd.pgrst.object+json",
+        contentType: "application/json",
         body: JSON.stringify({
           id: "40000000-0000-4000-8000-000000000002",
           user_id: user.id,
