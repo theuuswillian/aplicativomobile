@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import { ArrowUpRight, Check, Info, Plus, Sparkles, Target, Trash2, TrendingUp } from "lucide-react";
+import { Check, Info, Plus, Sparkles, Target, Trash2, TrendingUp } from "lucide-react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { calculatePassiveIncomeSnapshot, type IncomeAsset, type IncomeEvent, type IncomeOperation } from "../../domain/income-goals";
 import "./income-goals.css";
