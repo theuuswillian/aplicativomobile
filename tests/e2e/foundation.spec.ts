@@ -181,7 +181,6 @@ test("renders authenticated sections with accessible navigation in dark and ligh
   const shell = page.locator(".app-shell");
   await expect(shell).toHaveAttribute("data-theme", "dark");
   await expect(page.locator(".bottom-nav")).toBeVisible();
-  await expect(page.locator(".account-chip")).toHaveCount(0);
 
   const tabs = [
     { name: "Início", selector: ".overview-grid" },
@@ -192,13 +191,29 @@ test("renders authenticated sections with accessible navigation in dark and ligh
 
   for (const theme of ["dark", "light"] as const) {
     if (theme === "light") {
-      await page.getByRole("button", { name: "Conta" }).click();
+      await page.getByRole("button", { name: "Conta", exact: true }).click();
       await page.getByRole("button", { name: /Personalização/ }).click();
       await expect(shell).toHaveAttribute("data-theme", "light");
     }
     for (const tab of tabs) {
       await page.getByRole("button", { name: tab.name, exact: true }).click();
       await expect(page.locator(tab.selector)).toBeVisible();
+      if (tab.name === "Conta") await expect(page.locator(".account-profile-card")).toBeVisible();
+      const dock = page.locator(".bottom-nav");
+      const dockBox = await dock.boundingBox();
+      const viewport = page.viewportSize();
+      if (!dockBox || !viewport) throw new Error("Não foi possível medir a navegação inferior.");
+      expect(dockBox.x).toBeGreaterThanOrEqual(0);
+      expect(dockBox.x + dockBox.width).toBeLessThanOrEqual(viewport.width + 1);
+      expect(dockBox.y + dockBox.height).toBeLessThanOrEqual(viewport.height + 1);
+      const touchTargets = await dock.locator("button").evaluateAll((buttons) =>
+        buttons.map((button) => {
+          const rect = button.getBoundingClientRect();
+          return { width: rect.width, height: rect.height };
+        }),
+      );
+      expect(touchTargets).toHaveLength(4);
+      expect(touchTargets.every((target) => target.width >= 44 && target.height >= 44)).toBe(true);
       await expect(page.getByRole("button", { name: tab.name, exact: true })).toHaveAttribute("aria-current", "page");
       const dimensions = await page.evaluate(() => ({
         viewport: document.documentElement.clientWidth,
