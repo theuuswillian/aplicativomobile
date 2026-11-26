@@ -369,3 +369,29 @@
   }
   .app-shell[data-theme="light"] .overview-month-columns > * { min-width: 0; }
 }
+
+
+/* iPhone Safari/PWA: campos legíveis sem zoom automático do navegador. */
+@media (max-width: 760px) {
+  .app-shell input,
+  .app-shell select,
+  .app-shell textarea,
+  .app-shell button { font-size: max(16px, 1em); }
+  .app-shell input,
+  .app-shell select,
+  .app-shell textarea { scroll-margin-block: 120px; }
+  .app-shell input:focus,
+  .app-shell select:focus,
+  .app-shell textarea:focus { scroll-margin-block: 140px; }
+}
+
+/* A navegação permanece fixa e visível durante rolagem e preenchimento. */
+.bottom-nav,
+.bottom-nav.is-hidden {
+  position: fixed;
+  transform: translateX(-50%);
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition: none;
+}
