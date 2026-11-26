@@ -46,7 +46,7 @@ function inLast12Months(date: string, today: string): boolean {
 }
 function investmentCostBasisCents(assetId: string, operations: readonly IncomeOperation[]): number {
   const ordered = operations.filter((item) => item.asset_id === assetId).slice().sort((a, b) =>
-    a.operation_date.localeCompare(b.operation_date));
+    a.operation_date.localeCompare(b.operation_date) || ({ opening: 0, buy: 1, sell: 2 }[a.operation_type] - { opening: 0, buy: 1, sell: 2 }[b.operation_type]));
   let quantity = 0;
   let cost = 0;
   for (const item of ordered) {
@@ -57,7 +57,7 @@ function investmentCostBasisCents(assetId: string, operations: readonly IncomeOp
       cost += Number(cents(item.gross_amount)) + Number(cents(item.fees));
     } else if (item.operation_type === "buy") {
       quantity += amount;
-      cost += Math.round(amount * Number(cents(item.unit_price))) + Number(cents(item.fees));
+      cost += Number(cents(item.gross_amount)) + Number(cents(item.fees));
     } else if (item.operation_type === "sell" && amount <= quantity && quantity > 0) {
       const removed = Math.round(cost * amount / quantity);
       cost -= removed;
