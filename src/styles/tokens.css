@@ -1,3 +1,8 @@
+/*
+ * GranaViva — tokens do design system.
+ * Todas as cores, espaçamentos, raios e sombras vêm daqui. Os componentes em
+ * app.css só usam estas variáveis, então tema claro/escuro muda apenas este bloco.
+ */
 :root {
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-synthesis: none;
@@ -8,20 +13,50 @@
 }
 
 .app-shell {
-  --color-bg: #090A0B;
-  --color-surface: #141619;
-  --color-surface-raised: #191C20;
-  --color-text: #f3f6f4;
-  --color-muted: #9CA3AF;
-  --color-line: #23262B;
-  --color-accent: #22C55E;
-  --color-accent-strong: #22C55E;
-  --color-accent-soft: rgb(34 197 94 / 10%);
+  --color-bg: #0b0d0f;
+  --color-surface: #15181c;
+  --color-surface-raised: #1c2025;
+  --color-surface-sunken: #101316;
+  --color-text: #f2f5f3;
+  --color-muted: #9aa4ad;
+  --color-line: rgb(255 255 255 / 8%);
+  --color-line-strong: rgb(255 255 255 / 14%);
+  --color-accent: #22c55e;
+  --color-accent-strong: #16a34a;
+  --color-accent-soft: rgb(34 197 94 / 12%);
+  --color-on-accent: #04130a;
   --color-focus: #86efac;
-  --shadow-card: 0 12px 32px rgb(0 0 0 / 18%);
-  --radius-card: 18px;
+  --color-income: #34d399;
+  --color-income-soft: rgb(52 211 153 / 13%);
+  --color-expense: #f87171;
+  --color-expense-soft: rgb(248 113 113 / 13%);
+  --color-info: #60a5fa;
+  --color-info-soft: rgb(96 165 250 / 13%);
+  --color-warning: #fbbf24;
+  --color-warning-soft: rgb(251 191 36 / 13%);
+  --color-hero-from: #0f3d27;
+  --color-hero-to: #0a2418;
+  --shadow-card: 0 1px 0 rgb(255 255 255 / 3%) inset, 0 10px 30px rgb(0 0 0 / 22%);
+  --shadow-float: 0 18px 48px rgb(0 0 0 / 45%);
+  --radius-card: 20px;
   --radius-control: 12px;
-  --content-width: 1120px;
+  --radius-pill: 999px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 15px;
+  --text-lg: 17px;
+  --text-xl: 20px;
+  --text-2xl: 26px;
+  --text-3xl: 34px;
+  --nav-height: 68px;
+  --content-width: 1080px;
   min-height: 100vh;
   color: var(--color-text);
   background: var(--color-bg);
@@ -32,15 +67,27 @@
   color-scheme: light;
   --color-bg: #f3f5f4;
   --color-surface: #ffffff;
-  --color-surface-raised: #f7f9f8;
-  --color-text: #17201b;
-  --color-muted: #65716a;
-  --color-line: rgb(22 40 29 / 11%);
-  --color-accent: #15803d;
-  --color-accent-strong: #16a34a;
-  --color-accent-soft: rgb(22 163 74 / 8%);
+  --color-surface-raised: #f6f8f7;
+  --color-surface-sunken: #eef1ef;
+  --color-text: #111814;
+  --color-muted: #5b665f;
+  --color-line: rgb(17 24 20 / 9%);
+  --color-line-strong: rgb(17 24 20 / 16%);
+  --color-accent: #126f35;
+  --color-accent-strong: #15803d;
+  --color-accent-soft: rgb(22 163 74 / 9%);
+  --color-on-accent: #ffffff;
   --color-focus: #166534;
-  --shadow-card: 0 16px 42px rgb(25 45 32 / 8%);
+  --color-income: #047857;
+  --color-income-soft: rgb(4 120 87 / 9%);
+  --color-expense: #c2410c;
+  --color-expense-soft: rgb(194 65 12 / 8%);
+  --color-info: #1d4ed8;
+  --color-info-soft: rgb(29 78 216 / 8%);
+  --color-warning: #a16207;
+  --color-warning-soft: rgb(161 98 7 / 10%);
+  --shadow-card: 0 1px 2px rgb(17 24 20 / 4%), 0 8px 24px rgb(17 24 20 / 6%);
+  --shadow-float: 0 16px 40px rgb(17 24 20 / 16%);
 }
 
 .app-shell *,
@@ -57,6 +104,7 @@
 .app-shell input:focus-visible,
 .app-shell select:focus-visible,
 .app-shell textarea:focus-visible,
+.app-shell summary:focus-visible,
 .app-shell [tabindex]:focus-visible {
   outline: 2px solid var(--color-focus);
   outline-offset: 3px;

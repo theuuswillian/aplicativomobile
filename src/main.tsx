@@ -4,11 +4,7 @@ import App from "./App";
 import "@fontsource/inter/400.css";
 import "@fontsource/inter/600.css";
 import "@fontsource/inter/700.css";
-import "./styles.css";
-import "./styles/visual-refresh.css";
-import "./styles/quality-overrides.css";
-import "./styles/viewport.css";
-import "./styles/signature.css";
+import "./styles/app.css";
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {

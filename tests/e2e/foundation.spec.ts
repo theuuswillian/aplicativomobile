@@ -292,7 +292,8 @@ test("renders authenticated sections with accessible navigation in dark and ligh
       await page.getByRole("button", { name: tab.name, exact: true }).click();
       await expect(page.locator(tab.selector)).toBeVisible();
       if (tab.name === "Gastos") {
-        const drawer = page.locator("#gastos details.management-drawer").first();
+        await page.getByRole("tab", { name: "Contas", exact: true }).click();
+        const drawer = page.locator("#gastos-contas details.management-drawer").first();
         await drawer.locator("summary").click();
         await drawer.getByLabel("Nome da conta").fill("Conta Nubank de teste");
         await drawer.getByLabel("Banco ou instituição").selectOption("nubank.com.br");
