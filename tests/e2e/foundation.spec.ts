@@ -297,7 +297,10 @@ test("renders authenticated sections with accessible navigation in dark and ligh
         await drawer.getByLabel("Nome da conta").fill("Conta Nubank de teste");
         await drawer.getByLabel("Banco ou instituição").selectOption("nubank.com.br");
         await expect(drawer.locator(".bank-selected img")).toHaveAttribute("src", "/banks/nubank.svg");
-        await drawer.getByLabel("Saldo inicial (R$)").fill("1.234,56");
+        const openingBalanceField = drawer.getByLabel("Saldo inicial (R$)");
+        await openingBalanceField.fill("1.234,56");
+        await expect(openingBalanceField).toHaveValue("1.234,56");
+        await expect(openingBalanceField).toHaveCSS("font-size", "16px");
         if (test.info().project.name === "chromium-desktop") {
           await drawer.getByRole("button", { name: "Adicionar conta", exact: true }).click();
           expect(accountInsertPayloads[0]?.opening_balance).toBe("1234.56");
