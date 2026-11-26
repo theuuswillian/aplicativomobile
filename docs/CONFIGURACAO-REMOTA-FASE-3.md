@@ -187,3 +187,14 @@ Cotações automáticas permanecem desativadas independentemente do cron até au
 - [ ] Status Vercel do commit continua falhando por limite de quota de Preview (não é falha do CI GitHub e não valida deployment do HEAD).
 - [ ] Secrets de serviço ainda precisam ser configurados diretamente no Supabase/GitHub conforme este checklist; não há leitura dos valores pelo conector.
 - Nenhuma função publicada, nenhum worker ativado e nenhuma alteração em Production.
+
+
+## Estado remoto corrigido por consulta direta — 25/11/2026
+
+A consulta atual ao projeto Supabase brasileiro `dvddqexnvllrxogbwmdf` retornou `ACTIVE_HEALTHY`, PostgreSQL 17.12, 17 migrations e 16 Edge Functions em estado `ACTIVE` (versão 3). Portanto, as seções históricas acima que indicam “nenhuma função publicada” ou “13 migrations” não representam mais o estado atual.
+
+As 17 migrations remotas incluem as migrations base 001–011, duas correções operacionais, `card_invoice_payments`, `financial_ledger_and_receivables` e `get_account_balances_from_private_ledger`. A migration de metas de renda passiva da PR #7 ainda não aparece no histórico remoto.
+
+As variáveis públicas `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` foram cadastradas no Vercel exclusivamente para Preview da branch `fase-3-backend`. Não foram adicionadas à Production por esta operação. É necessário gerar um novo Preview para que o build consuma as variáveis recém-configuradas.
+
+A listagem de Edge Functions confirma publicação, mas não permite verificar o conteúdo dos secrets. Validar secrets, CORS, autenticação e chamadas reais sem expor valores. Manter workers desligados até os testes controlados; manter Brapi bloqueada por licença.
