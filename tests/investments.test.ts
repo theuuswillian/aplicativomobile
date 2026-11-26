@@ -49,3 +49,20 @@ describe("manual investment reference price", () => {
     }
   });
 });
+
+
+describe("investment quantity input", () => {
+  it("accepts integer and fractional quantities with Brazilian decimal comma", async () => {
+    const { normalizeInvestmentQuantity } = await import("../src/lib/investment-input");
+    expect(normalizeInvestmentQuantity("10")).toEqual({ atoms: 1_000_000_000n, normalized: "10.00000000" });
+    expect(normalizeInvestmentQuantity("2,5")).toEqual({ atoms: 250_000_000n, normalized: "2.50000000" });
+    expect(normalizeInvestmentQuantity("0,00000001")).toEqual({ atoms: 1n, normalized: "0.00000001" });
+  });
+
+  it("rejects empty, zero, negative, malformed and excessive precision quantities", async () => {
+    const { normalizeInvestmentQuantity } = await import("../src/lib/investment-input");
+    for (const value of ["", "0", "0,0", "-2", "2,123456789", "1,2,3", "1e3"]) {
+      expect(normalizeInvestmentQuantity(value)).toBeNull();
+    }
+  });
+});
