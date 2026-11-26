@@ -34,7 +34,11 @@ jobs:
         run: bash -n scripts/test-sql.sh && bash -n scripts/test-sql-concurrency.sh && bash -n scripts/test-edge-local.sh
       - run: npm run typecheck
       - run: npm test
-      - run: npm run build
+      - name: Build with isolated Supabase endpoint for authenticated browser tests
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: https://test.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: test-only-publishable-key
       - name: Install Chromium and WebKit browsers
         run: npx playwright install --with-deps chromium webkit
       - name: Run browser, responsive, offline and accessibility tests

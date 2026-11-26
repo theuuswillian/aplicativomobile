@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { todayInBrazil } from "../../lib/date";
 
 type AccountOption = { id: string; name: string; account_type: string };
 type LoanRow = {
@@ -66,7 +67,7 @@ export function ReceivablesPanel({ client, userId, accounts, onNotice }: Props) 
 
   const [personName, setPersonName] = useState("");
   const [loanAmount, setLoanAmount] = useState("");
-  const [loanDate, setLoanDate] = useState(new Date().toISOString().slice(0, 10));
+  const [loanDate, setLoanDate] = useState(todayInBrazil);
   const [expectedDate, setExpectedDate] = useState("");
   const [loanAccountId, setLoanAccountId] = useState("");
   const [loanNotes, setLoanNotes] = useState("");
@@ -74,16 +75,16 @@ export function ReceivablesPanel({ client, userId, accounts, onNotice }: Props) 
   const [repaymentLoanId, setRepaymentLoanId] = useState("");
   const [repaymentAmount, setRepaymentAmount] = useState("");
   const [repaymentAccountId, setRepaymentAccountId] = useState("");
-  const [repaymentDate, setRepaymentDate] = useState(new Date().toISOString().slice(0, 10));
+  const [repaymentDate, setRepaymentDate] = useState(todayInBrazil);
 
-  const [workDate, setWorkDate] = useState(new Date().toISOString().slice(0, 10));
+  const [workDate, setWorkDate] = useState(todayInBrazil);
   const [hours, setHours] = useState("");
   const [hourlyRate, setHourlyRate] = useState("");
   const [premiumPercent, setPremiumPercent] = useState("50");
   const [overtimeDescription, setOvertimeDescription] = useState("");
   const [selectedOvertimeIds, setSelectedOvertimeIds] = useState<string[]>([]);
   const [overtimeAccountId, setOvertimeAccountId] = useState("");
-  const [overtimeReceiptDate, setOvertimeReceiptDate] = useState(new Date().toISOString().slice(0, 10));
+  const [overtimeReceiptDate, setOvertimeReceiptDate] = useState(todayInBrazil);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {

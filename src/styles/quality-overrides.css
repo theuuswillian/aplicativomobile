@@ -57,7 +57,7 @@
   transform: translateX(-50%);
   gap: 4px;
   padding: 8px;
-  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+  padding-bottom: 8px;
 }
 .bottom-nav button {
   min-width: 0;
@@ -74,7 +74,7 @@
 @media (max-width: 390px) {
   .bottom-nav { width: calc(100% - 20px); gap: 2px; padding-inline: 5px; }
   .bottom-nav button { min-height: 50px; }
-  .bottom-nav button span { font-size: 9px; }
+  .bottom-nav button span { font-size: 10px; }
 }
 
 /* Tema claro: substitui as cores escuras que haviam sido fixadas em
@@ -156,6 +156,31 @@
 .app-shell[data-theme="light"] .card-list-item > strong,
 .app-shell[data-theme="light"] .report-category-list li strong {
   color: #17201b;
+}
+.app-shell[data-theme="light"] {
+  --gv-muted: #59665f;
+}
+.app-shell[data-theme="light"] .overview-recent-heading button {
+  color: #15803d;
+}
+.app-shell[data-theme="light"] .account-signout-button {
+  color: #b91c1c;
+  border-color: #fecaca;
+  background: #fff7f7;
+}
+.app-shell[data-theme="light"] .panel h3,
+.app-shell[data-theme="light"] .panel h4,
+.app-shell[data-theme="light"] .subpanel h2,
+.app-shell[data-theme="light"] .subpanel h3,
+.app-shell[data-theme="light"] .subpanel h4,
+.app-shell[data-theme="light"] .transaction-heading strong {
+  color: #17201b;
+}
+.app-shell[data-theme="light"] .finance-form label,
+.app-shell[data-theme="light"] .assistant-form label,
+.app-shell[data-theme="light"] .receipt-preview label,
+.app-shell[data-theme="light"] .radar-form label {
+  color: #59665f;
 }
 .app-shell[data-theme="light"] .panel p,
 .app-shell[data-theme="light"] .panel-heading p,
@@ -266,21 +291,21 @@
   .app-shell { min-height: 100dvh; }
 }
 .app-frame {
-  padding-bottom: calc(116px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(85px + env(safe-area-inset-bottom, 0px));
 }
-.dashboard { padding-bottom: 24px; }
+.dashboard { padding-bottom: 8px; }
 .bottom-nav {
   bottom: max(8px, env(safe-area-inset-bottom, 0px));
 }
 @media (display-mode: standalone) {
   .app-shell {
     padding-top: max(14px, env(safe-area-inset-top, 0px));
-    padding-bottom: max(14px, env(safe-area-inset-bottom, 0px));
+    padding-bottom: 8px;
   }
   .bottom-nav { bottom: max(10px, env(safe-area-inset-bottom, 0px)); }
 }
 @media (max-width: 520px) {
-  .app-frame { padding-bottom: calc(124px + env(safe-area-inset-bottom, 0px)); }
+  .app-frame { padding-bottom: calc(85px + env(safe-area-inset-bottom, 0px)); }
   .dashboard > .panel { padding: 17px; }
 }
 

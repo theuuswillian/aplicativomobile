@@ -105,3 +105,140 @@ test("publishes PWA metadata and an iOS home-screen icon", async ({ page }) => {
   expect(appleIcon.status()).toBe(200);
   expect(appleIcon.headers()["content-type"]).toContain("image/png");
 });
+
+test("renders authenticated sections with accessible navigation in dark and light themes", async ({ page }) => {
+  test.setTimeout(90_000);
+  const user = {
+    id: "11111111-1111-4111-8111-111111111111",
+    aud: "authenticated",
+    role: "authenticated",
+    email: "teste@granaviva.invalid",
+    email_confirmed_at: "2026-01-01T00:00:00.000Z",
+    app_metadata: { provider: "email", providers: ["email"] },
+    user_metadata: { name: "Conta de teste" },
+    created_at: "2026-01-01T00:00:00.000Z",
+    updated_at: "2026-01-01T00:00:00.000Z",
+  };
+  const now = Math.floor(Date.now() / 1000);
+  const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
+  const payload = Buffer.from(JSON.stringify({
+    sub: user.id, role: "authenticated", aud: "authenticated", exp: now + 3600,
+  })).toString("base64url");
+  const accessToken = `${header}.${payload}.test-signature`;
+
+  await page.route("https://test.supabase.co/**", async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const corsHeaders = {
+      "access-control-allow-origin": "*",
+      "access-control-allow-methods": "GET, POST, PATCH, DELETE, OPTIONS, HEAD",
+      "access-control-allow-headers": "*",
+      "access-control-expose-headers": "content-range, content-location, content-profile, preference-applied",
+    };
+    if (request.method() === "OPTIONS") {
+      await route.fulfill({ status: 204, headers: corsHeaders });
+      return;
+    }
+    if (url.pathname === "/auth/v1/user") {
+      await route.fulfill({ status: 200, headers: corsHeaders, contentType: "application/json", body: JSON.stringify(user) });
+      return;
+    }
+    if (url.pathname.startsWith("/functions/v1/")) {
+      const functionName = url.pathname.split("/").pop();
+      const data = functionName === "minha-conta"
+        ? { profile: { display_name: "Conta de teste", email: user.email } }
+        : functionName === "minhas-preferencias"
+          ? { theme: "dark" }
+          : functionName === "whatsapp-vincular"
+            ? { linked: false, weekly_summary_enabled: false }
+            : [];
+      await route.fulfill({ status: 200, headers: corsHeaders, contentType: "application/json", body: JSON.stringify({ data }) });
+      return;
+    }
+    if (url.pathname === "/rest/v1/rpc/get_financial_summary") {
+      await route.fulfill({ status: 200, headers: corsHeaders, contentType: "application/json", body: JSON.stringify({ receivables_brl: 0, overtime_forecast_brl: 0 }) });
+      return;
+    }
+    if (url.pathname.startsWith("/rest/v1/")) {
+      await route.fulfill({ status: 200, headers: { ...corsHeaders, "content-range": "0-0/0" }, contentType: "application/json", body: "[]" });
+      return;
+    }
+    await route.fulfill({ status: 200, headers: corsHeaders, contentType: "application/json", body: JSON.stringify({}) });
+  });
+
+  await page.addInitScript(({ sessionUser, token }) => {
+    localStorage.setItem("sb-test-auth-token", JSON.stringify({
+      access_token: token,
+      token_type: "bearer",
+      expires_in: 3600,
+      expires_at: Math.floor(Date.now() / 1000) + 3600,
+      refresh_token: "test-refresh-token",
+      user: sessionUser,
+    }));
+    localStorage.setItem("granaviva:theme:v1", "dark");
+  }, { sessionUser: user, token: accessToken });
+
+  await page.goto("/");
+  const shell = page.locator(".app-shell");
+  await expect(shell).toHaveAttribute("data-theme", "dark");
+  await expect(page.locator(".bottom-nav")).toBeVisible();
+
+  const tabs = [
+    { name: "Início", selector: ".overview-grid" },
+    { name: "Gastos", selector: "#gastos" },
+    { name: "Patrimônio", selector: "#patrimonio" },
+    { name: "Conta", selector: "#conta" },
+  ];
+
+  for (const theme of ["dark", "light"] as const) {
+    if (theme === "light") {
+      await page.getByRole("button", { name: "Conta", exact: true }).click();
+      await page.getByRole("button", { name: /Personalização/ }).click();
+      await expect(shell).toHaveAttribute("data-theme", "light");
+    }
+    for (const tab of tabs) {
+      await page.getByRole("button", { name: tab.name, exact: true }).click();
+      await expect(page.locator(tab.selector)).toBeVisible();
+      if (tab.name === "Conta") await expect(page.locator(".account-profile-card")).toBeVisible();
+      const dock = page.locator(".bottom-nav");
+      const dockBox = await dock.boundingBox();
+      const viewport = page.viewportSize();
+      if (!dockBox || !viewport) throw new Error("Não foi possível medir a navegação inferior.");
+      expect(dockBox.x).toBeGreaterThanOrEqual(0);
+      expect(dockBox.x + dockBox.width).toBeLessThanOrEqual(viewport.width + 1);
+      expect(dockBox.y + dockBox.height).toBeLessThanOrEqual(viewport.height + 1);
+      const touchTargets = await dock.locator("button").evaluateAll((buttons) =>
+        buttons.map((button) => {
+          const rect = button.getBoundingClientRect();
+          return { width: rect.width, height: rect.height };
+        }),
+      );
+      expect(touchTargets).toHaveLength(4);
+      expect(touchTargets.every((target) => target.width >= 44 && target.height >= 44)).toBe(true);
+      await expect(page.getByRole("button", { name: tab.name, exact: true })).toHaveAttribute("aria-current", "page");
+      const activeNavButton = dock.locator("button.active");
+      await expect(activeNavButton).toHaveCount(1);
+      await expect(activeNavButton).toHaveAttribute("aria-current", "page");
+      await expect(activeNavButton).toContainText(tab.name);
+      const dockPaddingBottom = await dock.evaluate((element) => getComputedStyle(element).paddingBottom);
+      expect(Number.parseFloat(dockPaddingBottom)).toBeLessThanOrEqual(8);
+      const dimensions = await page.evaluate(() => ({
+        viewport: document.documentElement.clientWidth,
+        content: document.documentElement.scrollWidth,
+      }));
+      expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport);
+      const results = await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+        .analyze();
+      expect(
+        results.violations.map((violation) => ({
+          id: violation.id,
+          impact: violation.impact,
+          help: violation.help,
+          targets: violation.nodes.map((node) => node.target),
+        })),
+        `Acessibilidade da área ${tab.name} no tema ${theme}`,
+      ).toEqual([]);
+    }
+  }
+});
