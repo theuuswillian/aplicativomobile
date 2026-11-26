@@ -83,13 +83,13 @@ const INVESTMENT_CATALOG: Record<string, { name: string; assetClass: InvestmentA
 };
 
 const THEME_STORAGE_KEY = "granaviva:theme:v1";
-const DEFAULT_CATEGORIES = [
+const DEFAULT_CATEGORIES: Array<{name:string;icon:string;kind:"income"|"expense";color:string;is_default:boolean}> = [
  ...[["Mercado","🛒"],["Alimentação","🍽️"],["Restaurantes","🍔"],["Delivery","🛵"],["Transporte","🚗"],["Combustível","⛽"],["Moradia","🏠"],["Aluguel","🏡"],["Condomínio","🏢"],["Água","💧"],["Energia","💡"],["Internet e telefone","📱"],["Saúde","🩺"],["Farmácia","💊"],["Educação","📚"],["Pets","🐾"],["Lazer","🎟️"],["Assinaturas","📺"],["Roupas","👕"],["Beleza","💇"],["Viagem","✈️"],["Impostos","🧾"],["Seguros","🛡️"],["Presentes","🎁"],["Casa","🛋️"],["Manutenção","🧰"],["Outros","📦"]].map(([name,icon])=>({name,icon,kind:"expense",color:"#64748b",is_default:true})),
  ...[["Salário","💼"],["Freelance","🧑‍💻"],["Rendimentos","📈"],["Dividendos","💹"],["Aluguel recebido","🏠"],["Reembolso","↩️"],["Vendas","🛍️"],["Outras receitas","💰"]].map(([name,icon])=>({name,icon,kind:"income",color:"#16a34a",is_default:true}))
 ];
 function categoryIcon(name:string):string {
  const n=name.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
- const rules:Array<[RegExp,string]>=[[/mercad|supermerc|hortifruti|feira/,"🛒"],[/aluguel|moradia|casa|condominio/,"🏠"],[/restaur|aliment|comida|delivery/,"🍽️"],[/transporte|uber|taxi|onibus|metro/,"🚗"],[/combust|gasolina|posto/,"⛽"],[/agua/,"💧"],[/energia|luz|eletric/,"💡"],[/internet|telefone|celular/,"📱"],[/saude|medic/,"🩺"],[/farmac|drogaria/,"💊"],[/educa|curso|livro|escola/,"📚"],[/pet|animal|veterin/,"🐾"],[/lazer|cinema|show|viagem/,"🎟️"],[/assinatura|stream/,"📺"],[/roupa|calcad/,"👕"],[/salario|emprego/,"💼"],[/freelance|servico/,"🧑‍💻"],[/dividend|rendimento|invest/,"📈"],[/presente/,"🎁"],[/imposto|taxa/,"🧾"],[/seguro/,"🛡️"]];
+ const rules:Array<[RegExp,string]>=[[/mercad|supermerc|hortifruti|feira/,"🛒"],[/aluguel|moradia|casa|condominio/,"🏠"],[/restaur|aliment|comida|delivery/,"🍽️"],[/transporte|uber|taxi|onibus|metro/,"🚗"],[/combust|gasolina|posto/,"⛽"],[/agua/,"💧"],[/energia|luz|eletric/,"💡"],[/internet|telefone|celular/,"📱"],[/saude|medic/,"🩺"],[/farmac|drogaria/,"💊"],[/educa|curso|livro|escola/,"📚"],[/pet|animal|veterin/,"🐾"],[/viagem/,"✈️"],[/lazer|cinema|show/,"🎟️"],[/assinatura|stream/,"📺"],[/roupa|calcad/,"👕"],[/salario|emprego/,"💼"],[/freelance|servico/,"🧑‍💻"],[/dividend|rendimento|invest/,"📈"],[/presente/,"🎁"],[/imposto|taxa/,"🧾"],[/seguro/,"🛡️"]];
  return rules.find(([pattern])=>pattern.test(n))?.[1]??"📦";
 }
 
@@ -687,7 +687,7 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
     if(cardDrawerRef.current)cardDrawerRef.current.open=true;
     document.getElementById("gastos-cartoes")?.scrollIntoView({behavior:"smooth",block:"center"});
   }
-  async function createCard(event: FormEvent<HTMLFormEvent>) {
+  async function createCard(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!supabase || !session) return;
     const limit = normalizeBrlAmount(cardLimit, true);
@@ -1658,7 +1658,7 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
             <span className="brand-mark" aria-hidden="true"><ChartNoAxesColumn size={22} strokeWidth={2.8} /></span>
             <span>Grana<span className="brand-accent">Viva</span></span>
           </a>
-          {signedIn && <button className="notification-button" type="button" aria-label={`Radar e notificações: ${alerts.length} alertas`} onClick={() => setActiveTab("patrimonio")}><Bell size={21} strokeWidth={2} />{enabledAlerts > 0 && <span className="notification-dot" />}</button>}
+          {signedIn && <button className="notification-button" type="button" aria-label={`Radar e notificações: ${alerts.length} alertas`} onClick={() => { setNavHidden(false); setActiveTab("patrimonio"); }}><Bell size={21} strokeWidth={2} />{enabledAlerts > 0 && <span className="notification-dot" />}</button>}
         </header>
         {signedIn && quickEntryOpen && <div className="quick-entry-backdrop" role="presentation" onClick={() => setQuickEntryOpen(false)}>
           <section className="quick-entry-modal" role="dialog" aria-modal="true" aria-labelledby="quick-entry-title" onClick={(event) => event.stopPropagation()}>
@@ -1755,7 +1755,7 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
                 <button type="button" onClick={() => setActiveTab("relatorios")}><ChartNoAxesColumn /><span>Relatórios</span></button>
               </div>
               <article className="overview-recent">
-                <div className="overview-recent-heading"><strong>Últimos lançamentos</strong><button type="button" onClick={() => setActiveTab("gastos")}>Ver gastos <span aria-hidden="true">›</span></button></div>
+                <div className="overview-recent-heading"><strong>Últimos lançamentos</strong><button type="button" onClick={() => { setNavHidden(false); setActiveTab("gastos"); }}>Ver gastos <span aria-hidden="true">›</span></button></div>
                 {transactions.length === 0 ? <p className="empty-state">Seus lançamentos aparecerão aqui.</p> : <ul className="recent-list">{transactions.slice(0, 4).map((item) => <li key={item.id}><span className={item.kind === "income" ? "recent-icon income" : "recent-icon"}>{item.kind === "income" ? "↗" : "↘"}</span><span className="recent-description"><strong>{item.description}</strong><small>{new Date(item.transaction_date + "T12:00:00").toLocaleDateString("pt-BR")}</small></span><strong className={item.kind === "income" ? "amount-income" : "amount-expense"}>{item.kind === "income" ? "+" : "−"}{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(item.amount))}</strong></li>)}</ul>}
               </article>
               <article className="overview-flow">
@@ -2210,10 +2210,10 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
         )}
 
         {signedIn && <nav className={`bottom-nav${navHidden?" is-hidden":""}`} aria-label="Navegação principal" aria-hidden="false">
-          <button type="button" className={activeTab === "inicio" ? "active" : ""} aria-current={activeTab === "inicio" ? "page" : undefined} onClick={() => setActiveTab("inicio")}><Home size={20} strokeWidth={2.2} /><span>Início</span></button>
+          <button type="button" className={activeTab === "inicio" ? "active" : ""} aria-current={activeTab === "inicio" ? "page" : undefined} onClick={() => { setNavHidden(false); setActiveTab("inicio"); }}><Home size={20} strokeWidth={2.2} /><span>Início</span></button>
           <button type="button" className={activeTab === "gastos" ? "active" : ""} aria-current={activeTab === "gastos" ? "page" : undefined} onClick={() => setActiveTab("gastos")}><ReceiptText size={20} strokeWidth={2.2} /><span>Gastos</span></button>
           <button type="button" className={activeTab === "patrimonio" || activeTab === "planejamento" ? "active" : ""} aria-current={activeTab === "patrimonio" ? "page" : undefined} onClick={() => setActiveTab("patrimonio")}><TrendingUp size={20} strokeWidth={2.2} /><span>Patrimônio</span></button>
-          <button type="button" className={activeTab === "conta" || activeTab === "relatorios" ? "active" : ""} aria-current={activeTab === "conta" ? "page" : undefined} onClick={() => setActiveTab("conta")}><UserRound size={20} strokeWidth={2.2} /><span>Conta</span></button>
+          <button type="button" className={activeTab === "conta" || activeTab === "relatorios" ? "active" : ""} aria-current={activeTab === "conta" ? "page" : undefined} onClick={() => { setNavHidden(false); setActiveTab("conta"); }}><UserRound size={20} strokeWidth={2.2} /><span>Conta</span></button>
         </nav>}
         <footer className="app-footer"><span>GRANAVIVA</span><span>Privacidade · Clareza · Gratuito para todos</span></footer>
       </div>
