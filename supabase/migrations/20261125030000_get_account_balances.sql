@@ -1,5 +1,5 @@
--- Exposes per-account balances from the private ledger without exposing journal tables.
-create or replace function public.get_account_balances(p_as_of date)
+-- Internal function reads the private journal for the authenticated user only.
+create or replace function private.get_account_balances(p_as_of date)
 returns table(account_id uuid, balance numeric(15,2))
 language plpgsql
 stable
@@ -20,7 +20,10 @@ begin
   select
     a.id,
     coalesce(
-      sum(jl.debit - jl.credit) filter (where je.status = 'posted' and je.transaction_date <= p_as_of),
+      sum(jl.debit - jl.credit) filter (
+        where je.status = 'posted'
+          and je.transaction_date <= p_as_of
+      ),
       0
     )::numeric(15,2) as balance
   from public.accounts a
@@ -40,8 +43,27 @@ begin
 end;
 $$;
 
+-- The private schema stays unexposed. Authenticated users receive schema usage
+-- only so the invoker wrapper can call this one narrowly-granted function.
+grant usage on schema private to authenticated;
+revoke all on function private.get_account_balances(date) from public, anon, authenticated;
+grant execute on function private.get_account_balances(date) to authenticated;
+
+-- Public API wrapper is SECURITY INVOKER; elevated access remains in private.
+create or replace function public.get_account_balances(p_as_of date)
+returns table(account_id uuid, balance numeric(15,2))
+language sql
+stable
+security invoker
+set search_path=pg_catalog, public
+as $$
+  select * from private.get_account_balances(p_as_of);
+$$;
+
 revoke all on function public.get_account_balances(date) from public, anon;
 grant execute on function public.get_account_balances(date) to authenticated;
 
+comment on function private.get_account_balances(date) is
+  'Função interna: retorna saldo por conta do usuário autenticado a partir do ledger privado.';
 comment on function public.get_account_balances(date) is
-  'Retorna o saldo contábil por conta do usuário autenticado, sem expor as tabelas privadas do ledger.';
+  'RPC somente de leitura para retornar o saldo contábil por conta na data local informada.';
