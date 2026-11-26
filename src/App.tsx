@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { Home, ReceiptText, TrendingUp, UserRound, Target, Bell, Eye, EyeOff, CircleMinus, CirclePlus, ChartNoAxesColumn } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import { todayInBrazil } from "./lib/date";
+import { toCents } from "./lib/money";
 import { BANK_CATALOG, bankLogoStyle } from "./data/bank-catalog";
 import { clearFinancialRecordsForUser } from "./lib/secure-storage";
 import { generateOccurrences, type RecurrenceFrequency } from "./domain/recurrence";
@@ -38,6 +39,7 @@ type InvestmentAssetRow = { id: string; symbol: string; name: string; asset_clas
 type InvestmentOperationRow = { id: string; asset_id: string; operation_type: "opening" | "buy" | "sell"; operation_date: string; quantity: string; unit_price: string; gross_amount: string; fees: string };
 type IncomeEventRow = { id: string; asset_id: string; event_type: "dividend" | "jcp" | "distribution" | "coupon" | "interest" | "amortization" | "other"; reference_date: string; payment_date: string | null; announced_amount: string; received_amount: string; status: "announced" | "planned" | "received" | "cancelled"; account_id?: string | null; transaction_id?: string | null; settlement_state?: "unsettled" | "settled" };
 type BudgetSpendRow = { category_id: string | null; settled_amount: string };
+type AccountBalanceRpcRow = { account_id: string; balance: string | number };
 type TransactionRow = { id: string; kind: "income" | "expense" | "transfer"; status: "paid" | "planned" | "cancelled"; payment_method?: "pix" | "debit" | "cash" | "credit" | null; amount: string; transaction_date: string; description: string; account_id: string | null; card_id: string | null; transfer_from_account_id: string | null; transfer_to_account_id: string | null; category_id: string | null };
 type CardInvoicePaymentRow = { id: string; card_id: string; account_id: string; invoice_closing_date: string; amount: string; payment_date: string; description: string };
 type CardInvoiceInstallmentRow = { id: string; transaction_id: string; card_id: string; invoice_closing_date: string; invoice_due_date: string; installment_number: number; installment_count: number; amount: string };
@@ -152,6 +154,9 @@ export default function App() {
   const [invoicePayments, setInvoicePayments] = useState<CardInvoicePaymentRow[]>([]);
   const [cardInstallments, setCardInstallments] = useState<CardInvoiceInstallmentRow[]>([]);
   const [financialSummary, setFinancialSummary] = useState<{ receivables_brl?: number; overtime_forecast_brl?: number; investment_reference_brl?: number; investment_reference_usd?: number } | null>(null);
+  const [ledgerAccountBalances, setLedgerAccountBalances] = useState<Record<string, number> | null>(null);
+  const [ledgerRefreshVersion, setLedgerRefreshVersion] = useState(0);
+  const requestLedgerRefresh = useCallback(() => setLedgerRefreshVersion((version) => version + 1), []);
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [recurrences, setRecurrences] = useState<RecurrenceRow[]>([]);
   const [budgets, setBudgets] = useState<BudgetRow[]>([]);
@@ -417,15 +422,18 @@ export default function App() {
     }));
     return [...nonCardEntries, ...installmentEntries];
   }, [ledgerEntries, cardInstallments]);
-  const accountBalances = useMemo(() => Object.fromEntries(accounts.map((account) => [
-    account.id,
-    calculateAccountBalance(
-      Math.round(Number(account.opening_balance) * 100),
+  const accountBalances = useMemo(() => {
+    if (ledgerAccountBalances !== null) return ledgerAccountBalances;
+    return Object.fromEntries(accounts.map((account) => [
       account.id,
-      ledgerEntries.filter((entry) => entry.date >= account.opening_balance_date),
-      currentBudgetDate
-    ) / 100,
-  ])), [accounts, ledgerEntries, currentBudgetDate]);
+      calculateAccountBalance(
+        Math.round(Number(account.opening_balance) * 100),
+        account.id,
+        ledgerEntries.filter((entry) => entry.date >= account.opening_balance_date),
+        currentBudgetDate
+      ) / 100,
+    ]));
+  }, [ledgerAccountBalances, accounts, ledgerEntries, currentBudgetDate]);
   const paymentsByCardInvoice = useMemo(() => {
     const grouped = new Map<string, InvoicePayment[]>();
     for (const payment of invoicePayments) {
@@ -460,6 +468,27 @@ export default function App() {
     });
     return () => { active = false; };
   }, [session, transactions, investmentAssets, investmentOperations]);
+
+  useEffect(() => {
+    if (!supabase || !session?.user) {
+      setLedgerAccountBalances(null);
+      return;
+    }
+    let active = true;
+    void supabase.rpc("get_account_balances").then(({ data, error }) => {
+      if (!active || error || !Array.isArray(data)) return;
+      if (data.length === 0 && accounts.length > 0) return;
+      const next: Record<string, number> = {};
+      for (const row of data as AccountBalanceRpcRow[]) {
+        if (!row.account_id) continue;
+        const value = Number(row.balance);
+        if (!Number.isFinite(value)) continue;
+        next[row.account_id] = toCents(value) / 100;
+      }
+      setLedgerAccountBalances(next);
+    });
+    return () => { active = false; };
+  }, [session, accounts, transactions, invoicePayments, investmentOperations, incomeEvents, ledgerRefreshVersion]);
 
 
   async function handleAuth(event: FormEvent<HTMLFormElement>) {
@@ -1824,7 +1853,7 @@ export default function App() {
 
             <section className="panel planning-panel" id="planejamento" hidden={activeTab !== "planejamento"} aria-labelledby="planning-title">
               <div className="panel-heading"><div><span className="principles-label">OBJETIVOS E FUTURO</span><h2 id="planning-title">Metas e planejamento</h2><p>Acompanhe objetivos, registre contribuições e veja o progresso do que está construindo.</p></div></div>
-              {signedIn && supabase && session && <ReceivablesPanel client={supabase} userId={session.user.id} accounts={accounts} onNotice={setNotice} />}
+              {signedIn && supabase && session && <ReceivablesPanel client={supabase} userId={session.user.id} accounts={accounts} onNotice={setNotice} onLedgerChange={requestLedgerRefresh} />}
                             <section className="planning-content" id="planejamento-metas" aria-labelledby="goals-title">
                 <div className="transaction-heading"><strong id="goals-title">Metas financeiras</strong><span>{goals.length} cadastradas</span></div>
                 <details className="management-drawer"><summary>＋ Criar nova meta</summary><form className="finance-form" onSubmit={(event) => void createGoal(event)}>
