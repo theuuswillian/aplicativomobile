@@ -220,6 +220,8 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
   const [fixedIncomeNextYieldDate, setFixedIncomeNextYieldDate] = useState("");
   const [fixedIncomeStart, setFixedIncomeStart] = useState(todayInBrazil);
   const [fixedIncomeFrequency, setFixedIncomeFrequency] = useState<"daily" | "monthly" | "semiannual" | "at_maturity">("daily");
+  const [fixedIncomeLiquidity, setFixedIncomeLiquidity] = useState<"daily" | "at_maturity" | "grace_period" | "unknown">("unknown");
+  const [fixedIncomeGraceDays, setFixedIncomeGraceDays] = useState("");
   const [goalName, setGoalName] = useState("");
   const [goalTarget, setGoalTarget] = useState("");
   const [goalMonthly, setGoalMonthly] = useState("0,00");
@@ -1088,6 +1090,7 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
         product: fixedIncomeProduct, issuer: fixedIncomeIssuer.trim(), indexer: fixedIncomeIndexer,
         annual_rate_percent: fixedRate, start_date: fixedIncomeStart, maturity_date: fixedIncomeMaturity || null,
         next_yield_date: fixedIncomeNextYieldDate || null, yield_frequency: fixedIncomeFrequency,
+        liquidity: fixedIncomeLiquidity, grace_period_days: fixedIncomeLiquidity === "grace_period" ? Number(fixedIncomeGraceDays) || null : null,
       },
     } : {};
     setBusy(true); setNotice("");
@@ -1101,7 +1104,7 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
       setInvestmentAssets((current) => [...current, created].sort((a,b) => a.symbol.localeCompare(b.symbol)));
       setInvestmentAssetId(created.id);
       setInvestmentSymbol(""); setInvestmentName("");
-      setFixedIncomeIssuer(""); setFixedIncomeRate(""); setFixedIncomeMaturity("");
+      setFixedIncomeIssuer(""); setFixedIncomeRate(""); setFixedIncomeMaturity(""); setFixedIncomeLiquidity("unknown"); setFixedIncomeGraceDays("");
       setFixedIncomeNextYieldDate(""); setFixedIncomeStart(todayInBrazil());
       setNotice("Ativo adicionado à carteira. A cotação ainda não está conectada.");
     } catch (error) { setNotice(errorMessage(error)); }
@@ -1804,6 +1807,66 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
             </section>
             <section className="panel" id="patrimonio" hidden={activeTab !== "patrimonio"} aria-labelledby="radar-title">
               <div className="panel-heading"><div><span className="principles-label">ACOMPANHAMENTO DE ATIVOS</span><h2 id="radar-title">Patrimônio e investimentos</h2><p>Acompanhe sua carteira, a distribuição dos ativos, os proventos e os alertas de preço em um só lugar.</p></div></div>
+              {(() => {
+                const fixedIncomeAssets = investmentAssets.filter((asset) => asset.asset_class === "fixed_income");
+                const money = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+                const totalInvested = fixedIncomeAssets.reduce((total, asset) => total + Number(investmentSummary(asset.id).costBasisCents) / 100, 0);
+                const totalReceived = fixedIncomeAssets.reduce((total, asset) => total + incomeEvents.filter((event) => event.asset_id === asset.id && event.status === "received").reduce((sum, event) => sum + Number(event.received_amount), 0), 0);
+                const maturityDates = fixedIncomeAssets.map((asset) => String((asset.metadata?.fixed_income as Record<string, unknown> | undefined)?.maturity_date ?? "")).filter(Boolean);
+                const upcoming = maturityDates.filter((date) => date >= todayInBrazil() && date <= new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10)).length;
+                return <section className="fixed-income-hub" aria-labelledby="fixed-income-title">
+                  <div className="fixed-income-heading">
+                    <div><span className="fixed-income-eyebrow">RENDA FIXA · VISÃO INTELIGENTE</span><h3 id="fixed-income-title">Seu dinheiro em movimento</h3><p>Acompanhe prazos, taxas, capital aplicado e rendimentos sem confundir projeções com resultados reais.</p></div>
+                    <span className="fixed-income-orbit" aria-hidden="true">↗</span>
+                  </div>
+                  <div className="fixed-income-overview">
+                    <div className="fixed-income-total"><span>Capital aplicado</span><strong>{money(totalInvested)}</strong><small>{fixedIncomeAssets.length} {fixedIncomeAssets.length === 1 ? "título na carteira" : "títulos na carteira"}</small></div>
+                    <div className="fixed-income-overview-stats"><div><span>Rendimentos recebidos</span><strong>{money(totalReceived)}</strong></div><div><span>Vencimentos em 30 dias</span><strong>{upcoming}</strong></div></div>
+                  </div>
+                  <details className="fixed-income-learning"><summary>Entenda a renda fixa sem complicação</summary><p>Na renda fixa, você empresta recursos a um banco, ao governo ou a uma empresa e recebe conforme as condições do título. A previsibilidade depende do tipo de taxa e de respeitar as condições de resgate.</p><div className="fixed-income-learning-grid"><div><strong>Prefixado</strong><span>Taxa definida na contratação. O valor combinado depende de manter o título até o vencimento.</span></div><div><strong>Pós-fixado</strong><span>Acompanha um indicador, como CDI ou Selic. O resultado varia conforme esse indicador ao longo do tempo.</span></div><div><strong>Híbrido</strong><span>Combina inflação (IPCA) com uma taxa adicional. Ajuda a proteger o poder de compra no longo prazo.</span></div></div><p>Resgatar antes do prazo pode mudar o resultado. Confira sempre liquidez, carência, emissor, taxas e tributação.</p></details>
+                  <div className="fixed-income-list-heading"><div><strong>Seus títulos</strong><span>{fixedIncomeAssets.length ? "Acompanhamento individual" : "Comece sua carteira"}</span></div><button type="button" onClick={() => { setInvestmentClass("fixed_income"); setInvestmentCurrency("BRL"); if (investmentAssetDrawerRef.current) investmentAssetDrawerRef.current.open = true; }}>＋ Novo título</button></div>
+                  {fixedIncomeAssets.length === 0 ? <div className="fixed-income-empty"><span aria-hidden="true">✦</span><strong>Sua renda fixa começa aqui</strong><p>Cadastre CDB, LCI, LCA, Tesouro ou outros títulos e acompanhe cada etapa até o vencimento.</p><button type="button" onClick={() => { setInvestmentClass("fixed_income"); setInvestmentCurrency("BRL"); if (investmentAssetDrawerRef.current) investmentAssetDrawerRef.current.open = true; }}>Cadastrar primeiro título</button></div> : <div className="fixed-income-cards">
+                    {fixedIncomeAssets.map((asset) => {
+                      const metadata = (asset.metadata?.fixed_income ?? {}) as Record<string, unknown>;
+                      const summary = investmentSummary(asset.id);
+                      const invested = Number(summary.costBasisCents) / 100;
+                      const received = incomeEvents.filter((event) => event.asset_id === asset.id && event.status === "received").reduce((sum, event) => sum + Number(event.received_amount), 0);
+                      const product = String(metadata.product ?? asset.name);
+                      const issuer = String(metadata.issuer ?? "");
+                      const indexer = String(metadata.indexer ?? "");
+                      const rate = String(metadata.annual_rate_percent ?? "");
+                      const maturity = String(metadata.maturity_date ?? "");
+                      const start = String(metadata.start_date ?? "");
+                      const daysLeft = maturity ? Math.ceil((new Date(maturity + "T12:00:00").getTime() - new Date(todayInBrazil() + "T12:00:00").getTime()) / 86400000) : null;
+                      const elapsed = start && maturity ? Math.max(0, Math.min(100, ((new Date(todayInBrazil() + "T12:00:00").getTime() - new Date(start + "T12:00:00").getTime()) / Math.max(1, new Date(maturity + "T12:00:00").getTime() - new Date(start + "T12:00:00").getTime())) * 100)) : null;
+                      const progress = elapsed === null ? 0 : elapsed;
+                      const frequency = ({daily:"Diário (dias úteis)",monthly:"Mensal",semiannual:"Semestral",at_maturity:"No vencimento"} as Record<string,string>)[String(metadata.yield_frequency ?? "")] ?? "Não informado";
+                      const rateLabel = indexer === "CDI" ? rate + "% do CDI" : indexer === "SELIC" ? rate + "% da Selic" : indexer === "IPCA" ? "IPCA + " + rate + "% a.a." : indexer === "PREFIXADO" ? rate + "% a.a. prefixado" : "Taxa não informada";
+                      const productKey = product.toLocaleUpperCase("pt-BR");
+                      const taxLabel = ["LCI","LCA","CRI","CRA","POUPANÇA"].includes(productKey) ? "Isenção de IR para pessoa física, conforme regras do produto" : ["CDB","LC","TESOURO SELIC","TESOURO IPCA+","TESOURO PREFIXADO"].includes(productKey) ? "IR regressivo sobre o rendimento; IOF pode incidir antes de 30 dias" : "Tributação depende das características do título";
+                      const fgcEligible = ["CDB","LCI","LCA","LC","POUPANÇA"].includes(productKey);
+                      const hasPosition = summary.quantity > 0;
+                      const progressValue = maturity && daysLeft !== null && daysLeft < 0 ? 100 : progress;
+                      return <article className="fixed-income-card" key={asset.id}>
+                        <div className="fixed-income-card-top"><span className="fixed-income-product-icon" aria-hidden="true">◈</span><div className="fixed-income-title-group"><strong>{asset.name}</strong><span>{product}{issuer ? " · " + issuer : ""}</span></div><span className="fixed-income-status">{daysLeft === null ? "Prazo aberto" : daysLeft < 0 ? "Vencido" : daysLeft <= 30 ? "Próximo do vencimento" : "Em andamento"}</span></div>
+                        <div className="fixed-income-rate"><strong>{rateLabel}</strong><span>{indexer === "CDI" ? "Acompanha o CDI; o percentual contratado não é uma taxa anual fixa" : indexer === "SELIC" ? "Acompanha a taxa Selic conforme a regra do título" : indexer === "IPCA" ? "Combina inflação medida pelo IPCA com uma taxa adicional" : "Taxa definida na contratação, sujeita às condições de vencimento"}</span></div>
+                        <div className="fixed-income-metrics"><div><span>Capital investido</span><strong>{money(invested)}</strong></div><div><span>Rendimentos recebidos</span><strong>{money(received)}</strong></div><div><span>Quantidade</span><strong>{summary.quantity.toLocaleString("pt-BR",{maximumFractionDigits:8})}</strong></div></div>
+                        <div className="fixed-income-timeline">
+                          <div className="fixed-income-timeline-label"><span>{maturity ? daysLeft !== null && daysLeft < 0 ? "Prazo encerrado" : "Prazo até o vencimento" : "Prazo de vencimento não cadastrado"}</span><strong>{maturity ? Math.round(progressValue) + "%" : "—"}</strong></div>
+                          <div className="fixed-income-progress" role="progressbar" aria-label={"Prazo decorrido de " + asset.name} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progressValue)}><span style={{width: progressValue + "%"}} /></div>
+                          <div className="fixed-income-dates"><span>Início: {start ? new Date(start + "T12:00:00").toLocaleDateString("pt-BR") : "Não informado"}</span><strong>{maturity ? daysLeft !== null && daysLeft < 0 ? "Venceu em " + new Date(maturity + "T12:00:00").toLocaleDateString("pt-BR") : daysLeft + " dias restantes" : "Sem data definida"}</strong></div>
+                        </div>
+                        <div className="fixed-income-tags"><span>{fgcEligible ? "◉ Pode ter cobertura FGC*" : "◇ Sem cobertura FGC"}</span><span>↗ {String(metadata.liquidity ?? "unknown") === "daily" ? "Liquidez diária" : String(metadata.liquidity ?? "unknown") === "at_maturity" ? "Resgate no vencimento" : String(metadata.liquidity ?? "unknown") === "grace_period" ? "Após carência" + (metadata.grace_period_days ? " de " + metadata.grace_period_days + " dias" : "") : "Liquidez não informada"}</span></div>
+                        <details className="fixed-income-details"><summary>Detalhes, impostos e atualização</summary><div className="fixed-income-detail-grid"><div><span>Indexador</span><strong>{indexer || "Não informado"}</strong></div><div><span>Periodicidade</span><strong>{frequency}</strong></div><div className="wide"><span>Tributação</span><strong>{taxLabel}</strong></div><div className="wide"><span>Garantia</span><strong>{fgcEligible ? "Verifique elegibilidade do emissor e limites do FGC (até R$ 250 mil por CPF e conglomerado)" : "Não é coberto pelo FGC"}</strong></div></div>
+                          {hasPosition && <p className="fixed-income-note">A carteira registra {money(invested)} de custo investido. O rendimento acumulado só será apresentado quando houver dados suficientes para calculá-lo corretamente.</p>}
+                          <form className="fixed-income-reference-form" onSubmit={(event) => void updateManualInvestmentPrice(event, asset)}><label>Valor unitário de referência informado manualmente<input inputMode="decimal" value={manualPriceInputs[asset.id] ?? ""} onChange={(event) => setManualPriceInputs((current) => ({...current,[asset.id]:event.target.value}))} placeholder="Ex.: 15.000,00" disabled={busy}/></label><button type="submit" disabled={busy || !(manualPriceInputs[asset.id] ?? "").trim()}>Atualizar referência</button></form>
+                          <p className="fixed-income-footnote">*A cobertura do FGC depende do produto e da instituição, respeita o limite de R$ 250 mil por CPF por instituição ou conglomerado e o teto global de R$ 1 milhão em quatro anos. A barra mostra o tempo decorrido, não o rendimento.</p>
+                        </details>
+                      </article>;
+                    })}
+                  </div>}
+                </section>;
+              })()}
               {signedIn && supabase && session && <IncomeGoalsPanel
                 client={supabase}
                 userId={session.user.id}
@@ -1854,14 +1917,16 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
                   <label>Classe<select value={investmentClass} onChange={(event) => setInvestmentClass(event.target.value as InvestmentAssetRow["asset_class"])}><option value="stock">Ação</option><option value="fii">FII</option><option value="etf">ETF</option><option value="bdr">BDR</option><option value="fixed_income">Renda fixa</option><option value="crypto">Cripto</option></select></label>
                   <label>Moeda<select value={investmentCurrency} onChange={(event) => setInvestmentCurrency(event.target.value as "BRL" | "USD")}><option value="BRL">BRL</option><option value="USD">USD</option></select></label>
                   {investmentClass === "fixed_income" && <>
-                    <label>Produto<select value={fixedIncomeProduct} onChange={(event) => setFixedIncomeProduct(event.target.value)}><option>CDB</option><option>LCI</option><option>LCA</option><option>Tesouro Selic</option><option>Tesouro IPCA+</option><option>Tesouro Prefixado</option><option>LC</option><option>CRI</option><option>CRA</option><option>Poupança</option></select></label>
+                    <label>Produto<select value={fixedIncomeProduct} onChange={(event) => setFixedIncomeProduct(event.target.value)}><option>CDB</option><option>LCI</option><option>LCA</option><option>Tesouro Selic</option><option>Tesouro IPCA+</option><option>Tesouro Prefixado</option><option>LC</option><option>CRI</option><option>CRA</option><option>Debênture</option><option>Poupança</option></select></label>
                     <label>Instituição emissora<input value={fixedIncomeIssuer} onChange={(event) => setFixedIncomeIssuer(event.target.value)} maxLength={100} placeholder="Ex.: Banco emissor"/></label>
                     <label>Indexador<select value={fixedIncomeIndexer} onChange={(event) => setFixedIncomeIndexer(event.target.value as typeof fixedIncomeIndexer)}><option value="CDI">CDI</option><option value="IPCA">IPCA</option><option value="SELIC">Selic</option><option value="PREFIXADO">Prefixado</option></select></label>
-                    <label>Taxa anual (%)<input inputMode="decimal" value={fixedIncomeRate} onChange={(event) => setFixedIncomeRate(event.target.value)} placeholder="Ex.: 100 ou 12,5" required/></label>
+                    <label>{fixedIncomeIndexer === "CDI" ? "Percentual do CDI (%)" : fixedIncomeIndexer === "SELIC" ? "Percentual da Selic (%)" : fixedIncomeIndexer === "IPCA" ? "Taxa adicional ao IPCA (% a.a.)" : "Taxa prefixada (% a.a.)"}<input inputMode="decimal" value={fixedIncomeRate} onChange={(event) => setFixedIncomeRate(event.target.value)} placeholder={fixedIncomeIndexer === "CDI" || fixedIncomeIndexer === "SELIC" ? "Ex.: 100" : "Ex.: 12,5"} required/></label>
                     <label>Início da aplicação<input type="date" value={fixedIncomeStart} onChange={(event) => setFixedIncomeStart(event.target.value)} required/></label>
                     <label>Vencimento (se houver)<input type="date" min={fixedIncomeStart} value={fixedIncomeMaturity} onChange={(event) => setFixedIncomeMaturity(event.target.value)}/></label>
                     <label>Próxima data de rendimento (opcional)<input type="date" min={fixedIncomeStart} max={fixedIncomeMaturity || undefined} value={fixedIncomeNextYieldDate} onChange={(event) => setFixedIncomeNextYieldDate(event.target.value)}/></label>
                     <label>Periodicidade do rendimento<select value={fixedIncomeFrequency} onChange={(event) => setFixedIncomeFrequency(event.target.value as typeof fixedIncomeFrequency)}><option value="daily">Diário (dias úteis)</option><option value="monthly">Mensal</option><option value="semiannual">Semestral</option><option value="at_maturity">No vencimento</option></select></label>
+                    <label>Liquidez<select value={fixedIncomeLiquidity} onChange={(event) => setFixedIncomeLiquidity(event.target.value as typeof fixedIncomeLiquidity)}><option value="unknown">Não informada</option><option value="daily">Diária</option><option value="at_maturity">Somente no vencimento</option><option value="grace_period">Após carência</option></select></label>
+                    {fixedIncomeLiquidity === "grace_period" && <label>Carência (dias)<input inputMode="numeric" value={fixedIncomeGraceDays} onChange={(event) => setFixedIncomeGraceDays(event.target.value.replace(/[^0-9]/g, "").slice(0, 5))} placeholder="Ex.: 90" /></label>}
                   </>}
                   <button className="primary-button" type="submit" disabled={busy}>Adicionar ativo</button>
                 </form></details>
@@ -1874,15 +1939,15 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
                   <label>Data<input type="date" value={investmentDate} onChange={(event) => setInvestmentDate(event.target.value)} required /></label>
                   <p className="investment-total-preview" aria-live="polite">Total estimado da operação: <strong>{(() => { const q = Number(investmentQuantity.trim().replace(",", ".")); const p = Number(investmentUnitPrice.trim().replace(",", ".")); const f = Number(investmentFees.trim().replace(",", ".")); const total = q * p + (investmentOperationType === "sell" ? -f : f); return Number.isFinite(total) && q > 0 && p > 0 ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: investmentAssets.find((item) => item.id === investmentAssetId)?.currency ?? "BRL" }).format(total) : "—"; })()}</strong></p>\n                  <button className="primary-button" type="submit" disabled={busy}>Registrar operação</button>
                 </form></details>}
-                {investmentAssets.length === 0 ? <p className="empty-state">Adicione seus ativos e registre posições iniciais, compras e vendas.</p> : <ul className="account-list">{investmentAssets.map((asset) => {
+                {investmentAssets.every((asset) => asset.asset_class === "fixed_income") ? <p className="empty-state">Adicione ações, FIIs, ETFs ou outros ativos para acompanhar também nesta carteira.</p> : <ul className="account-list">{investmentAssets.filter((asset) => asset.asset_class !== "fixed_income").map((asset) => {
                   const summary = investmentSummary(asset.id);
                   const receivedCents = incomeEvents.filter((item) => item.asset_id === asset.id && item.status === "received")
                     .reduce((total, item) => total + decimalToCents(item.received_amount), 0n);
-                  return <li key={asset.id}><strong>{asset.symbol} · {asset.name}</strong><span>{asset.asset_class} · {asset.currency}</span><small>Quantidade: {summary.quantity.toLocaleString("pt-BR", { maximumFractionDigits: 8 })} · Custo: {formatInvestmentCents(BigInt(summary.costBasisCents), asset.currency)} · Custo médio: {formatInvestmentCents(BigInt(summary.averageCostCents), asset.currency)}</small>{asset.asset_class === "fixed_income" && (asset.metadata?.fixed_income as Record<string, unknown> | undefined) && <small>{String((asset.metadata?.fixed_income as Record<string, unknown>).product ?? asset.name)} · {String((asset.metadata?.fixed_income as Record<string, unknown>).indexer ?? "")} · {String((asset.metadata?.fixed_income as Record<string, unknown>).annual_rate_percent ?? "")}% a.a. · Próximo rendimento: {String((asset.metadata?.fixed_income as Record<string, unknown>).next_yield_date ?? "não informado")} · Vencimento: {String((asset.metadata?.fixed_income as Record<string, unknown>).maturity_date ?? "não informado")} · Periodicidade: {{daily:"diária (dias úteis)",monthly:"mensal",semiannual:"semestral",at_maturity:"no vencimento"}[String((asset.metadata?.fixed_income as Record<string, unknown>).yield_frequency ?? "")] ?? "não informado"}</small>}<small>Resultado realizado: {formatInvestmentCents(BigInt(summary.realizedProfitCents), asset.currency)}{summary.error ? ` · ${summary.error}` : ""}</small><small>Proventos recebidos: {formatInvestmentCents(receivedCents, asset.currency)}</small>{asset.current_price != null && asset.price_as_of ? <small>Preço de referência: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: asset.currency, minimumFractionDigits: 2, maximumFractionDigits: 8 }).format(Number(asset.current_price))} · Fonte: {asset.price_source === "brapi.dev" ? "brapi.dev" : asset.price_source === "manual" ? "informado manualmente" : "origem não identificada"}{asset.price_source === "brapi.dev" ? " · atraso de origem aproximado de 30 min" : " · não é cotação automática"}{asset.price_source === "brapi.dev" && Date.now() - Date.parse(asset.price_as_of) > 45 * 60_000 ? " · cotação possivelmente desatualizada" : ""} · registrado em {new Date(asset.price_as_of).toLocaleString("pt-BR")}</small> : <small>Sem preço de referência cadastrado.</small>}
-                    <form className="finance-form" onSubmit={(event) => void updateManualInvestmentPrice(event, asset)}>
-                      <label>Preço de referência manual ({asset.currency})<input inputMode="decimal" value={manualPriceInputs[asset.id] ?? ""} onChange={(event) => setManualPriceInputs((current) => ({ ...current, [asset.id]: event.target.value }))} placeholder="Ex.: 32,45" disabled={busy} /></label>
-                      <button className="quiet-button" type="submit" disabled={busy || !(manualPriceInputs[asset.id] ?? "").trim()}>Salvar preço</button>
-                    </form></li>;
+                  return <li className="investment-asset-card" key={asset.id}><strong>{asset.symbol} · {asset.name}</strong><span>{{stock:"Ação",fii:"FII",etf:"ETF",bdr:"BDR",crypto:"Cripto",fixed_income:"Renda fixa"}[asset.asset_class]} · {asset.currency}</span><small>Quantidade: {summary.quantity.toLocaleString("pt-BR", { maximumFractionDigits: 8 })} · Custo: {formatInvestmentCents(BigInt(summary.costBasisCents), asset.currency)} · Custo médio: {formatInvestmentCents(BigInt(summary.averageCostCents), asset.currency)}</small><small>Resultado realizado: {formatInvestmentCents(BigInt(summary.realizedProfitCents), asset.currency)}{summary.error ? ` · ${summary.error}` : ""}</small><small>Proventos recebidos: {formatInvestmentCents(receivedCents, asset.currency)}</small>{asset.current_price != null && asset.price_as_of ? <small>Preço de referência: {new Intl.NumberFormat("pt-BR", { style: "currency", currency: asset.currency, minimumFractionDigits: 2, maximumFractionDigits: 8 }).format(Number(asset.current_price))} · Fonte: {asset.price_source === "brapi.dev" ? "brapi.dev" : asset.price_source === "manual" ? "informado manualmente" : "origem não identificada"}{asset.price_source === "brapi.dev" ? " · atraso de origem aproximado de 30 min" : " · não é cotação automática"}{asset.price_source === "brapi.dev" && Date.now() - Date.parse(asset.price_as_of) > 45 * 60_000 ? " · cotação possivelmente desatualizada" : ""} · registrado em {new Date(asset.price_as_of).toLocaleString("pt-BR")}</small> : <small>Sem preço de referência cadastrado.</small>}
+                    <details className="investment-reference-details"><summary>Atualizar preço de referência manual</summary><form className="finance-form" onSubmit={(event) => void updateManualInvestmentPrice(event, asset)}>
+                      <label>Preço informado ({asset.currency})<input inputMode="decimal" value={manualPriceInputs[asset.id] ?? ""} onChange={(event) => setManualPriceInputs((current) => ({ ...current, [asset.id]: event.target.value }))} placeholder="Ex.: 32,45" disabled={busy} /></label>
+                      <button className="quiet-button" type="submit" disabled={busy || !(manualPriceInputs[asset.id] ?? "").trim()}>Salvar referência</button>
+                    </form></details></li>;
                 })}</ul>}
                 <p className="helper-text">Preços informados manualmente são apenas referências e não alteram operações, saldos, custo médio ou resultado realizado, nem alimentam o Radar. Cotações automáticas da B3 permanecem desativadas até existir licença adequada. Cripto e renda fixa não têm feed automático.</p>
               </section>
