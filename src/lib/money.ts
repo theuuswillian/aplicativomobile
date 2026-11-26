@@ -35,3 +35,13 @@ export function formatBRLFromCents(cents: number): string {
   if (!Number.isSafeInteger(cents)) throw new TypeError("Centavos inválidos");
   return centsFormatter.format(cents / 100);
 }
+
+/** Formata a digitação de valores em reais como centavos (ex.: 123456 -> 1.234,56). */
+export function formatBrlInput(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 12);
+  if (!digits) return "";
+  const cents = BigInt(digits);
+  const whole = cents / 100n;
+  const fraction = String(cents % 100n).padStart(2, "0");
+  return `${new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 }).format(whole)},${fraction}`;
+}
