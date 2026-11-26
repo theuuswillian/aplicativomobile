@@ -11,8 +11,8 @@ A migration `20261125030000_get_account_balances.sql` adiciona `public.get_accou
 - Retorna `account_id` e saldo contábil em BRL para as contas do usuário autenticado.
 - Soma somente lançamentos com `journal_entries.status = 'posted'`.
 - Inclui contas bancárias, dinheiro físico e caixa de investimentos.
-- A RPC pública usa `SECURITY INVOKER`; a leitura privilegiada fica em `private.get_account_balances(date)`, com `SECURITY DEFINER`, `auth.uid()` obrigatório, `search_path` fixo e tabelas privadas totalmente qualificadas.
-- Não concede leitura direta das tabelas privadas nem acesso a `anon`; somente `authenticated` recebe `USAGE` no schema privado e `EXECUTE` nessa função interna específica.
+- A RPC pública usa `SECURITY INVOKER`; a leitura privilegiada fica em `private_api.get_account_balances(date)`, com `SECURITY DEFINER`, `auth.uid()` obrigatório, `search_path` fixo e tabelas privadas totalmente qualificadas.
+- Não concede leitura direta das tabelas privadas nem acesso a `anon`; somente `authenticated` recebe `USAGE` no schema `private_api` e `EXECUTE` nessa função interna específica.
 
 ## Atualização no aplicativo
 
