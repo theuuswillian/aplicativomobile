@@ -597,11 +597,10 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
     setNavHidden(false);
     setActiveTab(tab);
     if (options.view) setGastosView(options.view);
-    window.requestAnimationFrame(() => {
-      const target = options.anchor ? document.getElementById(options.anchor) : null;
-      if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
-      else window.scrollTo({ top: 0 });
-    });
+    // Sem âncora, volta ao topo na hora (evita corrida com a rolagem do usuário).
+    if (!options.anchor) { window.scrollTo({ top: 0 }); return; }
+    const anchor = options.anchor;
+    window.requestAnimationFrame(() => document.getElementById(anchor)?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
 
   /** Abre o formulário de lançamento já no tipo escolhido. */
