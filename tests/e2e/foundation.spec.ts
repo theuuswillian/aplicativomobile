@@ -160,9 +160,18 @@ test("renders authenticated sections with accessible navigation in dark and ligh
       return;
     }
     if (url.pathname === "/rest/v1/accounts" && request.method() === "POST") {
-      const body = request.postDataJSON();
-      const account = Array.isArray(body) ? body[0] : body;
-      const created = { ...account, id: "40000000-0000-4000-8000-000000000002", opening_balance_date: "2026-01-01", is_primary: false };
+      const created = {
+        id: "40000000-0000-4000-8000-000000000002",
+        user_id: user.id,
+        name: "Conta Nubank de teste",
+        account_type: "checking",
+        opening_balance: "250.00",
+        opening_balance_date: "2026-01-01",
+        is_primary: false,
+        institution_name: "Nubank",
+        institution_code: "260",
+        institution_logo_key: "nubank.com.br",
+      };
       await route.fulfill({
         status: 201,
         headers: { ...corsHeaders, "content-range": "0-0/1", "preference-applied": "return=representation" },
