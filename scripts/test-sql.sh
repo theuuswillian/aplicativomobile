@@ -10,4 +10,5 @@ for migration in supabase/migrations/*.sql; do
 done
 
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/rls_schema_assertions.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/income_goals_rls_assertions.sql
 bash scripts/test-sql-concurrency.sh
