@@ -157,6 +157,9 @@
 .app-shell[data-theme="light"] .report-category-list li strong {
   color: #17201b;
 }
+.app-shell[data-theme="light"] .overview-recent-heading button {
+  color: #15803d;
+}
 .app-shell[data-theme="light"] .panel p,
 .app-shell[data-theme="light"] .panel-heading p,
 .app-shell[data-theme="light"] .helper-text,
