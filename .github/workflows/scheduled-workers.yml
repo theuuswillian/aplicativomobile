@@ -1,0 +1,110 @@
+name: Scheduled workers
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      run_workers:
+        description: "Executar os workers agora"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: granaviva-scheduled-workers
+  cancel-in-progress: false
+
+jobs:
+  run-workers:
+    if: ${{ vars.WORKERS_ENABLED == 'true' || inputs.run_workers == true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      RECURRENCE_WORKER_SECRET: ${{ secrets.RECURRENCE_WORKER_SECRET }}
+      RADAR_WORKER_SECRET: ${{ secrets.RADAR_WORKER_SECRET }}
+      WHATSAPP_WORKER_SECRET: ${{ secrets.WHATSAPP_WORKER_SECRET }}
+      QUOTE_WORKER_SECRET: ${{ secrets.QUOTE_WORKER_SECRET }}
+      BRAPI_PUBLIC_DISPLAY_APPROVED: ${{ vars.BRAPI_PUBLIC_DISPLAY_APPROVED }}
+    steps:
+      - name: Validate worker configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY RECURRENCE_WORKER_SECRET RADAR_WORKER_SECRET WHATSAPP_WORKER_SECRET; do
+            if [[ -z "${!name}" ]]; then
+              echo "Missing required repository secret: $name"
+              exit 1
+            fi
+          done
+          if [[ "$RECURRENCE_WORKER_SECRET" == "$RADAR_WORKER_SECRET" || "$WHATSAPP_WORKER_SECRET" == "$RADAR_WORKER_SECRET" || "$WHATSAPP_WORKER_SECRET" == "$RECURRENCE_WORKER_SECRET" ]]; then
+            echo "Worker secrets must be different."
+            exit 1
+          fi
+          if [[ "$BRAPI_PUBLIC_DISPLAY_APPROVED" == "true" ]]; then
+            if [[ -z "$QUOTE_WORKER_SECRET" ]]; then echo "Missing QUOTE_WORKER_SECRET"; exit 1; fi
+            if [[ "$QUOTE_WORKER_SECRET" == "$RADAR_WORKER_SECRET" || "$QUOTE_WORKER_SECRET" == "$RECURRENCE_WORKER_SECRET" || "$QUOTE_WORKER_SECRET" == "$WHATSAPP_WORKER_SECRET" ]]; then
+              echo "Quote worker secret must be unique."; exit 1
+            fi
+          fi
+
+      - name: Generate planned recurring transactions
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error --max-time 45 \
+            -X POST "$SUPABASE_URL/functions/v1/recurrence-worker" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "x-recurrence-worker-secret: $RECURRENCE_WORKER_SECRET" \
+            -H "Content-Type: application/json" \
+            --data '{}'
+
+      - name: Refresh delayed B3 quotes within the free-plan budget
+        if: ${{ vars.BRAPI_PUBLIC_DISPLAY_APPROVED == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error --max-time 45 \
+            -X POST "$SUPABASE_URL/functions/v1/quote-feed-worker" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "x-quote-worker-secret: $QUOTE_WORKER_SECRET" \
+            -H "Content-Type: application/json" \
+            --data '{}'
+
+      - name: Evaluate Radar alerts in bounded pages
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Each invocation evaluates one 20-alert page. Continue a bounded
+          # number of pages so the 15-minute schedule drains normal backlogs
+          # without allowing one workflow run to monopolize the runner.
+          for page in 1 2 3; do
+            response="$(curl --fail-with-body --silent --show-error --max-time 130 \
+              -X POST "$SUPABASE_URL/functions/v1/radar-worker" \
+              -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+              -H "x-radar-worker-secret: $RADAR_WORKER_SECRET" \
+              -H "Content-Type: application/json" \
+              --data '{}')"
+            printf '%s\n' "$response"
+            busy="$(jq -r '.data.busy // false' <<<"$response")"
+            has_more="$(jq -r '.data.has_more // false' <<<"$response")"
+            if [[ "$busy" == "true" || "$has_more" != "true" ]]; then
+              break
+            fi
+          done
+
+      - name: Process WhatsApp inbox with explicit confirmation
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error --max-time 130 \
+            -X POST "$SUPABASE_URL/functions/v1/whatsapp-worker" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "x-whatsapp-worker-secret: $WHATSAPP_WORKER_SECRET" \
+            -H "Content-Type: application/json" \
+            --data '{}'

@@ -2,20 +2,151 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: ["**"]
   pull_request:
-    branches: [main]
+    branches: ["**"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: granaviva-ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
-          cache: npm
-      - run: npm install --no-audit --no-fund
+      - name: Upgrade npm to avoid Node 22 Arborist peer-resolution crash
+        run: npm install --global npm@11.21.2
+      - name: Synchronize lockfile and install exact dependencies
+        run: |
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          npm ci --no-audit --no-fund
+      - run: npm run lint
+      - run: npm run check:policy
+      - run: npm run check:secrets
+      - name: Validate shell scripts
+        run: bash -n scripts/test-sql.sh && bash -n scripts/test-sql-concurrency.sh && bash -n scripts/test-edge-local.sh
       - run: npm run typecheck
       - run: npm test
-      - run: npm run build
+      - name: Build with isolated Supabase endpoint for authenticated browser tests
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: https://test.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: test-only-publishable-key
+      - name: Install Chromium and WebKit browsers
+        run: npx playwright install --with-deps chromium webkit
+      - name: Run browser, responsive, offline and accessibility tests
+        run: npm run test:e2e
+      - name: Upload browser diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: playwright-diagnostics
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 3
+
+  edge-runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Install Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: 2.9.8
+      - name: Type-check Supabase Edge Functions
+        run: >-
+          deno check --no-config
+          supabase/functions/minha-conta/index.ts
+          supabase/functions/minhas-preferencias/index.ts
+          supabase/functions/assistente/index.ts
+          supabase/functions/ler-comprovante/index.ts
+          supabase/functions/radar-alertas/index.ts
+          supabase/functions/radar-worker/index.ts
+          supabase/functions/quote-feed-worker/index.ts
+          supabase/functions/recurrence-worker/index.ts
+          supabase/functions/exportar-dados/index.ts
+          supabase/functions/excluir-conta/index.ts
+          supabase/functions/push-inscricoes/index.ts
+          supabase/functions/push-worker/index.ts
+          supabase/functions/whatsapp-vincular/index.ts
+          supabase/functions/whatsapp-webhook/index.ts
+          supabase/functions/whatsapp-meta-send/index.ts
+          supabase/functions/whatsapp-worker/index.ts
+      - name: Run Edge runtime unit tests
+        run: deno test --no-config --allow-env supabase/functions/_shared/edge_test.ts supabase/functions/_shared/brapi-quotes.test.ts supabase/functions/_shared/whatsapp-command.test.ts
+
+  edge-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Install Supabase CLI v2 for local integration tests
+        uses: supabase/setup-cli@v3
+        with:
+          version: v2.stable
+      - name: Install Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: 2.9.8
+      - name: Run local Auth, Edge Functions, CORS and RLS integration tests
+        run: bash scripts/test-edge-local.sh
+
+  sql:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: granaviva_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d granaviva_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Validate migrations, RLS and concurrency on PostgreSQL 17
+        run: bash scripts/test-sql.sh
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/granaviva_test
+
+  lockfile:
+    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'fase-2-fundacao') || (github.event_name == 'push' && github.ref == 'refs/heads/fase-2-fundacao')
+    needs: [validate, sql]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+      - name: Upgrade npm
+        run: npm install --global npm@11.21.2
+      - name: Generate reproducible dependency lock
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Commit lockfile to the working branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          if git diff --cached --quiet; then
+            echo "package-lock.json já está atualizado."
+          else
+            git commit -m "chore: lock npm dependency graph"
+            git push origin HEAD:refs/heads/fase-2-fundacao
+          fi

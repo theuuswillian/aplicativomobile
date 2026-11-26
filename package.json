@@ -3,19 +3,30 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "engines": { "node": ">=22", "npm": ">=10" },
+  "engines": {
+    "node": ">=22",
+    "npm": ">=11.21.2"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b --pretty",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "check:policy": "node scripts/check-policy.mjs",
+    "test:sql": "bash scripts/test-sql.sh",
+    "check:secrets": "node scripts/check-secrets.mjs",
+    "test:e2e": "playwright test",
+    "preview": "vite preview",
+    "generate:vapid": "node scripts/generate-vapid-keys.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.86.0",
+    "lucide-react": "^0.468.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "@fontsource/inter": "5.2.8"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",
@@ -30,6 +41,12 @@
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
     "vite": "^7.2.2",
-    "vitest": "^4.0.8"
+    "vitest": "^4.0.8",
+    "fake-indexeddb": "6.2.4",
+    "@playwright/test": "1.65.1",
+    "@axe-core/playwright": "4.14.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
   }
 }

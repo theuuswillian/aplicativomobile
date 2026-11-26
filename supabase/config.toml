@@ -1,0 +1,46 @@
+project_id = "granaviva"
+
+[functions.minha-conta]
+verify_jwt = true
+
+[functions.minhas-preferencias]
+verify_jwt = true
+
+[functions.assistente]
+verify_jwt = true
+
+[functions.ler-comprovante]
+verify_jwt = true
+
+[functions.radar-alertas]
+verify_jwt = true
+
+[functions.push-inscricoes]
+verify_jwt = true
+
+[functions.push-worker]
+verify_jwt = true
+
+[functions.whatsapp-vincular]
+verify_jwt = true
+
+[functions.radar-worker]
+verify_jwt = true
+
+[functions.recurrence-worker]
+verify_jwt = true
+
+[functions.exportar-dados]
+verify_jwt = true
+
+[functions.excluir-conta]
+verify_jwt = true
+
+[functions.whatsapp-webhook]
+verify_jwt = false
+
+[functions.whatsapp-worker]
+verify_jwt = true
+
+[functions.quote-feed-worker]
+verify_jwt = true

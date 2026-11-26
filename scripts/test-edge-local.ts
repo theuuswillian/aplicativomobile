@@ -221,6 +221,13 @@ try {
   assert(whatsappWorkerWithoutSecret.response.status === 401,
     "Worker WhatsApp deve rejeitar JWT válido sem o segredo interno.");
 
+  const quoteWorkerWithoutJwt = await invoke("quote-feed-worker", null, {});
+  assert(quoteWorkerWithoutJwt.response.status === 401,
+    "Worker de cotações deve exigir JWT de serviço.");
+  const quoteWorkerWithoutSecret = await invoke("quote-feed-worker", serviceRoleKey, {});
+  assert(quoteWorkerWithoutSecret.response.status === 401,
+    "Worker de cotações deve rejeitar JWT válido sem o segredo interno.");
+
   const recurrenceWorkerWithoutJwt = await invoke("recurrence-worker", null, {});
   assert(recurrenceWorkerWithoutJwt.response.status === 401,
     "Worker de recorrências deve exigir JWT de serviço.");
