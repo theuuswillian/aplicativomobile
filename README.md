@@ -26,6 +26,11 @@ Aplicativo gratuito de gestão financeira pessoal, investimentos e automações.
 
 Consulte `docs/FASE-3-PLANO-E-STATUS.md` e `docs/CONFIGURACAO-REMOTA-FASE-3.md` para o histórico detalhado.
 
+## Design system (26/11/2026)
+- Uma única folha de estilos: `src/styles/app.css`, com tokens em `src/styles/tokens.css` (cores, espaçamento, tipografia, raios, sombras, tema claro/escuro).
+- As antigas camadas `styles.css`, `visual-refresh.css`, `quality-overrides.css`, `viewport.css`, `signature.css` e `income-goals.css` foram removidas; não crie novos arquivos de "override".
+- Mobile-first: ajustes de tablet/desktop ficam apenas nos `@media (min-width: …)` no fim de `app.css`.
+
 ## Desenvolvimento
 Requer Node.js 22+ e npm 11.21.2+.
 

@@ -2,25 +2,26 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { todayInBrazil } from "../../lib/date";
+import { decimalToCents, formatBrlInput, parseBrlAmount } from "../../lib/money";
 
 type AccountOption = { id: string; name: string; account_type: string };
 type LoanRow = {
   id: string;
   person_name: string;
-  principal_amount: string;
+  principal_amount: string | number;
   loan_date: string;
   expected_date: string | null;
   source_account_id: string;
   notes: string | null;
 };
-type RepaymentRow = { id: string; loan_id: string; amount: string; received_date: string };
+type RepaymentRow = { id: string; loan_id: string; amount: string | number; received_date: string };
 type OvertimeRow = {
   id: string;
   work_date: string;
-  hours: string;
-  hourly_rate: string;
-  premium_percent: string;
-  expected_amount: string;
+  hours: string | number;
+  hourly_rate: string | number;
+  premium_percent: string | number;
+  expected_amount: string | number;
   description: string | null;
   status: "pending" | "converted" | "archived";
 };
@@ -33,17 +34,13 @@ type Props = {
 };
 
 function normalizeAmount(value: string): string | null {
-  const input = value.trim().replace(",", ".");
-  if (!/^\d{1,12}(?:\.\d{1,2})?$/.test(input)) return null;
-  const [whole, fraction = ""] = input.split(".");
-  const cents = BigInt(whole) * 100n + BigInt(fraction.padEnd(2, "0"));
-  if (cents <= 0n || cents > 999_999_999_999_99n) return null;
-  return `${cents / 100n}.${String(cents % 100n).padStart(2, "0")}`;
+  // Aceita "1.234,56", "1234,56" e "1234.56"; rejeita zero e negativos.
+  return parseBrlAmount(value);
 }
 
-function centsOf(value: string): bigint {
-  const [whole, fraction = ""] = value.split(".");
-  return BigInt(whole) * 100n + BigInt(fraction.padEnd(2, "0"));
+/** O PostgREST devolve `numeric` como número JSON: aceita string ou number. */
+function centsOf(value: string | number): bigint {
+  return decimalToCents(value);
 }
 
 function money(value: bigint): string {
@@ -244,7 +241,7 @@ export function ReceivablesPanel({ client, userId, accounts, onNotice, onLedgerC
           <div className="transaction-heading"><strong id="receivables-title">Emprestar dinheiro</strong><span>Não entra nos gastos pessoais</span></div>
           <form className="finance-form" onSubmit={(event) => void createLoan(event)}>
             <label>Nome da pessoa<input value={personName} onChange={(event) => setPersonName(event.target.value)} maxLength={120} required /></label>
-            <label>Valor emprestado (R$)<input inputMode="decimal" value={loanAmount} onChange={(event) => setLoanAmount(event.target.value)} placeholder="0,00" required /></label>
+            <label>Valor emprestado (R$)<input inputMode="decimal" value={loanAmount} onChange={(event) => setLoanAmount(formatBrlInput(event.target.value))} placeholder="0,00" required /></label>
             <label>Conta de origem<select value={loanAccountId} onChange={(event) => setLoanAccountId(event.target.value)} required><option value="">Selecione</option>{liquidAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
             <label>Data do empréstimo<input type="date" value={loanDate} onChange={(event) => setLoanDate(event.target.value)} required /></label>
             <label>Previsão de devolução<input type="date" min={loanDate} value={expectedDate} onChange={(event) => setExpectedDate(event.target.value)} /></label>
@@ -262,7 +259,7 @@ export function ReceivablesPanel({ client, userId, accounts, onNotice, onLedgerC
           <div className="transaction-heading"><strong>Registrar devolução</strong><span>Recebimento parcial ou total</span></div>
           <form className="finance-form" onSubmit={(event) => void registerRepayment(event)}>
             <label>Empréstimo<select value={repaymentLoanId} onChange={(event) => setRepaymentLoanId(event.target.value)} required><option value="">Selecione</option>{loans.filter((loan) => (outstandingByLoan.get(loan.id) ?? 0n)>0n).map((loan) => <option key={loan.id} value={loan.id}>{loan.person_name} · {money(outstandingByLoan.get(loan.id) ?? 0n)}</option>)}</select></label>
-            <label>Valor recebido (R$)<input inputMode="decimal" value={repaymentAmount} onChange={(event) => setRepaymentAmount(event.target.value)} placeholder="0,00" required /></label>
+            <label>Valor recebido (R$)<input inputMode="decimal" value={repaymentAmount} onChange={(event) => setRepaymentAmount(formatBrlInput(event.target.value))} placeholder="0,00" required /></label>
             <label>Conta de destino<select value={repaymentAccountId} onChange={(event) => setRepaymentAccountId(event.target.value)} required><option value="">Selecione</option>{liquidAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
             <label>Data do recebimento<input type="date" value={repaymentDate} onChange={(event) => setRepaymentDate(event.target.value)} required /></label>
             <button className="primary-button" type="submit" disabled={!ready || saving}>Registrar devolução</button>
@@ -276,13 +273,13 @@ export function ReceivablesPanel({ client, userId, accounts, onNotice, onLedgerC
           <form className="finance-form" onSubmit={(event) => void recordOvertime(event)}>
             <label>Data trabalhada<input type="date" value={workDate} onChange={(event) => setWorkDate(event.target.value)} required /></label>
             <label>Horas extras<input inputMode="decimal" value={hours} onChange={(event) => setHours(event.target.value)} placeholder="Ex.: 2,5" required /></label>
-            <label>Valor da hora (R$)<input inputMode="decimal" value={hourlyRate} onChange={(event) => setHourlyRate(event.target.value)} placeholder="0,00" required /></label>
+            <label>Valor da hora (R$)<input inputMode="decimal" value={hourlyRate} onChange={(event) => setHourlyRate(formatBrlInput(event.target.value))} placeholder="0,00" required /></label>
             <label>Adicional (%)<select value={premiumPercent} onChange={(event) => setPremiumPercent(event.target.value)}><option value="0">Sem adicional</option><option value="50">+50%</option><option value="100">+100%</option><option value="150">+150%</option><option value="200">+200%</option></select></label>
             <label className="wide-field">Descrição (opcional)<input value={overtimeDescription} onChange={(event) => setOvertimeDescription(event.target.value)} maxLength={240} /></label>
             <button className="primary-button" type="submit" disabled={!ready || saving}>Registrar horas extras</button>
           </form>
           {pendingOvertime.length===0 ? <p className="empty-state">Nenhuma hora extra pendente.</p> : <ul className="account-list">{pendingOvertime.map((entry) => <li key={entry.id}>
-            <label className="overtime-select"><input type="checkbox" checked={selectedOvertimeIds.includes(entry.id)} onChange={(event) => setSelectedOvertimeIds((current) => event.target.checked ? [...current,entry.id] : current.filter((id) => id!==entry.id))} /><span><strong>{entry.description || "Horas extras"}</strong><small>{entry.hours} h · {entry.premium_percent}% · {new Date(entry.work_date+"T12:00:00").toLocaleDateString("pt-BR")}</small></span></label>
+            <label className="overtime-select"><input type="checkbox" checked={selectedOvertimeIds.includes(entry.id)} onChange={(event) => setSelectedOvertimeIds((current) => event.target.checked ? [...current,entry.id] : current.filter((id) => id!==entry.id))} /><span><strong>{entry.description || "Horas extras"}</strong><small>{Number(entry.hours).toLocaleString("pt-BR")} h · +{Number(entry.premium_percent).toLocaleString("pt-BR")}% · {new Date(entry.work_date+"T12:00:00").toLocaleDateString("pt-BR")}</small></span></label>
             <strong>{money(centsOf(entry.expected_amount))}</strong>
           </li>)}</ul>}
           <form className="finance-form overtime-convert" onSubmit={(event) => { event.preventDefault(); void convertOvertime(); }}>

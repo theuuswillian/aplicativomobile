@@ -3,13 +3,13 @@ import type { FormEvent } from "react";
 import { Check, Info, Plus, Sparkles, Target, Trash2, TrendingUp } from "lucide-react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { calculatePassiveIncomeSnapshot, type IncomeAsset, type IncomeEvent, type IncomeOperation } from "../../domain/income-goals";
-import "./income-goals.css";
+import { formatBrlInput, parseBrlAmount } from "../../lib/money";
 
 interface IncomeGoalRow {
   id: string;
   name: string;
   icon: string;
-  target_monthly_amount: string;
+  target_monthly_amount: string | number;
   sort_order: number;
 }
 interface Props {
@@ -21,12 +21,8 @@ interface Props {
   today: string;
 }
 function parseAmount(value: string): string | null {
-  const input = value.trim();
-  if (!/^\d{1,10}(?:,\d{1,2})?$/.test(input)) return null;
-  const [whole, fraction = ""] = input.split(",");
-  const cents = BigInt(whole) * 100n + BigInt(fraction.padEnd(2, "0"));
-  if (cents <= 0n || cents > 99999999999999n) return null;
-  return `${whole}.${fraction.padEnd(2, "0")}`;
+  // Aceita "1.234,56", "150" e "150.00"; rejeita zero e negativos.
+  return parseBrlAmount(value);
 }
 function goalIconForName(value:string):string{const n=value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();if(/aluguel|casa|moradia/.test(n))return "🏠";if(/luz|energia|eletric/.test(n))return "💡";if(/agua/.test(n))return "💧";if(/internet|telefone/.test(n))return "📱";if(/mercado|aliment/.test(n))return "🛒";if(/saude|farmac/.test(n))return "🩺";if(/viagem/.test(n))return "✈️";if(/carro|combust|transporte/.test(n))return "🚗";if(/educa|curso/.test(n))return "📚";if(/invest|renda|dividend/.test(n))return "📈";return "🎯";}
 function money(cents: number): string {
@@ -138,7 +134,7 @@ export function IncomeGoalsPanel({ client, userId, assets, operations, events, t
       <form className="finance-form" onSubmit={(event) => void createGoal(event)}>
         <p className="income-goal-icon-hint">O ícone é escolhido automaticamente pelo nome da meta.</p>
         <label>Nome da conquista<input value={name} onChange={(event) => setName(event.target.value)} maxLength={80} placeholder="Ex.: Conta de luz" required/></label>
-        <label>Valor mensal para atingir (R$)<input inputMode="decimal" value={target} onChange={(event) => setTarget(event.target.value)} placeholder="Ex.: 150,00" required/></label>
+        <label>Valor mensal para atingir (R$)<input inputMode="decimal" value={target} onChange={(event) => setTarget(formatBrlInput(event.target.value))} placeholder="0,00" required/></label>
         <button className="primary-button" type="submit" disabled={busy || loading || schemaUnavailable}>Salvar meta</button>
       </form>
     </details>
