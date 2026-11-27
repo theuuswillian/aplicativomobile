@@ -646,3 +646,199 @@ progress.budget-progress::-moz-progress-bar { background: var(--color-accent); b
   .income-goals-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .app-footer { display: flex; justify-content: space-between; margin-top: var(--space-8); color: var(--color-muted); font-size: var(--text-xs); }
 }
+
+
+/* ==========================================================
+   GRANAVIVA / RECONSTRUÇÃO VISUAL — NOVA DIREÇÃO DE INTERFACE
+   Componentes React existentes + tokens do design system.
+   ========================================================== */
+.app-shell {
+  background:
+    radial-gradient(ellipse at 50% -12%, rgb(34 197 94 / 9%), transparent 34rem),
+    var(--color-bg);
+}
+.app-frame { gap: 18px; }
+.topbar.topbar-minimal {
+  position: sticky; top: 0; z-index: 30;
+  min-height: 64px; margin: 0 -16px; padding: 0 16px;
+  border-bottom: 1px solid var(--color-line);
+  background: color-mix(in srgb, var(--color-bg) 82%, transparent);
+  backdrop-filter: blur(22px) saturate(1.35);
+  -webkit-backdrop-filter: blur(22px) saturate(1.35);
+}
+.brand { font-size: 20px !important; }
+.brand-mark {
+  width: 38px; height: 38px; border-radius: 13px;
+  box-shadow: 0 5px 18px rgb(34 197 94 / 20%);
+}
+.dashboard { gap: 20px; padding-top: 8px; }
+.overview-grid { gap: 14px; }
+.dashboard-heading { gap: 5px; padding: 6px 2px 2px; }
+.dashboard-heading .eyebrow-muted {
+  color: var(--color-accent); font-size: 12px; font-weight: 700;
+  letter-spacing: .09em; text-transform: uppercase;
+}
+.dashboard-heading h1 {
+  font-size: clamp(27px, 7vw, 36px); letter-spacing: -.045em;
+  font-weight: 750;
+}
+.overview-balance {
+  position: relative; isolation: isolate; overflow: hidden;
+  display: grid; gap: 10px; padding: 23px;
+  min-height: 220px; border: 1px solid rgb(110 231 183 / 20%);
+  border-radius: 26px;
+  background:
+    radial-gradient(circle at 90% 5%, rgb(74 222 128 / 23%), transparent 42%),
+    linear-gradient(135deg, #123b2a 0%, #0d2b20 54%, #091b15 100%);
+  box-shadow: 0 18px 45px rgb(0 0 0 / 24%), inset 0 1px 0 rgb(255 255 255 / 8%);
+}
+.overview-balance::after {
+  content: ""; position: absolute; z-index: -1; width: 230px; height: 230px;
+  right: -100px; bottom: -135px; border: 1px solid rgb(167 243 208 / 17%);
+  border-radius: 50%; box-shadow: 0 0 0 22px rgb(167 243 208 / 3%), 0 0 0 48px rgb(167 243 208 / 2%);
+}
+.overview-label { color: rgb(236 253 245 / 78%); font-size: 13px; }
+.overview-balance-value {
+  display: block; padding: 3px 0 1px; color: #f0fdf4;
+  font-size: clamp(34px, 9vw, 43px); line-height: 1.08;
+  font-weight: 800; letter-spacing: -.055em;
+}
+.overview-balance > small { color: rgb(236 253 245 / 65%); font-size: 12px; }
+.overview-balance-split { gap: 9px; margin-top: 8px; }
+.overview-balance-split > div {
+  min-width: 0; padding: 11px 12px; border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 14px; background: rgb(255 255 255 / 6%);
+  backdrop-filter: blur(8px);
+}
+.overview-balance-split span { font-size: 11px; }
+.overview-balance-split b { font-size: 14px; }
+.quick-actions-grid { gap: 9px; }
+.quick-actions-grid button {
+  min-height: 94px; align-content: center; gap: 9px; padding: 12px 5px;
+  border-color: var(--color-line); border-radius: 18px;
+  background: linear-gradient(160deg, var(--color-surface-raised), var(--color-surface));
+  box-shadow: 0 5px 18px rgb(0 0 0 / 10%);
+  transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+.quick-actions-grid button:active { transform: scale(.96); }
+.quick-action-icon {
+  width: 43px; height: 43px; border-radius: 15px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 7%);
+}
+.quick-actions-grid button > span:last-child { font-size: 12px; }
+.overview-stats { gap: 10px; }
+.overview-stat {
+  min-height: 112px; gap: 8px; padding: 16px;
+  border-radius: 19px; background: var(--color-surface);
+  transition: transform .2s ease, border-color .2s ease;
+}
+.overview-stat:active { transform: scale(.98); }
+.overview-stat > span { font-size: 11px; letter-spacing: .015em; }
+.overview-stat > strong { font-size: clamp(17px, 4.4vw, 21px); letter-spacing: -.035em; }
+.overview-stat > small { font-size: 11px; }
+.overview-recent, .overview-flow {
+  gap: 16px; padding: 19px; border-radius: 22px;
+  background: linear-gradient(160deg, var(--color-surface), color-mix(in srgb, var(--color-surface) 88%, var(--color-bg)));
+}
+.card-heading h2 { font-size: 16px; letter-spacing: -.02em; }
+.card-caption { font-size: 11px; }
+.recent-list { gap: 0; }
+.recent-list > li {
+  display: flex; align-items: center; gap: 11px; min-width: 0;
+  padding: 13px 0; border-bottom: 1px solid var(--color-line);
+}
+.recent-list > li:last-child { padding-bottom: 0; border-bottom: 0; }
+.tx-icon { width: 42px; height: 42px; border-radius: 14px; }
+.recent-description { display: grid; flex: 1; min-width: 0; gap: 3px; }
+.recent-description strong { overflow: hidden; color: var(--color-text); font-size: 13px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.recent-description small { color: var(--color-muted); font-size: 11px; }
+.recent-list > li > strong:last-child { flex: 0 0 auto; font-size: 12px; font-weight: 700; }
+.cashflow-chart { height: 154px; gap: 12px; padding-top: 8px; }
+.cashflow-bars { position: relative; gap: 5px; border-bottom-color: var(--color-line-strong); }
+.cashflow-bars > span { width: min(15px, 42%); min-height: 3px; border-radius: 6px 6px 2px 2px; box-shadow: 0 0 12px rgb(52 211 153 / 9%); }
+.cashflow-expense { opacity: .82; }
+.cashflow-month small { font-size: 10px; }
+.cashflow-legend { gap: 18px; font-size: 11px; }
+.cashflow-legend i { width: 9px; height: 9px; border-radius: 3px; }
+.overview-action {
+  min-height: 56px; border-radius: 17px; font-size: 13px;
+  background: linear-gradient(120deg, var(--color-surface-raised), var(--color-surface));
+}
+.panel, .card, .subpanel, .expense-overview, .investment-allocation {
+  border-radius: 22px;
+}
+.panel-heading { gap: 7px; }
+.panel-heading h2 { font-size: clamp(23px, 6vw, 29px); letter-spacing: -.04em; }
+.panel-heading p { max-width: 62ch; font-size: 13px; line-height: 1.6; }
+.fixed-income-hub {
+  overflow: hidden; border: 1px solid rgb(52 211 153 / 18%);
+  border-radius: 25px; background: linear-gradient(155deg, #11251d, #101815 68%, #0d1210);
+  box-shadow: 0 16px 42px rgb(0 0 0 / 19%);
+}
+.fixed-income-heading { padding: 21px 20px 14px; }
+.fixed-income-heading h3 { font-size: 23px; letter-spacing: -.04em; }
+.fixed-income-heading p { max-width: 52ch; color: rgb(226 232 240 / 67%); font-size: 12px; line-height: 1.55; }
+.fixed-income-orbit {
+  display: grid; width: 45px; height: 45px; place-items: center;
+  border: 1px solid rgb(110 231 183 / 20%); border-radius: 15px;
+  background: rgb(52 211 153 / 10%); color: #6ee7b7; font-size: 22px;
+}
+.fixed-income-overview { margin: 0 15px 15px; padding: 17px; border: 1px solid rgb(255 255 255 / 8%); border-radius: 19px; background: rgb(255 255 255 / 5%); }
+.fixed-income-total strong { font-size: clamp(26px, 7vw, 34px); letter-spacing: -.05em; }
+.fixed-income-overview-stats > div { border: 1px solid rgb(255 255 255 / 6%); background: rgb(255 255 255 / 5%); }
+.fixed-income-list-heading { margin: 0 17px 14px; }
+.fixed-income-card {
+  margin: 10px 14px; padding: 17px; border: 1px solid var(--color-line);
+  border-radius: 19px; background: var(--color-surface);
+  box-shadow: 0 8px 22px rgb(0 0 0 / 12%);
+}
+.fixed-income-rate { margin: 13px 0; padding: 13px; border: 1px solid var(--color-line); border-radius: 14px; background: var(--color-surface-sunken); }
+.fixed-income-progress { height: 9px; background: color-mix(in srgb, var(--color-accent) 13%, var(--color-surface-raised)); }
+.fixed-income-progress > span { background: linear-gradient(90deg, #16a34a, #6ee7b7); box-shadow: 0 0 14px rgb(52 211 153 / 25%); }
+.bottom-nav {
+  border-color: color-mix(in srgb, var(--color-line-strong) 80%, var(--color-accent) 20%);
+  background: color-mix(in srgb, var(--color-surface) 83%, transparent);
+  box-shadow: 0 16px 48px rgb(0 0 0 / 38%), inset 0 1px 0 rgb(255 255 255 / 5%);
+}
+.bottom-nav button { font-size: 10px; letter-spacing: .01em; }
+.bottom-nav button.active { background: linear-gradient(145deg, rgb(34 197 94 / 16%), rgb(34 197 94 / 7%)); }
+.app-shell button:focus-visible, .app-shell a:focus-visible, .app-shell summary:focus-visible {
+  outline: 2px solid var(--color-accent); outline-offset: 3px;
+}
+@media (hover: hover) {
+  .quick-actions-grid button:hover, .overview-stat:hover {
+    transform: translateY(-2px); border-color: color-mix(in srgb, var(--color-accent) 38%, var(--color-line));
+    box-shadow: 0 10px 25px rgb(0 0 0 / 14%);
+  }
+  .recent-list > li:hover { background: color-mix(in srgb, var(--color-accent) 4%, transparent); }
+}
+@media (min-width: 761px) {
+  .app-shell { padding-top: 20px; }
+  .app-frame { gap: 25px; }
+  .topbar.topbar-minimal { margin: 0; padding: 0 4px; border: 0; background: transparent; backdrop-filter: none; }
+  .overview-grid { gap: 18px; }
+  .overview-grid > .dashboard-heading { grid-column: span 12; padding-bottom: 4px; }
+  .overview-grid > .overview-balance { grid-column: span 7; min-height: 250px; padding: 27px; }
+  .overview-grid > .quick-actions-grid { grid-column: span 5; align-content: stretch; }
+  .quick-actions-grid button { grid-auto-flow: row; justify-content: center; }
+  .overview-grid > .overview-stats { grid-column: span 12; }
+  .overview-grid > .overview-recent { grid-column: span 7; }
+  .overview-grid > .overview-flow { grid-column: span 5; }
+  .overview-grid > .overview-action { grid-column: span 12; }
+}
+@media (max-width: 380px) {
+  .overview-balance { padding: 19px; }
+  .overview-balance-value { font-size: 32px; }
+  .overview-balance-split > div { padding: 9px; }
+  .overview-balance-split b { font-size: 12px; }
+  .recent-list > li { gap: 8px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .overview-balance, .overview-stat, .overview-recent, .overview-flow, .fixed-income-hub {
+    animation: gv-enter .55s cubic-bezier(.2,.7,.2,1) both;
+  }
+  .overview-stats { animation: gv-enter .62s .04s cubic-bezier(.2,.7,.2,1) both; }
+  .overview-recent { animation-delay: .08s; }
+  .overview-flow { animation-delay: .12s; }
+  @keyframes gv-enter { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: translateY(0); } }
+}
