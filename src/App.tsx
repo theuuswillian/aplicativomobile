@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { Home, ReceiptText, TrendingUp, UserRound, Target, Bell, Eye, EyeOff, ChartNoAxesColumn, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Plus, ChevronRight, X, WalletCards } from "lucide-react";
+import { Home, ReceiptText, TrendingUp, UserRound, Bell, Eye, EyeOff, ChartNoAxesColumn, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, X, WalletCards } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import { formatDateBR, isIsoDate, isIsoMonth, todayInBrazil } from "./lib/date";
 import { decimalToBrlInput, decimalToCents, formatBRL, formatBrlInput, parseBrlAmount, toCents } from "./lib/money";
