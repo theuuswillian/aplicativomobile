@@ -29,17 +29,30 @@ function contrast(foreground: string, background: string): number {
 }
 
 describe("design system accessibility foundations", () => {
-  it("keeps text, muted text, accent and focus tokens above WCAG AA contrast", () => {
+  it("keeps text, secondary text, accent, focus and semantic tokens above WCAG AA contrast", () => {
     for (const selector of [".app-shell", '.app-shell[data-theme="light"]']) {
       const theme = block(selector);
-      const bg = color(theme, "color-bg");
-      const surface = color(theme, "color-surface");
-      for (const token of ["color-text", "color-muted", "color-accent", "color-focus"]) {
+      const backgrounds = ["bg-app", "bg-surface", "bg-elevated", "bg-sidebar"].map((name) => [name, color(theme, name)] as const);
+      for (const token of ["text-primary", "text-secondary", "accent-primary", "focus-ring", "positive", "negative", "negative-on-soft", "warning", "accent-secondary-text"]) {
         const foreground = color(theme, token);
-        expect(contrast(foreground, bg), selector + " " + token + " on background").toBeGreaterThanOrEqual(4.5);
-        expect(contrast(foreground, surface), selector + " " + token + " on surface").toBeGreaterThanOrEqual(4.5);
+        for (const [name, background] of backgrounds) {
+          expect(contrast(foreground, background), selector + " " + token + " on " + name).toBeGreaterThanOrEqual(4.5);
+        }
       }
+      expect(contrast(color(theme, "text-on-accent"), color(theme, "accent-primary")), selector + " text on primary button").toBeGreaterThanOrEqual(4.5);
+      expect(contrast(color(theme, "text-on-accent"), color(theme, "accent-primary-hover")), selector + " text on hovered primary button").toBeGreaterThanOrEqual(4.5);
     }
+  });
+
+  it("uses the approved fintech dark palette", () => {
+    const dark = block(".app-shell");
+    expect(color(dark, "bg-app").toLowerCase()).toBe("#09090b");
+    expect(color(dark, "bg-surface").toLowerCase()).toBe("#121216");
+    expect(color(dark, "bg-elevated").toLowerCase()).toBe("#1a1a22");
+    expect(color(dark, "border-subtle").toLowerCase()).toBe("#27272f");
+    expect(color(dark, "accent-primary").toLowerCase()).toBe("#10b981");
+    expect(color(dark, "accent-secondary").toLowerCase()).toBe("#6366f1");
+    expect(color(dark, "text-primary").toLowerCase()).toBe("#f4f4f5");
   });
 
   it("defines visible keyboard focus and reduced-motion support", () => {

@@ -9,6 +9,8 @@ const today = new Date(new Date().toLocaleString("en-US", { timeZone: "America/S
 const iso = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 const monthStart = iso(new Date(today.getFullYear(), today.getMonth(), 1));
 
+const openNav = (page: Page, id: string) => page.locator(`[data-nav="${id}"]:visible`).first().click();
+
 async function signIn(page: Page, posts: Array<{ table: string; body: Record<string, unknown> }>) {
   const user = { id: USER_ID, aud: "authenticated", role: "authenticated", email: "teste@granaviva.invalid", app_metadata: { provider: "email" }, user_metadata: {}, created_at: "2026-01-01T00:00:00Z" };
   const b64 = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -52,9 +54,9 @@ test("não quebra com valores numéricos do PostgREST e formata saldo, emprésti
   await signIn(page, []);
   await page.goto("/");
   await expect(page.locator(".overview-balance-value")).toContainText("2.500,75");
-  await page.getByRole("button", { name: "Metas", exact: true }).click();
+  await page.getByRole("button", { name: "Ver metas" }).click();
   await expect(page.locator(".receivables-summary")).toContainText("250,00");
-  await page.getByRole("button", { name: "Gastos", exact: true }).click();
+  await openNav(page, "lancamentos");
   await page.locator(".transaction-list .transaction-main", { hasText: "Compra grande" }).click();
   await page.getByRole("button", { name: "Editar", exact: true }).click();
   await expect(page.locator(".transaction-edit-form").getByLabel("Valor (R$)")).toHaveValue("1.234,50");
@@ -68,7 +70,7 @@ test("cria meta com mês desejado e registra pagamento de fatura", async ({ page
   const posts: Array<{ table: string; body: Record<string, unknown> }> = [];
   await signIn(page, posts);
   await page.goto("/");
-  await page.getByRole("button", { name: "Metas", exact: true }).click();
+  await page.getByRole("button", { name: "Ver metas" }).click();
   const goalDrawer = page.locator("#planejamento-metas details.management-drawer").first();
   await goalDrawer.locator("summary").click();
   await goalDrawer.getByLabel("Nome da meta").fill("Viagem");
@@ -79,12 +81,28 @@ test("cria meta com mês desejado e registra pagamento de fatura", async ({ page
   expect(posts.find((post) => post.table === "goals")?.body.target_amount).toBe("5000.00");
 
   await page.evaluate(() => window.scrollTo(0, 0));
-  await page.getByRole("button", { name: "Gastos", exact: true }).click();
-  await page.getByRole("tab", { name: "Contas", exact: true }).click();
+  await openNav(page, "cartoes");
+  await expect(page.getByRole("tab", { name: "Contas", exact: true })).toHaveAttribute("aria-selected", "true");
   const invoiceDrawer = page.locator("#gastos-cartoes details.management-drawer", { hasText: "pagamento de fatura" });
   await invoiceDrawer.locator("summary").click();
   await invoiceDrawer.getByLabel("Data de fechamento da fatura").fill(monthStart);
   await invoiceDrawer.getByLabel("Valor pago (R$)").fill("10000");
   await invoiceDrawer.getByRole("button", { name: "Registrar pagamento" }).click();
   await expect.poll(() => posts.find((post) => post.table === "card_invoice_payments")?.body.amount).toBe("100.00");
+});
+
+test("telas autenticadas não têm rolagem horizontal do celular ao desktop largo", async ({ page }) => {
+  test.setTimeout(60_000);
+  await signIn(page, []);
+  await page.goto("/");
+  await expect(page.locator(".overview-balance-value")).toContainText("2.500,75");
+  for (const width of [320, 390, 768, 1024, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const destination of ["inicio", "lancamentos", "cartoes", "investimentos", "ajustes"]) {
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await openNav(page, destination);
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      expect(overflow, `rolagem horizontal em ${destination} com ${width}px`).toBeLessThanOrEqual(0);
+    }
+  }
 });

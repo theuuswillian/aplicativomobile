@@ -1,7 +1,13 @@
 /*
- * GranaViva — tokens do design system.
- * Todas as cores, espaçamentos, raios e sombras vêm daqui. Os componentes em
- * app.css só usam estas variáveis, então tema claro/escuro muda apenas este bloco.
+ * GranaViva — tokens do design system (fintech dark).
+ * Toda cor, raio, altura de controle e tipografia vem daqui. app.css só usa
+ * estas variáveis, então o tema claro muda apenas o bloco [data-theme="light"].
+ *
+ * Contraste (WCAG AA 4,5:1) verificado em tests/design-system.test.ts para
+ * texto primário, secundário, acento, foco e cores semânticas.
+ * --text-muted (#71717A) fica abaixo de 4,5:1 sobre o fundo escuro: use-o só
+ * em placeholders, estados desabilitados e elementos decorativos, nunca em
+ * texto informativo. Rótulos e metadados usam --text-secondary.
  */
 :root {
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -13,34 +19,64 @@
 }
 
 .app-shell {
-  --color-bg: #0b0d0f;
-  --color-surface: #15181c;
-  --color-surface-raised: #1c2025;
-  --color-surface-sunken: #101316;
-  --color-text: #f2f5f3;
-  --color-muted: #9aa4ad;
-  --color-line: rgb(255 255 255 / 8%);
-  --color-line-strong: rgb(255 255 255 / 14%);
-  --color-accent: #22c55e;
-  --color-accent-strong: #16a34a;
-  --color-accent-soft: rgb(34 197 94 / 12%);
-  --color-on-accent: #04130a;
-  --color-focus: #86efac;
-  --color-income: #34d399;
-  --color-income-soft: rgb(52 211 153 / 13%);
-  --color-expense: #f87171;
-  --color-expense-soft: rgb(248 113 113 / 13%);
-  --color-info: #60a5fa;
-  --color-info-soft: rgb(96 165 250 / 13%);
-  --color-warning: #fbbf24;
-  --color-warning-soft: rgb(251 191 36 / 13%);
-  --color-hero-from: #0f3d27;
-  --color-hero-to: #0a2418;
-  --shadow-card: 0 1px 0 rgb(255 255 255 / 3%) inset, 0 10px 30px rgb(0 0 0 / 22%);
-  --shadow-float: 0 18px 48px rgb(0 0 0 / 45%);
-  --radius-card: 20px;
-  --radius-control: 12px;
+  /* Superfícies */
+  --bg-app: #09090b;
+  --bg-surface: #121216;
+  --bg-elevated: #1a1a22;
+  --bg-sidebar: #0d0d11;
+  --bg-input: #09090b;
+  --bg-nav: rgb(18 18 22 / 92%);
+  --bg-overlay: rgb(0 0 0 / 62%);
+  /* Bordas */
+  --border-subtle: #27272f;
+  --border-focus: #3f3f4e;
+  /* Acentos */
+  --accent-primary: #10b981;
+  --accent-primary-hover: #059669;
+  --accent-primary-soft: rgb(16 185 129 / 12%);
+  --accent-on-soft: #10b981;
+  --accent-secondary: #6366f1;
+  --accent-secondary-text: #818cf8;
+  --accent-secondary-soft: rgb(99 102 241 / 14%);
+  --text-on-accent: #09090b;
+  --focus-ring: #10b981;
+  /* Texto */
+  --text-primary: #f4f4f5;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+  /* Semânticas */
+  --positive: #22c55e;
+  --positive-bg: rgb(34 197 94 / 12%);
+  --negative: #ef4444;
+  --negative-on-soft: #f87171;
+  --negative-bg: rgb(239 68 68 / 12%);
+  --warning: #f59e0b;
+  --warning-bg: rgb(245 158 11 / 12%);
+  /* Gráficos */
+  --chart-income: #10b981;
+  --chart-expense: #6366f1;
+  --chart-grid: #27272f;
+  --chart-1: #10b981;
+  --chart-2: #6366f1;
+  --chart-3: #38bdf8;
+  --chart-4: #f59e0b;
+  --chart-5: #a78bfa;
+  --chart-6: #f472b6;
+  --chart-7: #2dd4bf;
+  --chart-8: #a1a1aa;
+  /* Forma */
+  --radius-card: 14px;
+  --radius-control: 10px;
+  --radius-sm: 8px;
   --radius-pill: 999px;
+  --shadow-overlay: 0 24px 64px rgb(0 0 0 / 55%);
+  /* Medidas */
+  --control-height: 42px;
+  --button-height: 40px;
+  --header-height: 56px;
+  --nav-height: 64px;
+  --sidebar-width: 240px;
+  --content-width: 1280px;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -48,46 +84,56 @@
   --space-5: 20px;
   --space-6: 24px;
   --space-8: 32px;
+  /* Tipografia */
+  --font-page-title: 700 24px/1.2 Inter, ui-sans-serif, system-ui, sans-serif;
   --text-xs: 12px;
   --text-sm: 13px;
-  --text-md: 15px;
-  --text-lg: 17px;
+  --text-md: 14px;
+  --text-lg: 16px;
   --text-xl: 20px;
-  --text-2xl: 26px;
-  --text-3xl: 34px;
-  --nav-height: 68px;
-  --content-width: 1080px;
+  --text-kpi: clamp(26px, 2.2vw + 14px, 32px);
+  --transition-fast: 150ms ease;
+
   min-height: 100vh;
-  color: var(--color-text);
-  background: var(--color-bg);
-  transition: color .2s ease, background-color .2s ease;
+  color: var(--text-primary);
+  background: var(--bg-app);
 }
 
 .app-shell[data-theme="light"] {
   color-scheme: light;
-  --color-bg: #f3f5f4;
-  --color-surface: #ffffff;
-  --color-surface-raised: #f6f8f7;
-  --color-surface-sunken: #eef1ef;
-  --color-text: #111814;
-  --color-muted: #5b665f;
-  --color-line: rgb(17 24 20 / 9%);
-  --color-line-strong: rgb(17 24 20 / 16%);
-  --color-accent: #126f35;
-  --color-accent-strong: #15803d;
-  --color-accent-soft: rgb(22 163 74 / 9%);
-  --color-on-accent: #ffffff;
-  --color-focus: #166534;
-  --color-income: #047857;
-  --color-income-soft: rgb(4 120 87 / 9%);
-  --color-expense: #c2410c;
-  --color-expense-soft: rgb(194 65 12 / 8%);
-  --color-info: #1d4ed8;
-  --color-info-soft: rgb(29 78 216 / 8%);
-  --color-warning: #a16207;
-  --color-warning-soft: rgb(161 98 7 / 10%);
-  --shadow-card: 0 1px 2px rgb(17 24 20 / 4%), 0 8px 24px rgb(17 24 20 / 6%);
-  --shadow-float: 0 16px 40px rgb(17 24 20 / 16%);
+  --bg-app: #f4f4f5;
+  --bg-surface: #ffffff;
+  --bg-elevated: #ededf0;
+  --bg-sidebar: #ffffff;
+  --bg-input: #ffffff;
+  --bg-nav: rgb(255 255 255 / 92%);
+  --bg-overlay: rgb(9 9 11 / 40%);
+  --border-subtle: #e4e4e7;
+  --border-focus: #a1a1aa;
+  --accent-primary: #047857;
+  --accent-primary-hover: #065f46;
+  --accent-primary-soft: rgb(4 120 87 / 10%);
+  --accent-on-soft: #065f46;
+  --accent-secondary: #4f46e5;
+  --accent-secondary-text: #4f46e5;
+  --accent-secondary-soft: rgb(79 70 229 / 10%);
+  --text-on-accent: #ffffff;
+  --focus-ring: #047857;
+  --text-primary: #18181b;
+  --text-secondary: #52525b;
+  --text-muted: #71717a;
+  --positive: #166534;
+  --positive-bg: rgb(22 101 52 / 10%);
+  --negative: #b91c1c;
+  --negative-on-soft: #b91c1c;
+  --negative-bg: rgb(185 28 28 / 10%);
+  --warning: #92400e;
+  --warning-bg: rgb(146 64 14 / 10%);
+  --chart-income: #059669;
+  --chart-expense: #6366f1;
+  --chart-grid: #e4e4e7;
+  --chart-8: #71717a;
+  --shadow-overlay: 0 24px 64px rgb(9 9 11 / 18%);
 }
 
 .app-shell *,
@@ -106,8 +152,8 @@
 .app-shell textarea:focus-visible,
 .app-shell summary:focus-visible,
 .app-shell [tabindex]:focus-visible {
-  outline: 2px solid var(--color-focus);
-  outline-offset: 3px;
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -273,25 +273,28 @@ test("renders authenticated sections with accessible navigation in dark and ligh
   await page.goto("/");
   const shell = page.locator(".app-shell");
   await expect(shell).toHaveAttribute("data-theme", "dark");
-  await expect(page.locator(".bottom-nav")).toBeVisible();
+  await expect(page.locator(".app-main")).toBeVisible();
 
+  // Desktop (Chromium 1280px) usa a barra lateral; iPhone usa a navegação inferior.
+  const isMobile = test.info().project.name === "webkit-iphone";
+  const openNav = (id: string) => page.locator(`[data-nav="${id}"]:visible`).first().click();
   const tabs = [
-    { name: "Início", selector: ".overview-grid" },
-    { name: "Gastos", selector: "#gastos" },
-    { name: "Patrimônio", selector: "#patrimonio" },
-    { name: "Conta", selector: "#conta" },
+    { nav: "inicio", selector: ".overview-grid" },
+    { nav: "lancamentos", selector: "#gastos" },
+    { nav: "investimentos", selector: "#patrimonio" },
+    { nav: "ajustes", selector: "#conta" },
   ];
 
   for (const theme of ["dark", "light"] as const) {
     if (theme === "light") {
-      await page.getByRole("button", { name: "Conta", exact: true }).click();
+      await openNav("ajustes");
       await page.getByRole("button", { name: /Personalização/ }).click();
       await expect(shell).toHaveAttribute("data-theme", "light");
     }
     for (const tab of tabs) {
-      await page.getByRole("button", { name: tab.name, exact: true }).click();
+      await openNav(tab.nav);
       await expect(page.locator(tab.selector)).toBeVisible();
-      if (tab.name === "Gastos") {
+      if (tab.nav === "lancamentos") {
         await page.getByRole("tab", { name: "Contas", exact: true }).click();
         const drawer = page.locator("#gastos-contas details.management-drawer").first();
         await drawer.locator("summary").click();
@@ -301,7 +304,7 @@ test("renders authenticated sections with accessible navigation in dark and ligh
         const openingBalanceField = drawer.getByLabel("Saldo inicial (R$)");
         await openingBalanceField.fill("1.234,56");
         await expect(openingBalanceField).toHaveValue("1.234,56");
-        if (test.info().project.name === "webkit-iphone") {
+        if (isMobile) {
           await expect(openingBalanceField).toHaveCSS("font-size", "16px");
         }
         if (test.info().project.name === "chromium-desktop") {
@@ -315,45 +318,66 @@ test("renders authenticated sections with accessible navigation in dark and ligh
         } else {
           await drawer.locator("summary").click();
         }
+        // Volta para a sub-aba de lançamentos, que é o destino ativo esperado.
+        await page.getByRole("tab", { name: "Lançamentos", exact: true }).click();
       }
-      if (tab.name === "Início") await expect(page.locator(".overview-balance strong")).toContainText("123,45");
-      if (tab.name === "Conta") await expect(page.locator(".account-profile-card")).toBeVisible();
-      const dock = page.locator(".bottom-nav");
-      // O dock recolhe na descida e reaparece ao voltar para cima.
-      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-      await expect(dock).toHaveClass(/is-hidden/);
-      await expect(dock).toBeHidden();
-      await expect(dock).toHaveAttribute("aria-hidden", "true");
-      await page.evaluate(() => window.scrollTo(0, 0));
-      await expect(dock).not.toHaveClass(/is-hidden/);
-      await expect(dock).toBeVisible();
-      await expect(dock).toHaveAttribute("aria-hidden", "false");
-      await page.waitForFunction(() => {
-        const element = document.querySelector(".bottom-nav");
-        if (!element) return false;
-        return element.getBoundingClientRect().bottom <= window.innerHeight + 1;
-      });
-      const dockBox = await dock.boundingBox();
+      if (tab.nav === "inicio") await expect(page.locator(".overview-balance-value")).toContainText("123,45");
+      if (tab.nav === "ajustes") await expect(page.locator(".account-profile-card")).toBeVisible();
       const viewport = page.viewportSize();
-      if (!dockBox || !viewport) throw new Error("Não foi possível medir a navegação inferior.");
-      expect(dockBox.x).toBeGreaterThanOrEqual(0);
-      expect(dockBox.x + dockBox.width).toBeLessThanOrEqual(viewport.width + 1);
-      expect(dockBox.y + dockBox.height).toBeLessThanOrEqual(viewport.height + 1);
-      const touchTargets = await dock.locator("button").evaluateAll((buttons) =>
-        buttons.map((button) => {
-          const rect = button.getBoundingClientRect();
-          return { width: rect.width, height: rect.height };
-        }),
-      );
-      expect(touchTargets).toHaveLength(4);
-      expect(touchTargets.every((target) => target.width >= 44 && target.height >= 44)).toBe(true);
-      await expect(page.getByRole("button", { name: tab.name, exact: true })).toHaveAttribute("aria-current", "page");
-      const activeNavButton = dock.locator("button.active");
-      await expect(activeNavButton).toHaveCount(1);
-      await expect(activeNavButton).toHaveAttribute("aria-current", "page");
-      await expect(activeNavButton).toContainText(tab.name);
-      const dockPaddingBottom = await dock.evaluate((element) => getComputedStyle(element).paddingBottom);
-      expect(Number.parseFloat(dockPaddingBottom)).toBeLessThanOrEqual(8);
+      if (!viewport) throw new Error("Não foi possível medir a janela.");
+
+      if (isMobile) {
+        const dock = page.locator(".bottom-nav");
+        await expect(page.locator(".sidebar")).toBeHidden();
+        // O dock recolhe na descida e reaparece ao voltar para cima.
+        await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+        await expect(dock).toHaveClass(/is-hidden/);
+        await expect(dock).toBeHidden();
+        await expect(dock).toHaveAttribute("aria-hidden", "true");
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await expect(dock).not.toHaveClass(/is-hidden/);
+        await expect(dock).toBeVisible();
+        await expect(dock).toHaveAttribute("aria-hidden", "false");
+        await page.waitForFunction(() => {
+          const element = document.querySelector(".bottom-nav");
+          if (!element) return false;
+          return element.getBoundingClientRect().bottom <= window.innerHeight + 1;
+        });
+        const dockBox = await dock.boundingBox();
+        if (!dockBox) throw new Error("Não foi possível medir a navegação inferior.");
+        expect(dockBox.x).toBeGreaterThanOrEqual(0);
+        expect(dockBox.x + dockBox.width).toBeLessThanOrEqual(viewport.width + 1);
+        expect(dockBox.y + dockBox.height).toBeLessThanOrEqual(viewport.height + 1);
+        const touchTargets = await dock.locator("button").evaluateAll((buttons) =>
+          buttons.map((button) => {
+            const rect = button.getBoundingClientRect();
+            return { width: rect.width, height: rect.height };
+          }),
+        );
+        expect(touchTargets).toHaveLength(5);
+        expect(touchTargets.every((target) => target.width >= 44 && target.height >= 44)).toBe(true);
+        const activeNavButton = dock.locator("button.active");
+        await expect(activeNavButton).toHaveCount(1);
+        await expect(activeNavButton).toHaveAttribute("aria-current", "page");
+        await expect(activeNavButton).toHaveAttribute("data-nav", tab.nav);
+        const dockPaddingBottom = await dock.evaluate((element) => getComputedStyle(element).paddingBottom);
+        expect(Number.parseFloat(dockPaddingBottom)).toBeLessThanOrEqual(8);
+      } else {
+        const sidebar = page.locator(".sidebar");
+        await expect(sidebar).toBeVisible();
+        await expect(page.locator(".bottom-nav")).toBeHidden();
+        const sidebarBox = await sidebar.boundingBox();
+        const mainBox = await page.locator(".app-main").boundingBox();
+        if (!sidebarBox || !mainBox) throw new Error("Não foi possível medir o layout de desktop.");
+        expect(Math.round(sidebarBox.width)).toBe(240);
+        expect(mainBox.x).toBeGreaterThanOrEqual(sidebarBox.x + sidebarBox.width - 1);
+        const activeItem = sidebar.locator("button.active");
+        await expect(activeItem).toHaveCount(1);
+        await expect(activeItem).toHaveAttribute("aria-current", "page");
+        await expect(activeItem).toHaveAttribute("data-nav", tab.nav);
+        const itemHeights = await sidebar.locator("button").evaluateAll((buttons) => buttons.map((button) => button.getBoundingClientRect().height));
+        expect(itemHeights.every((height) => height >= 40)).toBe(true);
+      }
       const dimensions = await page.evaluate(() => ({
         viewport: document.documentElement.clientWidth,
         content: document.documentElement.scrollWidth,
@@ -369,7 +393,7 @@ test("renders authenticated sections with accessible navigation in dark and ligh
           help: violation.help,
           targets: violation.nodes.map((node) => node.target),
         })),
-        `Acessibilidade da área ${tab.name} no tema ${theme}`,
+        `Acessibilidade da área ${tab.nav} no tema ${theme}`,
       ).toEqual([]);
     }
   }

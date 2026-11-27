@@ -1,4 +1,4 @@
-const CACHE_NAME = "granaviva-shell-v11";
+const CACHE_NAME = "granaviva-shell-v12";
 const SHELL = ["/manifest.webmanifest", "/icon.svg", "/apple-touch-icon.png"];
 
 self.addEventListener("install", (event) => {
