@@ -14,6 +14,8 @@ import { parseCsvStatement, parseOfxStatement, planImportBatch, type ImportRow }
 import { calculateAccountBalance, calculateCardCommittedLimitCents, calculateInvoice, type InvoicePayment, type LedgerEntry } from "./domain/finance";
 import { ReceivablesPanel } from "./features/receivables/ReceivablesPanel";
 import { IncomeGoalsPanel } from "./features/income-goals/IncomeGoalsPanel";
+import OverviewDashboard from "./components/dashboard/OverviewDashboard";
+import "./components/dashboard/overview-dashboard.css";
 type PushSubscriptionRow = { id: string; endpoint: string; user_agent: string | null };
 type WhatsappLinkState = { phone: string; weekly_summary_enabled: boolean };
 type RadarFireRow = { alert_key: string; fired_at: string; observed_price: string; source: string | null; quote_observed_at: string | null };
@@ -1779,83 +1781,25 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
           </section>
         ) : (
           <section className="dashboard" aria-labelledby="dashboard-title">
-            {activeTab === "inicio" && (() => {
-              const liquidAccounts = accounts.filter((account) => account.account_type !== "investment");
-              const balance = liquidAccounts.reduce((sum, account) => sum + (accountBalances[account.id] ?? 0), 0);
-              const monthKey = currentBudgetDate.slice(0, 7);
-              const monthRows = transactions.filter((item) => item.status === "paid" && item.transaction_date.startsWith(monthKey));
-              const income = monthRows.filter((item) => item.kind === "income").reduce((sum, item) => sum + Number(item.amount), 0);
-              const expense = monthRows.filter((item) => item.kind === "expense").reduce((sum, item) => sum + Number(item.amount), 0);
-              const net = income - expense;
-              const investedTotals = investmentAssets.reduce((sum, asset) => {
-                const summary = investmentSummary(asset.id);
-                const currentPrice = asset.current_price == null ? null : Number(asset.current_price);
-                const amount = summary.quantity > 0 ? (currentPrice != null && currentPrice > 0 ? currentPrice * summary.quantity : Number(summary.costBasisCents) / 100) : 0;
-                if (asset.currency === "USD") sum.usd += amount; else sum.brl += amount;
-                return sum;
-              }, { brl: 0, usd: 0 });
-              const investedBrl = financialSummary?.investment_reference_brl == null ? investedTotals.brl : Number(financialSummary.investment_reference_brl);
-              const investedUsd = financialSummary?.investment_reference_usd == null ? investedTotals.usd : Number(financialSummary.investment_reference_usd);
-              const reference = new Date(currentBudgetDate + "T12:00:00");
-              const months = Array.from({ length: 6 }, (_, index) => {
-                const date = new Date(reference.getFullYear(), reference.getMonth() - (5 - index), 1, 12);
-                const key = String(date.getFullYear()) + "-" + String(date.getMonth() + 1).padStart(2, "0");
-                const rows = transactions.filter((item) => item.status === "paid" && item.transaction_date.startsWith(key));
-                return { key, label: new Intl.DateTimeFormat("pt-BR", { month: "short" }).format(date).replace(".", ""), income: rows.filter((item) => item.kind === "income").reduce((sum, item) => sum + Number(item.amount), 0), expense: rows.filter((item) => item.kind === "expense").reduce((sum, item) => sum + Number(item.amount), 0) };
-              });
-              const maxFlow = Math.max(1, ...months.flatMap((month) => [month.income, month.expense]));
-              const hide = (text: string) => balancesHidden ? "R$ ••••••" : text;
-              const firstName = (profile?.display_name || "").trim().split(/\s+/)[0];
-              const hour = Number(new Intl.DateTimeFormat("pt-BR", { hour: "numeric", hour12: false, timeZone: "America/Sao_Paulo" }).format(new Date()));
-              const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
-              return <section className="overview-grid" aria-label="Resumo financeiro">
-                <div className="dashboard-heading" id="inicio"><span className="eyebrow-muted">{greeting}{firstName ? "," : ""}</span><h1 id="dashboard-title">{firstName || "Visão geral"}</h1></div>
-                <article className="overview-balance">
-                  <div className="overview-label"><span>Saldo disponível</span><button className="icon-button on-hero" type="button" aria-label={balancesHidden ? "Mostrar saldos" : "Ocultar saldos"} aria-pressed={balancesHidden} onClick={() => setBalancesHidden((hidden) => !hidden)}>{balancesHidden ? <EyeOff size={18} /> : <Eye size={18} />}</button></div>
-                  <strong className="overview-balance-value">{hide(formatBRL(balance))}</strong>
-                  <small>{liquidAccounts.length} {liquidAccounts.length === 1 ? "conta" : "contas"} · {cards.length} {cards.length === 1 ? "cartão" : "cartões"}</small>
-                  <div className="overview-balance-split">
-                    <div><span><ArrowDownLeft size={14} /> Entradas no mês</span><b>{hide(formatBRL(income))}</b></div>
-                    <div><span><ArrowUpRight size={14} /> Saídas no mês</span><b>{hide(formatBRL(expense))}</b></div>
-                  </div>
-                </article>
-                <div className="quick-actions-grid" aria-label="Ações rápidas">
-                  <button type="button" onClick={() => openTransactionForm("expense")}><span className="quick-action-icon is-expense"><ArrowUpRight size={20} /></span><span>Despesa</span></button>
-                  <button type="button" onClick={() => openTransactionForm("income")}><span className="quick-action-icon is-income"><ArrowDownLeft size={20} /></span><span>Receita</span></button>
-                  <button type="button" onClick={() => setQuickEntryOpen(true)}><span className="quick-action-icon"><Plus size={20} /></span><span>Mais</span></button>
-                  <button type="button" onClick={() => goTo("planejamento")}><span className="quick-action-icon is-goal"><Target size={20} /></span><span>Metas</span></button>
-                </div>
-                <div className="overview-stats">
-                  <button type="button" className="overview-stat" onClick={() => goTo("relatorios")}>
-                    <span>Resultado do mês</span>
-                    <strong className={net >= 0 ? "amount-income" : "amount-expense"}>{balancesHidden ? "••••" : (net >= 0 ? "+" : "−") + formatBRL(Math.abs(net))}</strong>
-                    <small>Ver relatório <ChevronRight size={14} /></small>
-                  </button>
-                  <button type="button" className="overview-stat" onClick={() => goTo("patrimonio")}>
-                    <span>Investido</span>
-                    <strong>{hide(formatBRL(investedBrl))}</strong>
-                    <small>{investedUsd > 0 ? (balancesHidden ? "US$ ••••" : new Intl.NumberFormat("pt-BR", { style: "currency", currency: "USD" }).format(investedUsd) + " em USD") : "Separado do saldo"} <ChevronRight size={14} /></small>
-                  </button>
-                </div>
-                <article className="overview-recent card">
-                  <div className="card-heading"><h2>Últimos lançamentos</h2><button className="link-button" type="button" onClick={() => goTo("gastos", { view: "lancamentos" })}>Ver todos <ChevronRight size={15} /></button></div>
-                  {transactions.length === 0 ? <div className="empty-state"><p>Seus lançamentos aparecerão aqui.</p><button className="secondary-button" type="button" onClick={() => openTransactionForm("expense")}>Registrar o primeiro</button></div> : <ul className="recent-list">{transactions.slice(0, 5).map((item) => {
-                    const category = categories.find((entry) => entry.id === item.category_id);
-                    return <li key={item.id}>
-                      <span className={"tx-icon " + (item.kind === "income" ? "is-income" : item.kind === "transfer" ? "is-transfer" : "is-expense")} aria-hidden="true">{category?.icon ?? (item.kind === "income" ? <ArrowDownLeft size={18} /> : item.kind === "transfer" ? <ArrowLeftRight size={18} /> : <ArrowUpRight size={18} />)}</span>
-                      <span className="recent-description"><strong>{item.description}</strong><small>{item.kind === "transfer" ? "Transferência" : category?.name ?? (item.kind === "income" ? "Receita" : "Despesa")} · {formatDateBR(item.transaction_date)}{item.status === "planned" ? " · previsto" : ""}</small></span>
-                      <strong className={item.kind === "income" ? "amount-income" : item.kind === "transfer" ? "amount-neutral" : "amount-expense"}>{balancesHidden ? "••••" : (item.kind === "income" ? "+" : item.kind === "expense" ? "−" : "") + formatBRL(item.amount)}</strong>
-                    </li>;
-                  })}</ul>}
-                </article>
-                <article className="overview-flow card">
-                  <div className="card-heading"><h2>Últimos 6 meses</h2><span className="card-caption">Valores realizados</span></div>
-                  <div className="cashflow-chart" role="img" aria-label="Comparação mensal entre receitas e despesas nos últimos seis meses">{months.map((month) => <div className="cashflow-month" key={month.key}><div className="cashflow-bars"><span className="cashflow-income" style={{ height: Math.max(2, month.income / maxFlow * 100) + "%" }} title={"Receitas: " + formatBRL(month.income)} /><span className="cashflow-expense" style={{ height: Math.max(2, month.expense / maxFlow * 100) + "%" }} title={"Despesas: " + formatBRL(month.expense)} /></div><small>{month.label}</small></div>)}</div>
-                  <div className="cashflow-legend"><span><i className="cashflow-income" /> Receitas</span><span><i className="cashflow-expense" /> Despesas</span></div>
-                </article>
-                <button className="overview-action" type="button" onClick={() => goTo("gastos", { view: "contas" })}><WalletCards size={18} /> Organizar contas e cartões <ChevronRight size={16} /></button>
-              </section>;
-            })()}
+            {activeTab === "inicio" && <div className="dashboard-heading dashboard-heading-compact" id="inicio"><h1 id="dashboard-title" className="sr-only">Visão geral</h1></div>}
+            {activeTab === "inicio" && <OverviewDashboard
+              balance={accounts.filter((account) => account.account_type !== "investment").reduce((sum, account) => sum + (accountBalances[account.id] ?? 0), 0)}
+              accountCount={accounts.filter((account) => account.account_type !== "investment").length}
+              balancesHidden={balancesHidden}
+              onToggleBalances={() => setBalancesHidden((hidden) => !hidden)}
+              investedBrl={financialSummary?.investment_reference_brl == null ? investmentAssets.reduce((sum, asset) => { if (asset.currency === "USD") return sum; const summary = investmentSummary(asset.id); const price = asset.current_price == null ? null : Number(asset.current_price); return sum + (summary.quantity > 0 ? (price != null && price > 0 ? price * summary.quantity : Number(summary.costBasisCents) / 100) : 0); }, 0) : Number(financialSummary.investment_reference_brl)}
+              investedUsd={financialSummary?.investment_reference_usd == null ? investmentAssets.reduce((sum, asset) => { if (asset.currency !== "USD") return sum; const summary = investmentSummary(asset.id); const price = asset.current_price == null ? null : Number(asset.current_price); return sum + (summary.quantity > 0 ? (price != null && price > 0 ? price * summary.quantity : Number(summary.costBasisCents) / 100) : 0); }, 0) : Number(financialSummary.investment_reference_usd)}
+              income={transactions.filter((item) => item.status === "paid" && item.transaction_date.startsWith(currentBudgetDate.slice(0, 7)) && item.kind === "income").reduce((sum, item) => sum + Number(item.amount), 0)}
+              expense={transactions.filter((item) => item.status === "paid" && item.transaction_date.startsWith(currentBudgetDate.slice(0, 7)) && item.kind === "expense").reduce((sum, item) => sum + Number(item.amount), 0)}
+              transactions={transactions.slice(0, 4)}
+              cashflow={Array.from({ length: 6 }, (_, index) => { const reference = new Date(currentBudgetDate + "T12:00:00"); const date = new Date(reference.getFullYear(), reference.getMonth() - (5 - index), 1, 12); const key = String(date.getFullYear()) + "-" + String(date.getMonth() + 1).padStart(2, "0"); const rows = transactions.filter((item) => item.status === "paid" && item.transaction_date.startsWith(key)); return { key, label: new Intl.DateTimeFormat("pt-BR", { month: "short" }).format(date).replace(".", ""), income: rows.filter((item) => item.kind === "income").reduce((sum, item) => sum + Number(item.amount), 0), expense: rows.filter((item) => item.kind === "expense").reduce((sum, item) => sum + Number(item.amount), 0) }; })}
+              onAddExpense={() => { setTxKind("expense"); setTxPaymentMethod("pix"); setTxAccountId(""); setTxCardId(""); setQuickEntryOpen(true); }}
+              onAddIncome={() => { setTxKind("income"); setTxPaymentMethod("pix"); setTxAccountId(""); setTxCardId(""); setQuickEntryOpen(true); }}
+              onGoals={() => setActiveTab("planejamento")}
+              onReports={() => setActiveTab("relatorios")}
+              onTransactions={() => { setNavHidden(false); setActiveTab("gastos"); }}
+              onManage={() => setActiveTab("gastos")}
+            />}
             <section className="panel privacy-panel" hidden={activeTab !== "conta"} id="conta" aria-labelledby="privacy-title">
               <div className="panel-heading"><div><span className="principles-label">PRIVACIDADE E CONTROLE</span><h2 id="privacy-title">Seus dados e sua conta</h2><p>Exporte uma cópia dos seus dados ou solicite a exclusão permanente da conta e dos comprovantes privados.</p></div></div>
               <div className="account-profile-card">
