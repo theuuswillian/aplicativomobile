@@ -6,7 +6,9 @@ import { CategoryIcon } from "../../components/categories/CategoryIcon";
 import { formatBRL, decimalToCents } from "../../lib/money";
 import { formatDateBR } from "../../lib/date";
 import { formatCents, formatCompactCurrency } from "../../lib/format";
-import { expensesByCategory, monthKeyOf, monthlyFlow, monthTotals, percentChange, previousMonthKey } from "../../lib/finance-metrics";
+import { expensesByCategory, monthKeyOf, monthlyFlow, monthTotals, percentChange, previousMonthKey, trendSeries } from "../../lib/finance-metrics";
+import { useMediaQuery } from "../../lib/use-media-query";
+import { OverviewHero } from "./OverviewHero";
 import { Badge, Button, Card, EmptyState, GoalProgress, KpiCard, KpiSkeleton, ListSkeleton, ProgressBar } from "../../components/ui";
 import { CashflowChart } from "../../components/charts/CashflowChart";
 import { DonutChart } from "../../components/charts/DonutChart";
@@ -60,6 +62,12 @@ export function DashboardOverview(props: DashboardOverviewProps) {
   const expenseTrend = percentChange(current.expense, previous.expense);
   const flowHasData = flow.some((point) => point.income > 0 || point.expense > 0);
   const netSeries = flow.reduce<number[]>((series, point) => [...series, (series[series.length - 1] ?? 0) + point.income - point.expense], []);
+  // Minilinhas só com 3+ meses de movimento; com pouca história elas mais confundem do que informam.
+  const flowActivity = flow.map((point) => point.income + point.expense);
+  const balanceSpark = trendSeries(netSeries, flowActivity);
+  const incomeSpark = trendSeries(flow.map((point) => point.income));
+  const expenseSpark = trendSeries(flow.map((point) => point.expense));
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
   const budgetRows = (props.budgets ?? []).map((budget) => {
     const category = categories.find((item) => item.id === budget.category_id);
     const spent = (props.budgetSpend ?? []).filter((item) => item.category_id === budget.category_id).reduce((total, item) => total + Number(decimalToCents(item.settled_amount)), 0);
@@ -69,24 +77,29 @@ export function DashboardOverview(props: DashboardOverviewProps) {
   const centsLabel = (cents: number) => balancesHidden ? "••••" : formatCents(BigInt(Math.round(cents)));
 
   return <section className="overview-grid" aria-label="Resumo financeiro">
-    <div className="kpi-grid" aria-busy={loading ? "true" : "false"}>
+    {isDesktop ? <div className="kpi-grid" aria-busy={loading ? "true" : "false"}>
       {loading ? <><KpiSkeleton /><KpiSkeleton /><KpiSkeleton /><KpiSkeleton /></> : <>
         <KpiCard className="overview-balance" valueClassName="overview-balance-value" label="Saldo atual" icon={Wallet}
-          spark={!balancesHidden && flowHasData ? netSeries : undefined} sparkLabel="Resultado acumulado dos últimos 6 meses"
+          spark={!balancesHidden ? balanceSpark : null} sparkLabel="Resultado acumulado dos últimos meses"
           value={hide(formatBRL(balance))}
           hint={<>{liquidAccounts.length} {liquidAccounts.length === 1 ? "conta" : "contas"} · resultado do mês <b className={current.net >= 0 ? "amount-income" : "amount-expense"}>{balancesHidden ? "••••" : (current.net >= 0 ? "+" : "−") + formatBRL(Math.abs(current.net))}</b></>} />
         <KpiCard label="Receitas do mês" icon={ArrowDownLeft} value={hide(formatBRL(current.income))}
-          spark={!balancesHidden && flowHasData ? flow.map((point) => point.income) : undefined} sparkTone="income" sparkLabel="Receitas dos últimos 6 meses"
-          trend={!balancesHidden && incomeTrend !== null ? { percent: incomeTrend, higherIsBetter: true, caption: "vs. mês anterior" } : null}
-          hint={balancesHidden ? "Valores ocultos" : "Sem base no mês anterior"} />
+          spark={!balancesHidden ? incomeSpark : null} sparkTone="income" sparkLabel="Receitas dos últimos meses"
+          trend={!balancesHidden && incomeTrend !== null ? { percent: incomeTrend, higherIsBetter: true, caption: "vs. mês anterior" } : null} />
         <KpiCard label="Despesas do mês" icon={ArrowUpRight} value={hide(formatBRL(current.expense))}
-          spark={!balancesHidden && flowHasData ? flow.map((point) => point.expense) : undefined} sparkTone="expense" sparkLabel="Despesas dos últimos 6 meses"
-          trend={!balancesHidden && expenseTrend !== null ? { percent: expenseTrend, higherIsBetter: false, caption: "vs. mês anterior" } : null}
-          hint={balancesHidden ? "Valores ocultos" : "Sem base no mês anterior"} />
+          spark={!balancesHidden ? expenseSpark : null} sparkTone="expense" sparkLabel="Despesas dos últimos meses"
+          trend={!balancesHidden && expenseTrend !== null ? { percent: expenseTrend, higherIsBetter: false, caption: "vs. mês anterior" } : null} />
         <KpiCard label="Patrimônio investido" icon={TrendingUp} value={hide(formatBRL(investedBrl))}
           hint={investedUsd > 0 ? (balancesHidden ? "US$ •••• em USD" : new Intl.NumberFormat("pt-BR", { style: "currency", currency: "USD" }).format(investedUsd) + " em USD") : "Separado do saldo livre"} />
       </>}
-    </div>
+    </div> : <div className="overview-top" aria-busy={loading ? "true" : "false"}>
+      <OverviewHero loading={loading} balancesHidden={balancesHidden} balance={balance} accountCount={liquidAccounts.length} monthNet={current.net}
+        income={current.income} expense={current.expense}
+        incomeTrend={incomeTrend !== null ? { percent: incomeTrend, higherIsBetter: true } : null}
+        expenseTrend={expenseTrend !== null ? { percent: expenseTrend, higherIsBetter: false } : null}
+        balanceSpark={balanceSpark} investedBrl={investedBrl} investedUsd={investedUsd}
+        onOpenInvestments={props.onOpenInvestments} onNewTransaction={props.onNewTransaction} />
+    </div>}
 
     <Card className="overview-flow" title="Fluxo mensal" titleId="overview-flow-title" icon={BarChart3} caption="Receitas e despesas realizadas · 6 meses"
       action={<button className="link-button" type="button" onClick={props.onOpenReports}>Relatório <ChevronRight size={16} strokeWidth={1.75} aria-hidden="true" /></button>}>

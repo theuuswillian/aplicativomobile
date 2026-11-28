@@ -20,8 +20,8 @@ type KpiCardProps = {
   action?: ReactNode;
   className?: string;
   valueClassName?: string;
-  /** Série dos últimos meses para a minilinha de tendência. */
-  spark?: readonly number[];
+  /** Série dos últimos meses para a minilinha de tendência (null/undefined = sem minilinha). */
+  spark?: readonly number[] | null;
   sparkTone?: "income" | "expense" | "neutral";
   sparkLabel?: string;
 };
@@ -33,10 +33,7 @@ export function KpiCard({ label, value, icon: Icon, trend, hint, action, classNa
   return <article className={["kpi-card", className].filter(Boolean).join(" ")}>
     <div className="kpi-card-top">
       <span className="kpi-label">{label}</span>
-      <span className="kpi-card-top-end">
-        {spark && spark.length > 1 && <Sparkline values={spark} tone={sparkTone} width={64} height={26} label={sparkLabel ?? `Tendência de ${label.toLowerCase()}`} />}
-        {action ?? (Icon && <span className="kpi-icon" aria-hidden="true"><Icon size={18} strokeWidth={1.75} /></span>)}
-      </span>
+      {action ?? (Icon && <span className="kpi-icon" aria-hidden="true"><Icon size={18} strokeWidth={1.75} /></span>)}
     </div>
     <strong className={["kpi-value", valueClassName].filter(Boolean).join(" ")}>{value}</strong>
     <div className="kpi-foot">
@@ -47,6 +44,7 @@ export function KpiCard({ label, value, icon: Icon, trend, hint, action, classNa
       </span>}
       {trend && <span className="kpi-hint" aria-hidden="true">{trend.caption}</span>}
       {!trend && hint && <span className="kpi-hint">{hint}</span>}
+      {spark && spark.length > 1 && <Sparkline className="kpi-spark" values={spark} tone={sparkTone} width={72} height={24} label={sparkLabel ?? `Tendência de ${label.toLowerCase()}`} />}
     </div>
   </article>;
 }
