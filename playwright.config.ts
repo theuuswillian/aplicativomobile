@@ -13,6 +13,8 @@ export default defineConfig({
   projects: [
     { name: "chromium-desktop", use: { ...devices["Desktop Chrome"] } },
     { name: "webkit-iphone", use: { ...devices["iPhone 13"] } },
+    // Mesmo perfil de iPhone (viewport, toque, DPR) no Chromium: útil onde o WebKit não está disponível.
+    { name: "chromium-iphone", use: { ...devices["iPhone 13"], browserName: "chromium" } },
   ],
   webServer: {
     command: "npm run preview -- --host 127.0.0.1",

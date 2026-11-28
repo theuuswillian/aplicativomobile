@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { ArrowDownRight, ArrowUpRight, type LucideIcon } from "lucide-react";
 import { formatSignedPercent } from "../../lib/format";
+import { Sparkline } from "./Sparkline";
 
 type Trend = {
   /** Variação percentual já calculada a partir de dados reais. */
@@ -19,16 +20,23 @@ type KpiCardProps = {
   action?: ReactNode;
   className?: string;
   valueClassName?: string;
+  /** Série dos últimos meses para a minilinha de tendência. */
+  spark?: readonly number[];
+  sparkTone?: "income" | "expense" | "neutral";
+  sparkLabel?: string;
 };
 
 /** Indicador principal: rótulo, valor em destaque (28–32px), variação e dica. */
-export function KpiCard({ label, value, icon: Icon, trend, hint, action, className, valueClassName }: KpiCardProps) {
+export function KpiCard({ label, value, icon: Icon, trend, hint, action, className, valueClassName, spark, sparkTone = "neutral", sparkLabel }: KpiCardProps) {
   const direction = trend ? (trend.percent > 0 ? "up" : trend.percent < 0 ? "down" : "flat") : null;
   const good = trend && direction !== "flat" ? (direction === "up") === trend.higherIsBetter : null;
   return <article className={["kpi-card", className].filter(Boolean).join(" ")}>
     <div className="kpi-card-top">
       <span className="kpi-label">{label}</span>
-      {action ?? (Icon && <span className="kpi-icon" aria-hidden="true"><Icon size={18} strokeWidth={1.75} /></span>)}
+      <span className="kpi-card-top-end">
+        {spark && spark.length > 1 && <Sparkline values={spark} tone={sparkTone} width={64} height={26} label={sparkLabel ?? `Tendência de ${label.toLowerCase()}`} />}
+        {action ?? (Icon && <span className="kpi-icon" aria-hidden="true"><Icon size={18} strokeWidth={1.75} /></span>)}
+      </span>
     </div>
     <strong className={["kpi-value", valueClassName].filter(Boolean).join(" ")}>{value}</strong>
     <div className="kpi-foot">

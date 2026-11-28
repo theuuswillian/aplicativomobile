@@ -9,7 +9,11 @@ const today = new Date(new Date().toLocaleString("en-US", { timeZone: "America/S
 const iso = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 const monthStart = iso(new Date(today.getFullYear(), today.getMonth(), 1));
 
-const openNav = (page: Page, id: string) => page.locator(`[data-nav="${id}"]:visible`).first().click();
+const openNav = async (page: Page, id: string) => {
+  const menu = page.getByRole("button", { name: "Abrir menu" });
+  if (await menu.isVisible()) await menu.click();
+  await page.locator(`.sidebar [data-nav="${id}"]`).click();
+};
 
 async function signIn(page: Page, posts: Array<{ table: string; body: Record<string, unknown> }>) {
   const user = { id: USER_ID, aud: "authenticated", role: "authenticated", email: "teste@granaviva.invalid", app_metadata: { provider: "email" }, user_metadata: {}, created_at: "2026-01-01T00:00:00Z" };
@@ -105,4 +109,77 @@ test("telas autenticadas não têm rolagem horizontal do celular ao desktop larg
       expect(overflow, `rolagem horizontal em ${destination} com ${width}px`).toBeLessThanOrEqual(0);
     }
   }
+});
+
+test("gaveta abre arrastando da borda esquerda e fecha arrastando para a esquerda ou tocando fora", async ({ page }) => {
+  test.skip(test.info().project.name === "chromium-desktop", "Gesto de gaveta é só do layout mobile.");
+  test.skip(test.info().project.name.startsWith("webkit"), "O WebKit de desktop não permite construir Touch sintético; o gesto é coberto no perfil chromium-iphone.");
+  await signIn(page, []);
+  await page.goto("/");
+  await expect(page.locator(".overview-balance-value")).toContainText("2.500,75");
+  const sidebar = page.locator(".sidebar");
+  await expect(sidebar).toBeHidden();
+  const swipe = (fromX: number, toX: number) => page.evaluate(async ([startX, endX]) => {
+    const target = document.elementFromPoint(Math.max(1, startX), 300) ?? document.body;
+    const touchAt = (x: number) => new Touch({ identifier: 1, target, clientX: x, clientY: 300 });
+    target.dispatchEvent(new TouchEvent("touchstart", { bubbles: true, touches: [touchAt(startX)], changedTouches: [touchAt(startX)] }));
+    const steps = 8;
+    for (let index = 1; index <= steps; index += 1) {
+      const x = startX + ((endX - startX) * index) / steps;
+      target.dispatchEvent(new TouchEvent("touchmove", { bubbles: true, touches: [touchAt(x)], changedTouches: [touchAt(x)] }));
+      await new Promise((resolve) => setTimeout(resolve, 30));
+    }
+    target.dispatchEvent(new TouchEvent("touchend", { bubbles: true, touches: [], changedTouches: [touchAt(endX)] }));
+  }, [fromX, toX] as const);
+
+  // Fora da faixa de 24px da borda, nada acontece.
+  await swipe(120, 320);
+  await expect(sidebar).toBeHidden();
+  await swipe(4, 260);
+  await expect(sidebar).toHaveClass(/is-open/);
+  await expect(sidebar).toBeVisible();
+  await swipe(250, 20);
+  await expect(sidebar).not.toHaveClass(/is-open/);
+  await page.getByRole("button", { name: "Abrir menu" }).click();
+  await expect(sidebar).toHaveClass(/is-open/);
+  await page.locator(".sidebar-overlay").click({ position: { x: 370, y: 400 } });
+  await expect(sidebar).not.toHaveClass(/is-open/);
+});
+
+test("novo lançamento no modal: reconhece o estabelecimento e cria categoria pelo combobox", async ({ page, browserName }) => {
+  const posts: Array<{ table: string; body: Record<string, unknown> }> = [];
+  await signIn(page, posts);
+  await page.goto("/");
+  await expect(page.locator(".overview-balance-value")).toContainText("2.500,75");
+  await page.getByRole("button", { name: "Novo lançamento" }).first().click();
+  const dialog = page.getByRole("dialog", { name: "Novo lançamento" });
+  await dialog.getByRole("button", { name: "Despesa" }).click();
+  const form = page.getByRole("dialog", { name: "Nova despesa" });
+  await expect(form).toBeVisible();
+  const description = form.getByLabel("Descrição");
+  await expect(description).toBeFocused();
+  await description.fill("UBER *TRIP HELP.UBER.COM");
+  await expect(form.locator(".tx-description-control .merchant-logo")).toHaveAttribute("src", "/merchants/uber.svg");
+  await expect(form.locator(".tx-merchant-hint")).toContainText("Uber");
+  await description.fill("IFD*IFOOD.COM");
+  await expect(form.locator(".tx-description-control .merchant-logo")).toHaveAttribute("src", "/banks/ifood.svg");
+  await form.getByLabel("Valor (R$)").fill("32,90");
+  await form.getByRole("combobox", { name: "Conta", exact: true }).selectOption({ label: "Conta principal" });
+  const combo = form.getByRole("combobox", { name: "Categoria" });
+  await combo.click();
+  await expect(form.getByRole("listbox", { name: "Categoria" })).toBeVisible();
+  await combo.fill("Lanches da firma");
+  const createOption = form.getByRole("option", { name: "Criar categoria “Lanches da firma”" });
+  await expect(createOption).toBeVisible();
+  // POSTs interceptados falham no WebKit de Linux ("Load failed"), como no teste de contas; o salvamento é coberto no Chromium.
+  if (browserName === "webkit") return;
+  await createOption.click();
+  await expect.poll(() => posts.find((post) => post.table === "categories" && !Array.isArray(post.body) && post.body.name === "Lanches da firma")?.body.kind).toBe("expense");
+  await expect(combo).toHaveValue("Lanches da firma");
+  await form.getByRole("button", { name: "Salvar lançamento" }).click();
+  await expect.poll(() => posts.find((post) => post.table === "transactions")?.body.description).toBe("IFD*IFOOD.COM");
+  const transaction = posts.find((post) => post.table === "transactions")?.body;
+  expect(transaction?.amount).toBe("32.90");
+  expect(transaction?.category_id).toBe("99999999-0000-4000-8000-000000000001");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
 });

@@ -1,4 +1,4 @@
-import { Bell, Eye, EyeOff, Plus } from "lucide-react";
+import { Bell, Eye, EyeOff, Menu, Plus } from "lucide-react";
 import { IconButton } from "../ui";
 
 type HeaderProps = {
@@ -11,11 +11,14 @@ type HeaderProps = {
   onToggleBalances: () => void;
   onOpenAlerts: () => void;
   onQuickAdd: () => void;
+  menuOpen: boolean;
+  onOpenMenu: () => void;
 };
 
-/** Cabeçalho da tela: compacto (56px) no mobile; título de página com ações no desktop. */
-export function MobileHeader({ title, subtitle, description, alertsLabel, hasActiveAlerts, balancesHidden, onToggleBalances, onOpenAlerts, onQuickAdd }: HeaderProps) {
+/** Cabeçalho da tela: compacto (56px) no mobile, com botão de menu que abre a gaveta; título de página com ações no desktop. */
+export function MobileHeader({ title, subtitle, description, alertsLabel, hasActiveAlerts, balancesHidden, onToggleBalances, onOpenAlerts, onQuickAdd, menuOpen, onOpenMenu }: HeaderProps) {
   return <header className="screen-header">
+    <IconButton icon={Menu} label="Abrir menu" className="header-menu-button" aria-expanded={menuOpen} aria-controls="app-sidebar" aria-haspopup="dialog" onClick={onOpenMenu} />
     <div className="screen-header-title">
       {subtitle && <span className="screen-header-subtitle">{subtitle}</span>}
       <h1 className="screen-title" id="screen-title">{title}</h1>

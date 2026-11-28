@@ -1,5 +1,9 @@
+import { readFileSync, existsSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { BOTTOM_NAV, SIDEBAR_GROUPS, isBottomNavActive, isSidebarActive, screenTitle, type DashboardTab, type GastosView } from "../src/components/layout/navigation";
+import * as navigation from "../src/components/layout/navigation";
+import { SIDEBAR_GROUPS, isSidebarActive, screenTitle, type DashboardTab, type GastosView } from "../src/components/layout/navigation";
+import { DRAWER_EDGE_PX, decideDrawerSnap } from "../src/components/layout/drawer-gesture";
 
 const screens: Array<[DashboardTab, GastosView]> = [
   ["inicio", "lancamentos"], ["gastos", "lancamentos"], ["gastos", "contas"], ["gastos", "planejar"], ["gastos", "conexoes"],
@@ -7,15 +11,12 @@ const screens: Array<[DashboardTab, GastosView]> = [
 ];
 
 describe("navegação", () => {
-  it("mantém entre 4 e 5 destinos na barra inferior", () => {
-    expect(BOTTOM_NAV.length).toBeGreaterThanOrEqual(4);
-    expect(BOTTOM_NAV.length).toBeLessThanOrEqual(5);
-  });
-
-  it("acende exatamente um destino da barra inferior em cada tela", () => {
-    for (const [tab, view] of screens) {
-      expect(BOTTOM_NAV.filter((item) => isBottomNavActive(item, tab, view)), `${tab}/${view}`).toHaveLength(1);
-    }
+  it("não tem mais barra inferior: a navegação mobile é a gaveta lateral", () => {
+    expect("BOTTOM_NAV" in navigation).toBe(false);
+    expect(existsSync(resolve(process.cwd(), "src/components/layout/BottomNav.tsx"))).toBe(false);
+    const css = readFileSync(resolve(process.cwd(), "src/styles/app.css"), "utf8");
+    expect(css).not.toContain(".bottom-nav");
+    expect(css).not.toContain("--nav-height");
   });
 
   it("dá a cada tela um destino exato na barra lateral", () => {
@@ -25,7 +26,26 @@ describe("navegação", () => {
     }
   });
 
+  it("não oferece Categorias como destino de navegação", () => {
+    const labels = SIDEBAR_GROUPS.flatMap((group) => group.items.map((item) => item.label.toLowerCase()));
+    expect(labels.some((label) => label.includes("categoria"))).toBe(false);
+  });
+
   it("nomeia todas as telas", () => {
     for (const [tab, view] of screens) expect(screenTitle(tab, view).length).toBeGreaterThan(3);
+  });
+});
+
+describe("gesto da gaveta", () => {
+  it("usa uma faixa de borda de ~24px", () => expect(DRAWER_EDGE_PX).toBe(24));
+  it("encaixa pela distância quando o gesto é lento", () => {
+    expect(decideDrawerSnap({ fromOpen: false, dx: 150, velocity: 0.1, width: 280 })).toBe(true);
+    expect(decideDrawerSnap({ fromOpen: false, dx: 60, velocity: 0.1, width: 280 })).toBe(false);
+    expect(decideDrawerSnap({ fromOpen: true, dx: -150, velocity: -0.1, width: 280 })).toBe(false);
+    expect(decideDrawerSnap({ fromOpen: true, dx: -40, velocity: -0.1, width: 280 })).toBe(true);
+  });
+  it("um flick rápido decide mesmo com pouca distância", () => {
+    expect(decideDrawerSnap({ fromOpen: false, dx: 40, velocity: 0.9, width: 280 })).toBe(true);
+    expect(decideDrawerSnap({ fromOpen: true, dx: -30, velocity: -0.9, width: 280 })).toBe(false);
   });
 });

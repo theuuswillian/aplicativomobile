@@ -1,0 +1,158 @@
+{
+  "uber": {
+    "title": "Uber",
+    "hex": "#000000"
+  },
+  "ubereats": {
+    "title": "Uber Eats",
+    "hex": "#06C167"
+  },
+  "shopee": {
+    "title": "Shopee",
+    "hex": "#EE4D2D"
+  },
+  "netflix": {
+    "title": "Netflix",
+    "hex": "#E50914"
+  },
+  "spotify": {
+    "title": "Spotify",
+    "hex": "#1ED760"
+  },
+  "hbomax": {
+    "title": "HBO Max",
+    "hex": "#000000"
+  },
+  "youtube": {
+    "title": "YouTube",
+    "hex": "#FF0000"
+  },
+  "apple": {
+    "title": "Apple",
+    "hex": "#000000"
+  },
+  "google": {
+    "title": "Google",
+    "hex": "#4285F4"
+  },
+  "airbnb": {
+    "title": "Airbnb",
+    "hex": "#FF5A5F"
+  },
+  "bookingdotcom": {
+    "title": "Booking.com",
+    "hex": "#003A9A"
+  },
+  "shell": {
+    "title": "Shell",
+    "hex": "#FFD500"
+  },
+  "mcdonalds": {
+    "title": "McDonald's",
+    "hex": "#FBC817"
+  },
+  "burgerking": {
+    "title": "Burger King",
+    "hex": "#D62300"
+  },
+  "starbucks": {
+    "title": "Starbucks",
+    "hex": "#006241"
+  },
+  "steam": {
+    "title": "Steam",
+    "hex": "#000000"
+  },
+  "playstation": {
+    "title": "PlayStation",
+    "hex": "#0070D1"
+  },
+  "kfc": {
+    "title": "KFC",
+    "hex": "#F40027"
+  },
+  "paypal": {
+    "title": "PayPal",
+    "hex": "#002991"
+  },
+  "twitch": {
+    "title": "Twitch",
+    "hex": "#9146FF"
+  },
+  "deezer": {
+    "title": "Deezer",
+    "hex": "#A238FF"
+  },
+  "crunchyroll": {
+    "title": "Crunchyroll",
+    "hex": "#FF5E00"
+  },
+  "paramountplus": {
+    "title": "Paramount+",
+    "hex": "#0064FF"
+  },
+  "duolingo": {
+    "title": "Duolingo",
+    "hex": "#58CC02"
+  },
+  "dropbox": {
+    "title": "Dropbox",
+    "hex": "#0061FF"
+  },
+  "notion": {
+    "title": "Notion",
+    "hex": "#000000"
+  },
+  "zoom": {
+    "title": "Zoom",
+    "hex": "#0B5CFF"
+  },
+  "aliexpress": {
+    "title": "AliExpress",
+    "hex": "#FF4747"
+  },
+  "ikea": {
+    "title": "IKEA",
+    "hex": "#0058A3"
+  },
+  "nike": {
+    "title": "Nike",
+    "hex": "#111111"
+  },
+  "adidas": {
+    "title": "Adidas",
+    "hex": "#000000"
+  },
+  "zara": {
+    "title": "Zara",
+    "hex": "#000000"
+  },
+  "uniqlo": {
+    "title": "Uniqlo",
+    "hex": "#FF0000"
+  },
+  "trivago": {
+    "title": "trivago",
+    "hex": "#E32851"
+  },
+  "expedia": {
+    "title": "Expedia",
+    "hex": "#191E3B"
+  },
+  "github": {
+    "title": "GitHub",
+    "hex": "#181717"
+  },
+  "epicgames": {
+    "title": "Epic Games",
+    "hex": "#313131"
+  },
+  "discord": {
+    "title": "Discord",
+    "hex": "#5865F2"
+  },
+  "anthropic": {
+    "title": "Anthropic",
+    "hex": "#191919"
+  }
+}

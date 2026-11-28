@@ -4,6 +4,7 @@ import { Check, Info, Plus, Sparkles, Target, Trash2, TrendingUp } from "lucide-
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { calculatePassiveIncomeSnapshot, type IncomeAsset, type IncomeEvent, type IncomeOperation } from "../../domain/income-goals";
 import { formatBrlInput, parseBrlAmount } from "../../lib/money";
+import { GoalProgress } from "../../components/ui";
 
 interface IncomeGoalRow {
   id: string;
@@ -124,7 +125,7 @@ export function IncomeGoalsPanel({ client, userId, assets, operations, events, t
         return <article className={`income-goal-card${reached ? " is-reached" : ""}`} key={goal.id}>
           <div className="income-goal-card-top"><span className="income-goal-icon">{goal.icon}</span><button type="button" aria-label={`Excluir meta ${goal.name}`} onClick={() => void deleteGoal(goal)} disabled={busy}><Trash2 size={15}/></button></div>
           <strong>{goal.name}</strong><b>{money(snapshot.projectedMonthlyCents)} <small>de {money(targetCents)}</small></b>
-          <div className="income-goal-progress" role="progressbar" aria-label={`Progresso da meta ${goal.name}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress)}><span style={{ width: `${progress}%` }}/></div>
+          <GoalProgress mode="goal" compact current={snapshot.projectedMonthlyCents} target={targetCents} label={`Progresso da meta ${goal.name}`} format={money} remainingSuffix="/mês" />
           <div className="income-goal-foot"><span>{reached ? <><Check size={14}/> Já conquistou</> : `${Math.floor(progress)}% do objetivo`}</span><small>{reached ? "Meta atingida" : `Faltam ${money(Math.max(0, targetCents - snapshot.projectedMonthlyCents))}/mês`}</small></div>
         </article>;
       })}</div>}

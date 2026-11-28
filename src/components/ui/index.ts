@@ -6,3 +6,4 @@ export { KpiCard } from "./KpiCard";
 export { Modal } from "./Modal";
 export { ProgressBar } from "./ProgressBar";
 export { KpiSkeleton, ListSkeleton, Skeleton } from "./Skeleton";
+export { GoalProgress } from "./GoalProgress";
