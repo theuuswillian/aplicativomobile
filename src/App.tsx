@@ -27,7 +27,6 @@ import { FixedIncomeHub } from "./features/investments/FixedIncomeHub";
 import { PortfolioAllocation } from "./features/investments/PortfolioAllocation";
 import { QuickEntryModal } from "./features/transactions/QuickEntryModal";
 import { Sidebar } from "./components/layout/Sidebar";
-import { BottomNav } from "./components/layout/BottomNav";
 import { MobileHeader } from "./components/layout/MobileHeader";
 import { GASTOS_VIEWS, screenDescription, screenTitle, type DashboardTab, type GastosView, type NavDestination } from "./components/layout/navigation";
 import { DonutChart } from "./components/charts/DonutChart";
@@ -48,11 +47,10 @@ function normalizeBrlAmount(value: string, allowZero = false, allowNegative = fa
 
 export default function App() {
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
-  const [navHidden,setNavHidden]=useState(false);
+  const [drawerOpen,setDrawerOpen]=useState(false);
   const [editingAccountId,setEditingAccountId]=useState<string|null>(null);
   const [editingCardId,setEditingCardId]=useState<string|null>(null);
   const cardDrawerRef=useRef<HTMLDetailsElement>(null);
-  useEffect(()=>{let last=window.scrollY,tick=false;const update=()=>{const y=window.scrollY;if(y<40||y<last-6)setNavHidden(false);else if(y>last+8)setNavHidden(true);last=y;tick=false;};const onScroll=()=>{if(!tick){window.requestAnimationFrame(update);tick=true;}};window.addEventListener("scroll",onScroll,{passive:true});return()=>window.removeEventListener("scroll",onScroll);},[]);
   const [activeTab, setActiveTab] = useState<DashboardTab>("inicio");
   const [gastosView, setGastosView] = useState<GastosView>("lancamentos");
   const [transactionLimit, setTransactionLimit] = useState(TRANSACTION_PAGE_SIZE);
@@ -490,7 +488,6 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
 
   /** Troca de aba sempre começa do topo (ou rola até a seção pedida). */
   function goTo(tab: DashboardTab, options: { view?: GastosView; anchor?: string } = {}) {
-    setNavHidden(false);
     setActiveTab(tab);
     if (options.view) setGastosView(options.view);
     // Sem âncora, volta ao topo na hora (evita corrida com a rolagem do usuário).
@@ -503,7 +500,6 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
   function openTransactionForm(kind: "income" | "expense" | "transfer") {
     setTxKind(kind); setTxPaymentMethod("pix"); setTxAccountId(""); setTxCardId(""); setTxCategoryId(""); setTxInstallmentCount("1");
     setQuickEntryOpen(false);
-    setNavHidden(false);
     setActiveTab("gastos");
     setGastosView("lancamentos");
     window.requestAnimationFrame(() => {
@@ -1633,7 +1629,7 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
   }, { brl: 0, usd: 0 });
   const investedBrl = financialSummary?.investment_reference_brl == null ? investedTotals.brl : Number(financialSummary.investment_reference_brl);
   const investedUsd = financialSummary?.investment_reference_usd == null ? investedTotals.usd : Number(financialSummary.investment_reference_usd);
-  const navigate = (item: NavDestination) => goTo(item.tab, item.view ? { view: item.view } : {});
+  const navigate = (item: NavDestination) => { setDrawerOpen(false); goTo(item.tab, item.view ? { view: item.view } : {}); };
   const openFixedIncomeForm = () => { setInvestmentClass("fixed_income"); setInvestmentCurrency("BRL"); if (investmentAssetDrawerRef.current) investmentAssetDrawerRef.current.open = true; };
 
   return (
@@ -1658,7 +1654,7 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
             onSubmit={(event) => void handleAuth(event)}
           />
         ) : (<>
-          <Sidebar activeTab={activeTab} gastosView={gastosView} onNavigate={navigate} userName={userDisplayName} userEmail={session?.user.email} />
+          <Sidebar activeTab={activeTab} gastosView={gastosView} onNavigate={navigate} userName={userDisplayName} userEmail={session?.user.email} open={drawerOpen} onOpenChange={setDrawerOpen} />
           <div className="app-main">
           <MobileHeader
             title={screenTitle(activeTab, gastosView)}
@@ -1670,6 +1666,8 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
             onToggleBalances={() => setBalancesHidden((hidden) => !hidden)}
             onOpenAlerts={() => goTo("patrimonio", { anchor: "patrimonio-radar" })}
             onQuickAdd={() => setQuickEntryOpen(true)}
+            menuOpen={drawerOpen}
+            onOpenMenu={() => setDrawerOpen(true)}
           />
           <section className="dashboard" aria-labelledby="screen-title">
             {activeTab === "inicio" && <DashboardOverview
@@ -2096,7 +2094,6 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
           </section>
 
           </div>
-          <BottomNav activeTab={activeTab} gastosView={gastosView} hidden={navHidden} onNavigate={navigate} />
           <QuickEntryModal open={quickEntryOpen} onClose={() => setQuickEntryOpen(false)} onSelect={openTransactionForm} onOpenPlanning={() => { setQuickEntryOpen(false); goTo("planejamento"); }} />
         </>)}
       </div>
