@@ -15,6 +15,7 @@ import { planDefaultCategorySync, suggestCategoryIcon, type CategoryKind } from 
 import { isKnownCategoryIcon } from "./components/categories/category-icons";
 import { CategoryCombobox, type ComboCategory } from "./components/categories/CategoryCombobox";
 import { TransactionGlyph } from "./components/transactions/TransactionGlyph";
+import { detectMerchant } from "./data/merchant-catalog";
 import { clearFinancialRecordsForUser } from "./lib/secure-storage";
 import { generateOccurrences } from "./domain/recurrence";
 import { calculateInvestmentSummary, normalizeManualReferencePrice, type InvestmentOperation } from "./domain/investments";
@@ -61,8 +62,8 @@ export default function App() {
   const [showPassword, setShowPassword] = useState(false);
   const [recoveryMode, setRecoveryMode] = useState(false);
   const [newPassword, setNewPassword] = useState("");
-  const transactionDrawerRef = useRef<HTMLDetailsElement>(null);
 const [quickEntryOpen, setQuickEntryOpen] = useState(false);
+  const [quickEntryStep, setQuickEntryStep] = useState<"choose" | "form">("choose");
   const [balancesHidden, setBalancesHidden] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(!supabase);
@@ -505,16 +506,11 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
     window.requestAnimationFrame(() => document.getElementById(anchor)?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
 
-  /** Abre o formulário de lançamento já no tipo escolhido. */
+  /** Abre o formulário de lançamento (no modal) já no tipo escolhido. */
   function openTransactionForm(kind: "income" | "expense" | "transfer") {
     setTxKind(kind); setTxPaymentMethod("pix"); setTxAccountId(""); setTxCardId(""); setTxCategoryId(""); setTxInstallmentCount("1");
-    setQuickEntryOpen(false);
-    setActiveTab("gastos");
-    setGastosView("lancamentos");
-    window.requestAnimationFrame(() => {
-      if (transactionDrawerRef.current) transactionDrawerRef.current.open = true;
-      document.getElementById("gastos-lancamentos")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
+    setQuickEntryStep("form");
+    setQuickEntryOpen(true);
   }
 
   async function exportPersonalData() {
@@ -1396,6 +1392,7 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
       if (error) throw error;
       setTransactions((current) => [data as TransactionRow, ...current].slice(0, 10000));
       setTxDescription(""); setTxAmount(""); setTxCategoryId(""); setTxInstallmentCount("1"); setTxPaymentMethod("pix");
+      setQuickEntryOpen(false);
       setNotice(txStatus === "paid" ? "Lançamento realizado criado." : "Lançamento previsto criado.");
       await refreshBudgetSpend();
     } catch (error) { setNotice(errorMessage(error)); }
@@ -1667,6 +1664,37 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
   const navigate = (item: NavDestination) => { setDrawerOpen(false); goTo(item.tab, item.view ? { view: item.view } : {}); };
   const openFixedIncomeForm = () => { setInvestmentClass("fixed_income"); setInvestmentCurrency("BRL"); if (investmentAssetDrawerRef.current) investmentAssetDrawerRef.current.open = true; };
 
+  const txMerchant = txKind === "transfer" ? null : detectMerchant(txDescription);
+  const txSuggestedCategory = txMerchant?.categoryHint ? categories.find((category) => category.kind === txKind && category.name === txMerchant.categoryHint) ?? null : null;
+  const transactionForm = (
+              <form className="finance-form transaction-form" onSubmit={(event) => void createTransaction(event)}>
+                <div className="wide-field tx-description-field">
+                  <label htmlFor="tx-description">Descrição</label>
+                  <div className={"tx-description-control" + (txMerchant ? " has-merchant" : "")}>
+                    {txMerchant && <img className="brand-tile merchant-logo" src={txMerchant.logoPath} alt="" aria-hidden="true" width={28} height={28} />}
+                    <input id="tx-description" value={txDescription} onChange={(event) => setTxDescription(event.target.value)} maxLength={240} placeholder="Ex.: Uber, iFood, Mercado" autoComplete="off" required aria-describedby={txMerchant ? "tx-merchant-hint" : undefined} />
+                  </div>
+                  {txMerchant && <p className="tx-merchant-hint" id="tx-merchant-hint" role="status"><span>Reconhecido: <strong>{txMerchant.name}</strong></span>{txSuggestedCategory && txSuggestedCategory.id !== txCategoryId && <button type="button" className="link-button" onClick={() => setTxCategoryId(txSuggestedCategory.id)}>Usar categoria “{txSuggestedCategory.name}”</button>}</p>}
+                </div>
+
+                <label>Tipo de lançamento<select value={txKind} onChange={(event) => { const nextKind = event.target.value as "income" | "expense" | "transfer"; setTxKind(nextKind); setTxCategoryId(""); setTxCardId(""); setTxPaymentMethod("pix"); }}><option value="expense">Despesa</option><option value="income">Receita</option><option value="transfer">Transferência / aporte / resgate</option></select></label>
+                <label>Situação<select value={txStatus} onChange={(event) => setTxStatus(event.target.value as "paid" | "planned")}><option value="paid">Realizado</option><option value="planned">Previsto</option></select></label>
+                <label>Valor (R$)<input inputMode="decimal" value={txAmount} onChange={(event) => setTxAmount(formatBrlInput(event.target.value))} placeholder="0,00" required /></label>
+                <label>Data<input type="date" value={txDate} onChange={(event) => setTxDate(event.target.value)} required /></label>
+                {txKind === "transfer" ? <>
+                  <label>Conta de origem<select value={txTransferFromId} onChange={(event) => setTxTransferFromId(event.target.value)} required><option value="">Selecione</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
+                  <label>Conta de destino<select value={txTransferToId} onChange={(event) => setTxTransferToId(event.target.value)} required><option value="">Selecione</option>{accounts.filter((account) => account.id !== txTransferFromId).map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
+                </> : <>
+                  {txKind === "expense" && <label>Como pagou?<select value={txPaymentMethod} onChange={(event) => { const method = event.target.value as "pix" | "debit" | "cash" | "credit"; setTxPaymentMethod(method); setTxAccountId(""); setTxCardId(""); setTxInstallmentCount("1"); }}><option value="pix">PIX</option><option value="debit">Débito</option><option value="cash">Dinheiro físico</option><option value="credit">Cartão de crédito</option></select></label>}
+                  {!(txKind === "expense" && txPaymentMethod === "credit") && <label>Conta<select value={txAccountId} onChange={(event) => setTxAccountId(event.target.value)}><option value="">Selecione a conta</option>{accounts.filter((account) => account.account_type !== "investment" && (txKind !== "expense" || (txPaymentMethod === "cash" ? account.account_type === "cash" : account.account_type !== "cash"))).map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>}
+                  {txKind === "expense" && txPaymentMethod === "credit" && <label>Cartão de crédito<select value={txCardId} onChange={(event) => setTxCardId(event.target.value)} required><option value="">Selecione o cartão</option>{cards.map((card) => <option key={card.id} value={card.id}>{card.name} · final {card.last_four}</option>)}</select></label>}
+                  {txKind === "expense" && txPaymentMethod === "credit" && txCardId && <label>Parcelamento<select value={txInstallmentCount} onChange={(event) => setTxInstallmentCount(event.target.value)}>{Array.from({ length: 48 }, (_, index) => index + 1).map((count) => <option key={count} value={count}>{count === 1 ? "À vista" : `${count}x`}</option>)}</select></label>}
+                  <CategoryCombobox {...categoryPickerProps} label="Categoria" kind={txKind === "income" ? "income" : "expense"} value={txCategoryId} onChange={setTxCategoryId} />
+                </>}
+                <button className="primary-button" type="submit" disabled={busy || (txKind === "expense" && txPaymentMethod === "credit" ? cards.length === 0 : txKind === "transfer" ? accounts.length < 2 : !accounts.some((account) => account.account_type !== "investment"))}>Salvar lançamento</button>
+              </form>
+  );
+
   return (
     <main className="app-shell" data-theme={theme} data-balances-hidden={balancesHidden ? "true" : "false"}>
       <div className={"app-frame" + (signedIn ? " is-authenticated" : "")}>
@@ -1700,7 +1728,7 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
             balancesHidden={balancesHidden}
             onToggleBalances={() => setBalancesHidden((hidden) => !hidden)}
             onOpenAlerts={() => goTo("patrimonio", { anchor: "patrimonio-radar" })}
-            onQuickAdd={() => setQuickEntryOpen(true)}
+            onQuickAdd={() => { setQuickEntryStep("choose"); setQuickEntryOpen(true); }}
             menuOpen={drawerOpen}
             onOpenMenu={() => setDrawerOpen(true)}
           />
@@ -2052,24 +2080,7 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
                 <p className="helper-text">A regra apenas programa a próxima ocorrência. A geração de lançamentos será ativada com o processamento idempotente da agenda, sem marcar valores como realizados.</p>
               </section>
               <section className="subpanel transactions-section" id="gastos-lancamentos" hidden={gastosView !== "lancamentos"} aria-labelledby="transactions-title">
-              <details ref={transactionDrawerRef} className="management-drawer primary-drawer"><summary><Plus size={18} strokeWidth={1.75} aria-hidden="true" /> Novo lançamento</summary><form className="finance-form transaction-form" onSubmit={(event) => void createTransaction(event)}>
-                <label>Tipo de lançamento<select value={txKind} onChange={(event) => { const nextKind = event.target.value as "income" | "expense" | "transfer"; setTxKind(nextKind); setTxCategoryId(""); setTxCardId(""); setTxPaymentMethod("pix"); }}><option value="expense">Despesa</option><option value="income">Receita</option><option value="transfer">Transferência / aporte / resgate</option></select></label>
-                <label>Situação<select value={txStatus} onChange={(event) => setTxStatus(event.target.value as "paid" | "planned")}><option value="paid">Realizado</option><option value="planned">Previsto</option></select></label>
-                <label>Valor (R$)<input inputMode="decimal" value={txAmount} onChange={(event) => setTxAmount(formatBrlInput(event.target.value))} placeholder="0,00" required /></label>
-                <label>Data<input type="date" value={txDate} onChange={(event) => setTxDate(event.target.value)} required /></label>
-                {txKind === "transfer" ? <>
-                  <label>Conta de origem<select value={txTransferFromId} onChange={(event) => setTxTransferFromId(event.target.value)} required><option value="">Selecione</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
-                  <label>Conta de destino<select value={txTransferToId} onChange={(event) => setTxTransferToId(event.target.value)} required><option value="">Selecione</option>{accounts.filter((account) => account.id !== txTransferFromId).map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
-                </> : <>
-                  {txKind === "expense" && <label>Como pagou?<select value={txPaymentMethod} onChange={(event) => { const method = event.target.value as "pix" | "debit" | "cash" | "credit"; setTxPaymentMethod(method); setTxAccountId(""); setTxCardId(""); setTxInstallmentCount("1"); }}><option value="pix">PIX</option><option value="debit">Débito</option><option value="cash">Dinheiro físico</option><option value="credit">Cartão de crédito</option></select></label>}
-                  {!(txKind === "expense" && txPaymentMethod === "credit") && <label>Conta<select value={txAccountId} onChange={(event) => setTxAccountId(event.target.value)}><option value="">Selecione a conta</option>{accounts.filter((account) => account.account_type !== "investment" && (txKind !== "expense" || (txPaymentMethod === "cash" ? account.account_type === "cash" : account.account_type !== "cash"))).map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>}
-                  {txKind === "expense" && txPaymentMethod === "credit" && <label>Cartão de crédito<select value={txCardId} onChange={(event) => setTxCardId(event.target.value)} required><option value="">Selecione o cartão</option>{cards.map((card) => <option key={card.id} value={card.id}>{card.name} · final {card.last_four}</option>)}</select></label>}
-                  {txKind === "expense" && txPaymentMethod === "credit" && txCardId && <label>Parcelamento<select value={txInstallmentCount} onChange={(event) => setTxInstallmentCount(event.target.value)}>{Array.from({ length: 48 }, (_, index) => index + 1).map((count) => <option key={count} value={count}>{count === 1 ? "À vista" : `${count}x`}</option>)}</select></label>}
-                  <CategoryCombobox {...categoryPickerProps} label="Categoria" kind={txKind === "income" ? "income" : "expense"} value={txCategoryId} onChange={setTxCategoryId} />
-                </>}
-                <label className="wide-field">Descrição<input value={txDescription} onChange={(event) => setTxDescription(event.target.value)} maxLength={240} placeholder="Ex.: Mercado" required /></label>
-                <button className="primary-button" type="submit" disabled={busy || (txKind === "expense" && txPaymentMethod === "credit" ? cards.length === 0 : txKind === "transfer" ? accounts.length < 2 : !accounts.some((account) => account.account_type !== "investment"))}>Salvar lançamento</button>
-              </form></details>
+              <div className="transactions-toolbar"><button type="button" className="primary-button" onClick={() => openTransactionForm("expense")}><Plus size={18} strokeWidth={1.75} aria-hidden="true" /> Novo lançamento</button></div>
               <div className="transaction-heading"><strong id="transactions-title">Lançamentos</strong><span>{Math.min(transactionLimit, transactions.length)} de {transactions.length}</span></div>
               {transactions.length === 0 ? <EmptyState icon={ReceiptText} title="Nenhum lançamento ainda">Seus lançamentos aparecerão aqui.</EmptyState> : <ul className="transaction-list">{transactions.slice(0, transactionLimit).map((item) => { const category = categories.find((entry) => entry.id === item.category_id); const expanded = expandedTransactionId === item.id || editingTransactionId === item.id; return <li key={item.id} className={expanded ? "is-expanded" : ""}><button type="button" className="transaction-main" aria-expanded={expanded} onClick={() => setExpandedTransactionId(expanded ? null : item.id)}><TransactionGlyph kind={item.kind} description={item.description} category={category} /><span className="transaction-text"><strong>{item.description}</strong><small>{item.kind === "transfer" ? `${accounts.find((account) => account.id === item.transfer_from_account_id)?.name ?? "Origem"} → ${accounts.find((account) => account.id === item.transfer_to_account_id)?.name ?? "Destino"}` : category?.name ?? (item.kind === "income" ? "Receita" : "Despesa")}{item.card_id ? " · cartão" : ""} · {formatDateBR(item.transaction_date)}</small></span><span className="transaction-amount"><strong className={item.kind === "income" ? "amount-income" : item.kind === "transfer" ? "amount-neutral" : "amount-expense"}>{item.kind === "income" ? "+" : item.kind === "expense" ? "−" : ""}{formatBRL(item.amount)}</strong>{item.status !== "paid" && <small className={"badge status-pill " + (item.status === "planned" ? "badge-warning planned" : "badge-neutral cancelled")}>{item.status === "planned" ? "Previsto" : "Cancelado"}</small>}</span></button>{expanded && <div className="transaction-row-actions">{receiptFiles.some((file) => file.transaction_id === item.id) && <button className="quiet-button" type="button" disabled={busy} onClick={() => void openReceiptFile(item.id)}>Abrir comprovante</button>}<button className="quiet-button" type="button" disabled={busy} onClick={() => beginTransactionEdit(item)}>Editar</button><button className="quiet-button danger-button" type="button" disabled={busy} onClick={() => void deleteTransaction(item)}>Excluir</button></div>}{editingTransactionId === item.id && <form className="transaction-edit-form" onSubmit={(event) => { event.preventDefault(); void saveTransactionEdit(item); }}><label>Descrição<input value={editDescription} onChange={(event) => setEditDescription(event.target.value)} maxLength={240} required /></label><label>Valor (R$)<input inputMode="decimal" value={editAmount} onChange={(event) => setEditAmount(formatBrlInput(event.target.value))} required /></label><label>Data<input type="date" value={editDate} onChange={(event) => setEditDate(event.target.value)} required /></label><label>Situação<select value={editStatus} onChange={(event) => setEditStatus(event.target.value as "paid" | "planned")}><option value="paid">Realizado</option><option value="planned">Previsto</option></select></label><button className="primary-button" type="submit" disabled={busy}>Salvar alterações</button><button className="quiet-button" type="button" disabled={busy} onClick={() => setEditingTransactionId(null)}>Cancelar</button></form>}</li>; })}</ul>}
               {transactions.length > transactionLimit && <button className="secondary-button load-more" type="button" onClick={() => setTransactionLimit((limit) => limit + TRANSACTION_PAGE_SIZE)}>Mostrar mais lançamentos</button>}
@@ -2120,7 +2131,7 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
           </section>
 
           </div>
-          <QuickEntryModal open={quickEntryOpen} onClose={() => setQuickEntryOpen(false)} onSelect={openTransactionForm} onOpenPlanning={() => { setQuickEntryOpen(false); goTo("planejamento"); }} />
+          <QuickEntryModal open={quickEntryOpen} step={quickEntryStep} kind={txKind} form={transactionForm} onBack={() => setQuickEntryStep("choose")} onClose={() => setQuickEntryOpen(false)} onSelect={openTransactionForm} onOpenPlanning={() => { setQuickEntryOpen(false); goTo("planejamento"); }} />
         </>)}
       </div>
     </main>

@@ -901,3 +901,22 @@ progress.budget-progress::-moz-progress-bar { background: var(--accent-primary);
 .import-preview-title { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
 .import-preview-title > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .import-preview-title .tx-icon { width: 28px; height: 28px; }
+
+/* ===================== Novo lançamento (modal) ===================== */
+.modal.modal-form {
+  display: flex; flex-direction: column; width: min(100%, 640px);
+  max-height: min(92dvh, 880px); overflow-y: auto; overscroll-behavior: contain;
+}
+.modal.modal-form .modal-heading { position: sticky; top: calc(-1 * var(--space-5)); z-index: 2; margin: calc(-1 * var(--space-5)) calc(-1 * var(--space-5)) var(--space-3); padding: var(--space-5) var(--space-5) var(--space-3); background: var(--bg-surface); border-bottom: 1px solid var(--border-subtle); }
+.modal.modal-form .transaction-form { padding: 0; border: 0; }
+.quick-entry-back { align-self: flex-start; margin-bottom: var(--space-3); }
+.transactions-toolbar { display: flex; justify-content: flex-end; }
+.tx-description-field { display: grid; gap: 6px; min-width: 0; }
+.tx-description-field > label { display: block; }
+.tx-description-control { position: relative; display: flex; align-items: center; }
+.tx-description-control > .merchant-logo { position: absolute; left: 8px; animation: gv-pop 160ms ease-out; }
+.app-shell .tx-description-control.has-merchant input { padding-left: 46px; }
+.tx-merchant-hint { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); color: var(--text-secondary); font-size: var(--text-xs); }
+.tx-merchant-hint strong { color: var(--text-primary); }
+@media (min-width: 640px) { .modal-backdrop:has(.modal-form) { align-items: center; } }
+@media (prefers-reduced-motion: reduce) { .tx-description-control > .merchant-logo { animation: none; } }
