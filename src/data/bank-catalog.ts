@@ -1,41 +1,97 @@
 /**
- * Logos vetoriais individuais, locais e versionados no app.
- * As marcas bancárias foram obtidas do diretório público Open Finance Brasil
- * ou dos sites oficiais, via dataset logos-bancos-br (MIT).
+ * Catálogo de bancos, fintechs, carteiras digitais e cartões com logo.
+ * Fonte única dos logos: react-bancos (MIT) — SVGs copiados para public/banks/ por
+ * scripts/sync-brand-logos.mjs, todos no mesmo azulejo quadrado (cor da marca + logo centralizado).
+ * As marcas pertencem às respectivas instituições; o uso aqui é apenas identificativo.
  */
-export const BANK_CATALOG = [
-  { code: "121", name: "Agibank", logoKey: "agibank.com.br", logoPath: "/banks/agibank.svg" },
-  { code: "077", name: "Banco Inter", logoKey: "bancointer.com.br", logoPath: "/banks/banco-inter.svg" },
-  { code: "041", name: "Banrisul", logoKey: "banrisul.com.br", logoPath: "/banks/banrisul.svg" },
-  { code: "001", name: "Banco do Brasil", logoKey: "bb.com.br", logoPath: "/banks/banco-do-brasil.svg" },
-  { code: "", name: "Binance", logoKey: "binance.com", logoPath: "/banks/binance.svg" },
-  { code: "318", name: "Banco BMG", logoKey: "bmg.com.br", logoPath: "/banks/bmg.svg" },
-  { code: "004", name: "Banco do Nordeste", logoKey: "bnb.gov.br", logoPath: "/banks/banco-do-nordeste.svg" },
-  { code: "237", name: "Bradesco", logoKey: "bradesco.com.br", logoPath: "/banks/bradesco.svg" },
-  { code: "070", name: "BRB", logoKey: "brb.com.br", logoPath: "/banks/brb.svg" },
-  { code: "208", name: "BTG Pactual", logoKey: "btgpactual.com", logoPath: "/banks/btg-pactual.svg" },
-  { code: "413", name: "Banco BV", logoKey: "bv.com.br", logoPath: "/banks/bv.svg" },
-  { code: "336", name: "C6 Bank", logoKey: "c6bank.com.br", logoPath: "/banks/c6-bank.svg" },
-  { code: "104", name: "Caixa Econômica Federal", logoKey: "caixa.gov.br", logoPath: "/banks/caixa.svg" },
-  { code: "403", name: "Cora", logoKey: "cora.com.br", logoPath: "/banks/cora.svg" },
-  { code: "707", name: "Daycoval", logoKey: "daycoval.com.br", logoPath: "/banks/daycoval.svg" },
-  { code: "335", name: "Digio", logoKey: "digio.com.br", logoPath: "/banks/digio.svg" },
-  { code: "125", name: "Genial Investimentos", logoKey: "genialinvestimentos.com.br", logoPath: "/banks/genial.svg" },
-  { code: "341", name: "Itaú Unibanco", logoKey: "itau.com.br", logoPath: "/banks/itau.svg" },
-  { code: "389", name: "Mercantil do Brasil", logoKey: "mercantildobrasil.com.br", logoPath: "/banks/mercantil.svg" },
-  { code: "536", name: "Neon", logoKey: "neon.com.br", logoPath: "/banks/neon.svg" },
-  { code: "260", name: "Nubank", logoKey: "nubank.com.br", logoPath: "/banks/nubank.svg" },
-  { code: "290", name: "PagBank", logoKey: "pagbank.com.br", logoPath: "/banks/pagbank.svg" },
-  { code: "380", name: "PicPay", logoKey: "picpay.com", logoPath: "/banks/picpay.svg" },
-  { code: "422", name: "Banco Safra", logoKey: "safra.com.br", logoPath: "/banks/safra.svg" },
-  { code: "033", name: "Santander", logoKey: "santander.com.br", logoPath: "/banks/santander.svg" },
-  { code: "756", name: "Sicoob", logoKey: "sicoob.com.br", logoPath: "/banks/sicoob.svg" },
-  { code: "748", name: "Sicredi", logoKey: "sicredi.com.br", logoPath: "/banks/sicredi.svg" },
-  { code: "637", name: "Sofisa Direto", logoKey: "sofisa.com.br", logoPath: "/banks/sofisa.svg" },
-  { code: "197", name: "Stone", logoKey: "stone.com.br", logoPath: "/banks/stone.svg" },
-  { code: "136", name: "Unicred", logoKey: "unicred.com.br", logoPath: "/banks/unicred.svg" },
-  { code: "102", name: "XP Investimentos", logoKey: "xpi.com.br", logoPath: "/banks/xp.svg" },
-] as const;
+import { BANK_LOGOS } from "./bank-logos.generated";
 
-export type BankCatalogEntry = (typeof BANK_CATALOG)[number];
+/**
+ * Chaves antigas salvas em accounts.institution_logo_key (domínio do banco) → slug react-bancos.
+ * Contas já cadastradas continuam salvando e lendo a mesma chave.
+ */
+export const LEGACY_BANK_KEYS: Record<string, string> = {
+  "agibank.com.br": "agibank",
+  "bancointer.com.br": "inter",
+  "banrisul.com.br": "banrisul",
+  "bb.com.br": "bancodobrasil",
+  "binance.com": "binance",
+  "bmg.com.br": "bmg",
+  "bnb.gov.br": "bancodonordeste",
+  "bradesco.com.br": "bradesco",
+  "brb.com.br": "brb",
+  "btgpactual.com": "btgpactual",
+  "bv.com.br": "bv",
+  "c6bank.com.br": "c6bank",
+  "caixa.gov.br": "caixa",
+  "cora.com.br": "cora",
+  "daycoval.com.br": "daycoval",
+  "digio.com.br": "digio",
+  "genialinvestimentos.com.br": "genial",
+  "itau.com.br": "itau",
+  "mercantildobrasil.com.br": "mercantil",
+  "neon.com.br": "neon",
+  "nubank.com.br": "nubank",
+  "pagbank.com.br": "pagbank",
+  "picpay.com": "picpay",
+  "safra.com.br": "safra",
+  "santander.com.br": "santander",
+  "sicoob.com.br": "sicoob",
+  "sicredi.com.br": "sicredi",
+  "sofisa.com.br": "sofisa",
+  "stone.com.br": "stone",
+  "unicred.com.br": "unicred",
+  "xpi.com.br": "xp",
+};
 
+const slugToLegacyKey = new Map(Object.entries(LEGACY_BANK_KEYS).map(([key, slug]) => [slug, key]));
+
+export type BankCatalogEntry = {
+  /** Código COMPE (vazio quando não se aplica). */
+  code: string;
+  name: string;
+  /** Valor salvo em accounts.institution_logo_key: domínio legado quando existir, senão o slug. */
+  logoKey: string;
+  slug: string;
+  logoPath: string;
+  color: string | null;
+};
+
+export const BANK_CATALOG: BankCatalogEntry[] = BANK_LOGOS.map((bank) => ({
+  code: bank.compe ?? "",
+  name: bank.name,
+  logoKey: slugToLegacyKey.get(bank.slug) ?? bank.slug,
+  slug: bank.slug,
+  logoPath: `/banks/${bank.slug}.svg`,
+  color: bank.color,
+}));
+
+/** Encontra a instituição por chave salva (domínio legado ou slug). */
+export function findBank(key: string | null | undefined): BankCatalogEntry | undefined {
+  if (!key) return undefined;
+  const slug = LEGACY_BANK_KEYS[key] ?? key;
+  return BANK_CATALOG.find((bank) => bank.slug === slug);
+}
+
+/** Encontra pelo código COMPE ("77" ou "077"). */
+export function findBankByCode(code: string | null | undefined): BankCatalogEntry | undefined {
+  if (!code) return undefined;
+  const padded = code.trim().padStart(3, "0");
+  return BANK_CATALOG.find((bank) => bank.code === padded);
+}
+
+const plain = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+/** Encontra pelo nome digitado (ex.: nome da instituição de um cartão): exato, depois parcial. */
+export function findBankByName(name: string | null | undefined): BankCatalogEntry | undefined {
+  if (!name) return undefined;
+  const query = plain(name);
+  if (query.length < 2) return undefined;
+  const exact = BANK_CATALOG.find((bank) => plain(bank.name) === query || bank.slug === query.replace(/ /g, ""));
+  if (exact) return exact;
+  const candidates = BANK_CATALOG.filter((bank) => {
+    const bankName = plain(bank.name).replace(/^(banco|cartao) /, "");
+    return bankName === query || query.split(" ").includes(bank.slug) || (query.length >= 3 && bankName.startsWith(query));
+  });
+  return candidates.sort((a, b) => a.name.length - b.name.length)[0];
+}
