@@ -840,7 +840,7 @@ progress.budget-progress::-moz-progress-bar { background: var(--accent-primary);
   .dashboard > #gastos { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
   .dashboard > #gastos > * { grid-column: 1 / -1; }
   .dashboard > #gastos > #gastos-contas, .dashboard > #gastos > #gastos-cartoes,
-  .dashboard > #gastos > #gastos-categorias, .dashboard > #gastos > #gastos-orcamentos { grid-column: auto; }
+  .dashboard > #gastos > #gastos-orcamentos { grid-column: 1 / -1; }
   .dashboard > #gastos > #gastos-contas .finance-card-grid, .dashboard > #gastos > #gastos-cartoes .finance-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dashboard:has(> #conta:not([hidden])) { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); align-items: start; }
   .dashboard > #conta { grid-row: span 3; }
@@ -857,8 +857,8 @@ progress.budget-progress::-moz-progress-bar { background: var(--accent-primary);
 .category-combobox > label { display: block; }
 .category-combobox-control { position: relative; display: flex; align-items: center; }
 .category-combobox-control > .category-icon { position: absolute; left: 8px; pointer-events: none; }
-.category-combobox-control > .category-icon + input { padding-left: 40px; }
-.app-shell .category-combobox-control input { padding-right: 40px; }
+.app-shell .category-combobox-control input:not([type="checkbox"]):not([type="radio"]):not([type="file"]) { padding-right: 40px; }
+.app-shell .category-combobox-control > .category-icon + input:not([type="checkbox"]):not([type="radio"]):not([type="file"]) { padding-left: 40px; }
 .category-combobox-toggle {
   position: absolute; right: 4px; display: grid; width: 36px; height: 36px; place-items: center;
   border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-secondary); cursor: pointer;
@@ -915,7 +915,7 @@ progress.budget-progress::-moz-progress-bar { background: var(--accent-primary);
 .tx-description-field > label { display: block; }
 .tx-description-control { position: relative; display: flex; align-items: center; }
 .tx-description-control > .merchant-logo { position: absolute; left: 8px; animation: gv-pop 160ms ease-out; }
-.app-shell .tx-description-control.has-merchant input { padding-left: 46px; }
+.app-shell .tx-description-control.has-merchant input:not([type="checkbox"]):not([type="radio"]):not([type="file"]) { padding-left: 46px; }
 .tx-merchant-hint { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); color: var(--text-secondary); font-size: var(--text-xs); }
 .tx-merchant-hint strong { color: var(--text-primary); }
 @media (min-width: 640px) { .modal-backdrop:has(.modal-form) { align-items: center; } }
@@ -948,8 +948,7 @@ progress.budget-progress::-moz-progress-bar { background: var(--accent-primary);
   .goal-progress-fill { transition: none; }
   .goal-progress.is-reached .goal-progress-percent svg { animation: none; }
 }
-.kpi-value-row { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-2); min-width: 0; }
-.kpi-value-row .kpi-value { min-width: 0; }
+.kpi-card-top-end { display: inline-flex; flex: 0 0 auto; align-items: center; gap: var(--space-2); }
 .sparkline { flex: 0 0 auto; overflow: visible; color: var(--accent-secondary); }
 .sparkline.is-income { color: var(--positive); }
 .sparkline.is-expense { color: var(--negative-on-soft); }
@@ -974,5 +973,6 @@ progress.budget-progress::-moz-progress-bar { background: var(--accent-primary);
 .chart-legend-toggle.is-off .legend-swatch, .chart-legend-item.is-off .legend-swatch { opacity: .25; }
 .chart-legend-item { width: 100%; justify-content: flex-start; border-radius: var(--radius-sm); }
 .chart-legend-item > span { flex: 1 1 auto; min-width: 0; overflow: hidden; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
-.chart-legend-list li:has(> .chart-legend-item) { padding: 0; }
+.chart-legend-list li:has(> .chart-legend-item) { display: block; padding: 2px 0; }
+.chart-legend-item b { color: var(--text-primary); font-weight: 600; }
 @media (prefers-reduced-motion: reduce) { .chart-bar, .donut svg { animation: none; } }

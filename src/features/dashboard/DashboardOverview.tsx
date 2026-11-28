@@ -149,7 +149,7 @@ export function DashboardOverview(props: DashboardOverviewProps) {
           ? <EmptyState icon={PiggyBank} compact title="Sem limites definidos" action={props.onOpenBudgets && <Button variant="secondary" onClick={props.onOpenBudgets}>Definir orçamento</Button>}>Defina um limite por categoria para ver aqui quanto já foi usado no mês.</EmptyState>
           : <ul className="summary-list">{budgetRows.slice(0, 5).map((row) => <li key={row.id}>
             <div className="summary-row"><strong>{row.category && <CategoryIcon category={row.category} size={24} />}{row.category?.name ?? "Categoria"}</strong><b className={row.ratio > 1 ? "amount-expense" : undefined}>{Math.round(row.ratio * 100)}%</b></div>
-            <GoalProgress mode="budget" current={row.spent} target={row.limit} label={`Uso do orçamento de ${row.category?.name ?? "categoria"}`} format={centsLabel} />
+            <GoalProgress mode="budget" hidePercent current={row.spent} target={row.limit} label={`Uso do orçamento de ${row.category?.name ?? "categoria"}`} format={centsLabel} />
           </li>)}</ul>}
       </Card>
 

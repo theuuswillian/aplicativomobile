@@ -33,12 +33,12 @@ export function KpiCard({ label, value, icon: Icon, trend, hint, action, classNa
   return <article className={["kpi-card", className].filter(Boolean).join(" ")}>
     <div className="kpi-card-top">
       <span className="kpi-label">{label}</span>
-      {action ?? (Icon && <span className="kpi-icon" aria-hidden="true"><Icon size={18} strokeWidth={1.75} /></span>)}
+      <span className="kpi-card-top-end">
+        {spark && spark.length > 1 && <Sparkline values={spark} tone={sparkTone} width={64} height={26} label={sparkLabel ?? `Tendência de ${label.toLowerCase()}`} />}
+        {action ?? (Icon && <span className="kpi-icon" aria-hidden="true"><Icon size={18} strokeWidth={1.75} /></span>)}
+      </span>
     </div>
-    <div className="kpi-value-row">
-      <strong className={["kpi-value", valueClassName].filter(Boolean).join(" ")}>{value}</strong>
-      {spark && spark.length > 1 && <Sparkline values={spark} tone={sparkTone} label={sparkLabel ?? `Tendência de ${label.toLowerCase()}`} />}
-    </div>
+    <strong className={["kpi-value", valueClassName].filter(Boolean).join(" ")}>{value}</strong>
     <div className="kpi-foot">
       {trend && <span className={"kpi-trend " + (good === null ? "is-flat" : good ? "is-good" : "is-bad")}>
         {direction === "up" ? <ArrowUpRight size={14} strokeWidth={1.75} aria-hidden="true" /> : direction === "down" ? <ArrowDownRight size={14} strokeWidth={1.75} aria-hidden="true" /> : null}

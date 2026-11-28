@@ -354,9 +354,10 @@ test("renders authenticated sections with accessible navigation in dark and ligh
         await expect(activeItem).toHaveAttribute("data-nav", tab.nav);
         await expect(activeItem).toBeFocused();
         expect(await page.evaluate(() => getComputedStyle(document.body).overflow)).toBe("hidden");
+        // Espera a animação de entrada terminar antes de medir.
+        await expect.poll(async () => (await sidebar.boundingBox())?.x ?? -999).toBeGreaterThanOrEqual(-1);
         const drawerBox = await sidebar.boundingBox();
         if (!drawerBox) throw new Error("Não foi possível medir a gaveta.");
-        expect(drawerBox.x).toBeGreaterThanOrEqual(-1);
         expect(drawerBox.x + drawerBox.width).toBeLessThanOrEqual(viewport.width + 1);
         await page.keyboard.press("Escape");
         await expect(sidebar).toBeHidden();

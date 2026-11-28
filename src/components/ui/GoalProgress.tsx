@@ -15,6 +15,8 @@ type GoalProgressProps = {
   compact?: boolean;
   /** Texto do restante (ex.: "/mês" em metas de renda). */
   remainingSuffix?: string;
+  /** Esconde o percentual quando ele já aparece ao lado do título. */
+  hidePercent?: boolean;
 };
 
 const monthLabel = (yyyyMm: string) => new Date(`${yyyyMm}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "short", year: "numeric" }).replace(".", "");
@@ -23,7 +25,7 @@ const monthLabel = (yyyyMm: string) => new Date(`${yyyyMm}-01T12:00:00`).toLocal
  * Barra de progresso animada com marcas em 25/50/75/100%.
  * Metas: índigo → esmeralda, estado de conquista em 100%. Orçamentos: âmbar acima de 80%, vermelho acima de 100%.
  */
-export function GoalProgress({ mode, current, target, label, format, monthly, today, compact, remainingSuffix = "" }: GoalProgressProps) {
+export function GoalProgress({ mode, current, target, label, format, monthly, today, compact, remainingSuffix = "", hidePercent }: GoalProgressProps) {
   const percent = progressPercent(current, target);
   const state = progressState(mode, percent);
   const [mounted, setMounted] = useState(false);
@@ -43,7 +45,7 @@ export function GoalProgress({ mode, current, target, label, format, monthly, to
       {[25, 50, 75].map((tick) => <i key={tick} className={"goal-progress-tick" + (percent >= tick ? " is-passed" : "")} style={{ left: `${tick}%` }} aria-hidden="true" />)}
     </div>
     {!compact && <div className="goal-progress-meta">
-      <span className="goal-progress-percent">{state === "reached" && <PartyPopper size={14} strokeWidth={1.9} aria-hidden="true" />}{shown}%</span>
+      <span className="goal-progress-percent">{state === "reached" && <PartyPopper size={14} strokeWidth={1.9} aria-hidden="true" />}{hidePercent ? (state === "reached" ? "Conquistada" : "") : `${shown}%`}</span>
       <span className="goal-progress-caption">{caption}{projection ? ` · previsão ${monthLabel(projection)}` : ""}</span>
     </div>}
   </div>;

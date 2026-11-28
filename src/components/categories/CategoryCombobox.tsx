@@ -35,6 +35,7 @@ export function CategoryCombobox({ label, kind, categories, value, onChange, onC
   const inputId = `${baseId}-input`;
   const listId = `${baseId}-list`;
   const inputRef = useRef<HTMLInputElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
@@ -113,7 +114,12 @@ export function CategoryCombobox({ label, kind, categories, value, onChange, onC
   const displayValue = open ? query : selected?.name ?? "";
 
   return <div className={["category-combobox", open ? "is-open" : "", className].filter(Boolean).join(" ")}
-    onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) close(); }}>
+    ref={wrapperRef}
+    onBlur={(event) => {
+      if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+      // Adiado: no Safari/WebKit o toque numa opção pode tirar o foco antes do clique ser entregue.
+      window.setTimeout(() => { if (!wrapperRef.current?.contains(document.activeElement)) close(); }, 180);
+    }}>
     <label htmlFor={inputId}>{label}</label>
     <div className="category-combobox-control">
       {selected && !open ? <CategoryIcon category={selected} size={24} /> : null}
