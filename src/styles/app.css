@@ -342,7 +342,7 @@ progress.budget-progress::-moz-progress-bar { background: var(--accent-primary);
 .primary-drawer[open] { border-color: var(--border-subtle); }
 
 /* Listas genéricas */
-.account-list, .alert-list, .recent-list, .transaction-list, .category-list, .report-category-list, .expense-legend, .allocation-legend, .investment-suggestions, .summary-list, .chart-legend-list, .welcome-points {
+.account-list, .alert-list, .recent-list, .transaction-list, .report-category-list, .expense-legend, .allocation-legend, .investment-suggestions, .summary-list, .chart-legend-list, .welcome-points {
   display: grid; gap: 0; margin: 0; padding: 0; list-style: none; min-width: 0;
 }
 .account-list > li, .alert-list > li {
@@ -577,11 +577,6 @@ progress.budget-progress::-moz-progress-bar { background: var(--accent-primary);
 .bank-selected { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); border-radius: var(--radius-control); background: var(--bg-elevated); font-size: var(--text-sm); }
 .bank-logo { width: 28px; height: 28px; border-radius: var(--radius-sm); }
 
-.category-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
-.category-list li { display: grid; grid-template-columns: 36px minmax(0, 1fr); grid-template-rows: auto auto; column-gap: var(--space-2); align-items: center; padding: var(--space-2); border: 1px solid var(--border-subtle); border-radius: var(--radius-control); background: var(--bg-app); }
-.category-symbol { grid-row: 1 / span 2; display: grid; width: 36px; height: 36px; place-items: center; border-radius: var(--radius-sm); background: var(--bg-elevated); font-size: 17px; }
-.category-list li > span:nth-child(2) { grid-column: 2; grid-row: 2; color: var(--text-secondary); font-size: var(--text-xs); }
-.category-list li > strong { grid-column: 2; grid-row: 1; overflow: hidden; font-size: var(--text-sm); font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
 
 .transaction-list li { border-top: 1px solid var(--border-subtle); }
 .transaction-list li:first-child { border-top: 0; }
@@ -766,7 +761,6 @@ progress.budget-progress::-moz-progress-bar { background: var(--accent-primary);
   .transaction-row-actions { padding-left: 56px; }
   .finance-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .fixed-income-learning-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .category-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .finance-form:not(.recovery-form):not(.overtime-convert) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .finance-form > .primary-button, .finance-form > .management-form-actions, .finance-form > .bank-selected, .finance-form > .investment-total-preview, .finance-form > .investment-suggestions, .finance-form > p { grid-column: 1 / -1; }
   .finance-form > .primary-button { justify-self: start; min-width: 200px; }
@@ -851,3 +845,50 @@ progress.budget-progress::-moz-progress-bar { background: var(--accent-primary);
   .dashboard:has(> #conta:not([hidden])) { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); align-items: start; }
   .dashboard > #conta { grid-row: span 3; }
 }
+
+/* ===================== Categorias ===================== */
+.category-icon {
+  display: inline-grid; flex: 0 0 auto; place-items: center;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--category-color) 18%, transparent);
+  color: color-mix(in srgb, var(--category-color) 70%, var(--text-primary));
+}
+.category-combobox { position: relative; display: grid; gap: 6px; min-width: 0; }
+.category-combobox > label { display: block; }
+.category-combobox-control { position: relative; display: flex; align-items: center; }
+.category-combobox-control > .category-icon { position: absolute; left: 8px; pointer-events: none; }
+.category-combobox-control > .category-icon + input { padding-left: 40px; }
+.app-shell .category-combobox-control input { padding-right: 40px; }
+.category-combobox-toggle {
+  position: absolute; right: 4px; display: grid; width: 36px; height: 36px; place-items: center;
+  border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-secondary); cursor: pointer;
+}
+.category-combobox.is-open .category-combobox-toggle svg { transform: rotate(180deg); }
+.category-combobox-popup {
+  display: grid; overflow: hidden; border: 1px solid var(--border-subtle); border-radius: var(--radius-control);
+  background: var(--bg-elevated); box-shadow: var(--shadow-overlay);
+  animation: gv-pop 140ms ease-out;
+}
+@keyframes gv-pop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.category-combobox-list { display: grid; max-height: 248px; margin: 0; padding: 4px; overflow-y: auto; list-style: none; overscroll-behavior: contain; }
+.category-option {
+  display: flex; align-items: center; gap: var(--space-2); min-height: 44px; padding: 6px 8px;
+  border-radius: var(--radius-sm); color: var(--text-primary); font-size: var(--text-md); cursor: pointer;
+}
+.category-option.is-active { background: var(--bg-surface); outline: 1px solid var(--border-focus); }
+.category-option[aria-selected="true"] { font-weight: 600; }
+.category-option-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.category-option-check { color: var(--accent-primary); }
+.category-option-empty, .category-option-create { display: inline-grid; width: 28px; height: 28px; place-items: center; border-radius: 10px; background: var(--bg-surface); color: var(--text-secondary); }
+.category-option.is-create { color: var(--accent-primary); font-weight: 600; }
+.category-option-create { background: var(--accent-primary-soft); color: var(--accent-primary); }
+.category-option.is-empty { color: var(--text-secondary); cursor: default; font-size: var(--text-sm); }
+.category-combobox-manage {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: 8px; border-top: 1px solid var(--border-subtle);
+}
+.category-combobox-manage .quiet-button { min-height: 36px; }
+.category-combobox-manage input { flex: 1 1 140px; }
+.category-manage-text { flex: 1 1 auto; min-width: 0; overflow: hidden; color: var(--text-secondary); font-size: var(--text-sm); text-overflow: ellipsis; white-space: nowrap; }
+.category-combobox-status { min-height: 0; color: var(--text-secondary); font-size: var(--text-xs); }
+.category-combobox-status:empty { display: none; }
+@media (prefers-reduced-motion: reduce) { .category-combobox-popup { animation: none; } }

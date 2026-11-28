@@ -1,4 +1,5 @@
-import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, BarChart3, ChevronRight, CreditCard, Landmark, PieChart, ReceiptText, Target, TrendingUp, Wallet } from "lucide-react";
+import { TransactionGlyph } from "../../components/transactions/TransactionGlyph";
+import { ArrowDownLeft, ArrowUpRight, BarChart3, ChevronRight, CreditCard, Landmark, PieChart, ReceiptText, Target, TrendingUp, Wallet } from "lucide-react";
 import type { AccountRow, CardRow, CategoryRow, GoalRow, TransactionRow } from "../../types/app";
 import { formatBRL, decimalToCents } from "../../lib/money";
 import { formatDateBR } from "../../lib/date";
@@ -92,7 +93,7 @@ export function DashboardOverview(props: DashboardOverviewProps) {
         : <ul className="recent-list">{transactions.slice(0, 6).map((item) => {
           const category = categories.find((entry) => entry.id === item.category_id);
           return <li key={item.id}>
-            <span className={"tx-icon " + (item.kind === "income" ? "is-income" : item.kind === "transfer" ? "is-transfer" : "is-expense")} aria-hidden="true">{category?.icon ?? (item.kind === "income" ? <ArrowDownLeft size={18} strokeWidth={1.75} /> : item.kind === "transfer" ? <ArrowLeftRight size={18} strokeWidth={1.75} /> : <ArrowUpRight size={18} strokeWidth={1.75} />)}</span>
+            <TransactionGlyph kind={item.kind} description={item.description} category={category} />
             <span className="recent-description"><strong>{item.description}</strong><small>{item.kind === "transfer" ? "Transferência" : category?.name ?? (item.kind === "income" ? "Receita" : "Despesa")} · <span className="numeric">{formatDateBR(item.transaction_date)}</span></small></span>
             <span className="recent-amount">
               <strong className={item.kind === "income" ? "amount-income" : item.kind === "transfer" ? "amount-neutral" : "amount-expense"}>{balancesHidden ? "••••" : (item.kind === "income" ? "+" : item.kind === "expense" ? "−" : "") + formatBRL(item.amount)}</strong>
