@@ -18,11 +18,16 @@ function niceMax(value: number): number {
   return step * magnitude;
 }
 
-/** Receitas x despesas realizadas por mês, em SVG, com dica acessível por mouse, toque e teclado. */
+/** Receitas x despesas realizadas por mês, em SVG: dica por mouse/toque/teclado, legenda que liga/desliga séries e animação de entrada. */
 export function CashflowChart({ data, hidden, height = 220 }: CashflowChartProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(560);
   const [active, setActive] = useState<number | null>(null);
+  const [visible, setVisible] = useState({ income: true, expense: true });
+  const toggle = (series: "income" | "expense") => setVisible((current) => {
+    const next = { ...current, [series]: !current[series] };
+    return next.income || next.expense ? next : current; // mantém ao menos uma série visível
+  });
 
   useEffect(() => {
     const element = wrapperRef.current;
@@ -32,7 +37,7 @@ export function CashflowChart({ data, hidden, height = 220 }: CashflowChartProps
     return () => observer.disconnect();
   }, []);
 
-  const max = niceMax(Math.max(0, ...data.flatMap((point) => [point.income, point.expense])));
+  const max = niceMax(Math.max(0, ...data.flatMap((point) => [visible.income ? point.income : 0, visible.expense ? point.expense : 0])));
   const innerWidth = width - PAD.left - PAD.right;
   const innerHeight = height - PAD.top - PAD.bottom;
   const groupWidth = innerWidth / Math.max(1, data.length);
@@ -58,17 +63,21 @@ export function CashflowChart({ data, hidden, height = 220 }: CashflowChartProps
         return <g key={point.key} role="img" aria-label={label} tabIndex={0} className={"chart-column" + (active === index ? " is-active" : "")}
           onMouseEnter={() => setActive(index)} onFocus={() => setActive(index)} onBlur={() => setActive(null)} onClick={() => setActive(active === index ? null : index)}>
           <rect x={center - groupWidth / 2} y={PAD.top} width={groupWidth} height={innerHeight} className="chart-hit" />
-          <rect x={center - barWidth - gap / 2} y={y(0) - incomeHeight} width={barWidth} height={incomeHeight} rx={Math.min(4, barWidth / 2)} className="chart-bar is-income" />
-          <rect x={center + gap / 2} y={y(0) - expenseHeight} width={barWidth} height={expenseHeight} rx={Math.min(4, barWidth / 2)} className="chart-bar is-expense" />
+          {visible.income && <rect x={visible.expense ? center - barWidth - gap / 2 : center - barWidth / 2} y={y(0) - incomeHeight} width={barWidth} height={incomeHeight} rx={Math.min(4, barWidth / 2)} className="chart-bar is-income" style={{ animationDelay: `${index * 50}ms` }} />}
+          {visible.expense && <rect x={visible.income ? center + gap / 2 : center - barWidth / 2} y={y(0) - expenseHeight} width={barWidth} height={expenseHeight} rx={Math.min(4, barWidth / 2)} className="chart-bar is-expense" style={{ animationDelay: `${index * 50 + 25}ms` }} />}
           <text x={center} y={height - 8} textAnchor="middle" className="chart-axis-label is-month">{point.label}</text>
         </g>;
       })}
     </svg>
     {activePoint && <div className="chart-tooltip" style={{ left: tooltipLeft }} aria-hidden="true">
       <strong>{activePoint.label}</strong>
-      <span><i className="legend-swatch is-income" />Receitas <b>{money(activePoint.income)}</b></span>
-      <span><i className="legend-swatch is-expense" />Despesas <b>{money(activePoint.expense)}</b></span>
+      {visible.income && <span><i className="legend-swatch is-income" />Receitas <b>{money(activePoint.income)}</b></span>}
+      {visible.expense && <span><i className="legend-swatch is-expense" />Despesas <b>{money(activePoint.expense)}</b></span>}
       <span className="chart-tooltip-net">Resultado <b>{hidden ? "••••" : formatBRL(activePoint.income - activePoint.expense)}</b></span>
     </div>}
+    <div className="chart-legend" role="group" aria-label="Séries do gráfico">
+      <button type="button" className={"chart-legend-toggle" + (visible.income ? "" : " is-off")} aria-pressed={visible.income} onClick={() => toggle("income")}><i className="legend-swatch is-income" />Receitas</button>
+      <button type="button" className={"chart-legend-toggle" + (visible.expense ? "" : " is-off")} aria-pressed={visible.expense} onClick={() => toggle("expense")}><i className="legend-swatch is-expense" />Despesas</button>
+    </div>
   </div>;
 }

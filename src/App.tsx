@@ -35,7 +35,8 @@ import { MobileHeader } from "./components/layout/MobileHeader";
 import { GASTOS_VIEWS, screenDescription, screenTitle, type DashboardTab, type GastosView, type NavDestination } from "./components/layout/navigation";
 import { DonutChart } from "./components/charts/DonutChart";
 import { CHART_PALETTE } from "./components/charts/palette";
-import { EmptyState, ProgressBar } from "./components/ui";
+import { EmptyState, GoalProgress, ProgressBar } from "./components/ui";
+import { CategoryIcon } from "./components/categories/CategoryIcon";
 
 const TRANSACTION_PAGE_SIZE = 30;
 const THEME_STORAGE_KEY = "granaviva:theme:v1";
@@ -1744,6 +1745,9 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
               transactions={transactions}
               categories={categories}
               goals={goals}
+              budgets={budgets}
+              budgetSpend={budgetSpend}
+              onOpenBudgets={() => goTo("gastos", { view: "planejar" })}
               investedBrl={investedBrl}
               investedUsd={investedUsd}
               onNewTransaction={openTransactionForm}
@@ -1925,7 +1929,7 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
                   return <li key={goal.id}>
                     <strong>{goal.name}</strong>
                     <span>{formatCents(current)} de {formatCents(target)}</span>
-                    <progress className="budget-progress" max={100} value={Math.min(100, percent)} aria-label={`Progresso da meta ${goal.name}`} />
+                    <GoalProgress mode="goal" current={Number(current)} target={Number(target)} monthly={Number(decimalToCents(goal.monthly_contribution))} today={currentBudgetDate} label={`Progresso da meta ${goal.name}`} format={(cents) => formatCents(BigInt(Math.round(cents)))} />
                     <small>{Math.min(100, percent)}% concluído{reached ? " · Meta alcançada" : goal.target_month ? ` · Prazo: ${new Date(`${goal.target_month}T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}` : ""} · Planejado por mês: {formatCents(decimalToCents(goal.monthly_contribution))}</small>
                     {goalContributions.some((item) => item.goal_id === goal.id) && <div className="goal-contribution-history"><small>Últimas contribuições</small>{goalContributions.filter((item) => item.goal_id === goal.id).slice(0, 5).map((item) => <small key={item.id}>{formatDateBR(item.contribution_date)} · {formatCents(decimalToCents(item.amount))}</small>)}</div>}
                     <details className="management-drawer goal-contribution-drawer"><summary><Plus size={18} strokeWidth={1.75} aria-hidden="true" /> Registrar contribuição</summary><form className="finance-form" onSubmit={(event) => { event.preventDefault(); void contributeToGoal(goal); }}>
@@ -2016,7 +2020,7 @@ const [quickEntryOpen, setQuickEntryOpen] = useState(false);
                   const limit = decimalToCents(budget.limit_amount);
                   const percent = limit > 0n ? Number((spent * 100n) / limit) : 0;
                   const exceeded = spent > limit;
-                  return <li key={budget.id}><strong>{category?.name ?? "Categoria"}</strong><span>{formatCents(spent)} de {formatCents(limit)}</span><progress className="budget-progress" max={100} value={Math.min(100, percent)} aria-label={`Uso do orçamento de ${category?.name ?? "categoria"}`} /><small>{percent}% utilizado{exceeded ? " · Limite ultrapassado" : " · Dentro do limite"}</small></li>;
+                  return <li key={budget.id} className="budget-row"><strong className="budget-row-title">{category && <CategoryIcon category={category} size={28} />}{category?.name ?? "Categoria"}</strong><span>{formatCents(spent)} de {formatCents(limit)}</span><GoalProgress mode="budget" current={Number(spent)} target={Number(limit)} label={`Uso do orçamento de ${category?.name ?? "categoria"}`} format={(cents) => formatCents(BigInt(Math.round(cents)))} /><small>{percent}% utilizado{exceeded ? " · Limite ultrapassado" : percent > 80 ? " · Perto do limite" : " · Dentro do limite"}</small></li>;
                 })}</ul>}
                 <p className="helper-text">O gasto considera somente lançamentos de despesa com situação realizada e valor efetivamente liquidado no mês atual. Despesas previstas não entram no cálculo.</p>
               </section>
