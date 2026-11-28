@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { expensesByCategory, monthlyFlow, monthTotals, percentChange, previousMonthKey } from "../src/lib/finance-metrics";
+import { expensesByCategory, monthlyFlow, monthTotals, percentChange, previousMonthKey, trendSeries } from "../src/lib/finance-metrics";
 import type { CategoryRow, TransactionRow } from "../src/types/app";
 
 const tx = (kind: TransactionRow["kind"], amount: string | number, date: string, status: TransactionRow["status"] = "paid", category_id: string | null = null) =>
@@ -46,5 +46,21 @@ describe("métricas financeiras da interface", () => {
     expect(percentChange(150, 100)).toBe(50);
     expect(percentChange(100, 0)).toBeNull();
     expect(percentChange(Number.NaN, 10)).toBeNull();
+  });
+});
+
+describe("trendSeries", () => {
+  it("esconde a minilinha com menos de 3 meses com movimento", () => {
+    expect(trendSeries([0, 0, 0, 0, 0, 51])).toBeNull();
+    expect(trendSeries([0, 0, 0, 0, 120, 51])).toBeNull();
+    expect(trendSeries([0, 0, 0, 0, 0, 0])).toBeNull();
+  });
+  it("desenha a partir do primeiro mês com movimento quando há 3 ou mais", () => {
+    expect(trendSeries([0, 0, 10, 0, 20, 30])).toEqual([10, 0, 20, 30]);
+    expect(trendSeries([5, 6, 7, 8, 9, 10])).toEqual([5, 6, 7, 8, 9, 10]);
+  });
+  it("usa a atividade informada para séries acumuladas", () => {
+    expect(trendSeries([100, 100, 100, 100, 100, 100], [0, 0, 0, 0, 1, 1])).toBeNull();
+    expect(trendSeries([0, 0, 100, 150, 120, 200], [0, 0, 1, 1, 1, 1])).toEqual([100, 150, 120, 200]);
   });
 });

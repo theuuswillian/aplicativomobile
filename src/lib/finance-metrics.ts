@@ -68,3 +68,20 @@ export function percentChange(current: number, previous: number): number | null 
   if (!Number.isFinite(current) || !Number.isFinite(previous) || previous <= 0) return null;
   return ((current - previous) / previous) * 100;
 }
+
+/** Mínimo de meses com movimento para que uma minilinha de tendência diga algo útil. */
+export const MIN_TREND_MONTHS = 3;
+
+/**
+ * Série para minilinha de tendência, ou null quando há pouca história.
+ * Só desenha com pelo menos `minMonths` meses com valor diferente de zero (em `activity`,
+ * que por padrão é a própria série) e descarta os meses vazios do início, para a linha
+ * não "despencar" ou "saltar" a partir de zeros que só significam ausência de dados.
+ */
+export function trendSeries(values: readonly number[], activity: readonly number[] = values, minMonths = MIN_TREND_MONTHS): number[] | null {
+  const active = activity.map((value) => Number.isFinite(value) && value !== 0);
+  if (active.filter(Boolean).length < minMonths) return null;
+  const first = active.indexOf(true);
+  const series = values.slice(first).map((value) => (Number.isFinite(value) ? value : 0));
+  return series.length >= minMonths ? series : null;
+}

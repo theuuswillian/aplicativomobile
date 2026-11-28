@@ -183,3 +183,40 @@ test("novo lançamento no modal: reconhece o estabelecimento e cria categoria pe
   expect(transaction?.category_id).toBe("99999999-0000-4000-8000-000000000001");
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
+
+test("Visão Geral: cartão de saldo compacto no celular, 4 KPIs no desktop, sem ruído com pouca história", async ({ page }) => {
+  await signIn(page, []);
+  await page.goto("/");
+  await expect(page.locator(".overview-balance-value")).toContainText("2.500,75");
+  // Só um mês com movimento: nada de minilinhas nem de "Sem base no mês anterior".
+  await expect(page.getByText("Sem base no mês anterior")).toHaveCount(0);
+  await expect(page.locator(".sparkline")).toHaveCount(0);
+  const viewport = page.viewportSize() ?? { width: 1280, height: 720 };
+
+  if (viewport.width < 1024) {
+    const hero = page.locator(".overview-hero");
+    await expect(hero).toBeVisible();
+    await expect(page.locator(".kpi-card")).toHaveCount(0);
+    await expect(hero.getByText("Receitas", { exact: false })).toBeVisible();
+    await expect(hero.getByText("Despesas", { exact: false })).toBeVisible();
+    await expect(hero.getByRole("button", { name: /Patrimônio investido/ })).toBeVisible();
+    // Primeira tela: o cartão de saldo, os atalhos e o começo do Fluxo mensal.
+    const flowTop = await page.locator(".overview-flow").evaluate((element) => element.getBoundingClientRect().top);
+    expect(flowTop).toBeLessThan(viewport.height);
+    const bottomPadding = await page.locator(".dashboard").evaluate((element) => parseFloat(getComputedStyle(element).paddingBottom));
+    expect(bottomPadding).toBeGreaterThanOrEqual(48);
+
+    await page.getByRole("button", { name: "Ocultar saldos" }).click();
+    await expect(page.locator(".overview-top")).not.toContainText("2.500,75");
+    await expect(page.locator(".overview-top")).not.toContainText(/\d,\d\d/);
+    await page.getByRole("button", { name: "Mostrar saldos" }).click();
+
+    await page.getByRole("group", { name: "Registrar rapidamente" }).getByRole("button", { name: "Receita" }).click();
+    await expect(page.getByRole("dialog").getByRole("heading", { name: "Nova receita" })).toBeVisible();
+  } else {
+    await expect(page.locator(".kpi-grid .kpi-card")).toHaveCount(4);
+    await expect(page.locator(".overview-hero")).toHaveCount(0);
+    await page.getByRole("button", { name: "Ocultar saldos" }).click();
+    await expect(page.locator(".kpi-grid")).not.toContainText(/\d,\d\d/);
+  }
+});
